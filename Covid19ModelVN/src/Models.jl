@@ -1,6 +1,7 @@
 module Models
 
-export CovidModelSEIRDBaseline, CovidModelSEIRDFacebookMovementRange, get_model_initial_params
+export CovidModelSEIRDBaseline,
+    CovidModelSEIRDFacebookMovementRange, get_model_initial_params
 
 using OrdinaryDiffEq, DiffEqFlux, Dates, DataFrames
 using Covid19ModelVN.Datasets, Covid19ModelVN.Helpers
@@ -30,10 +31,10 @@ struct CovidModelSEIRDBaseline
         β_ann = FastChain(
             FastDense(2, 8, relu),
             FastDense(8, 8, relu),
-            FastDense(8, 1, softplus)
+            FastDense(8, 1, softplus),
         )
         # system dynamics
-        dudt! = function (du, u, p, t; α=0.025)
+        dudt! = function (du, u, p, t; α = 0.025)
             @inbounds begin
                 S, E, I, _, _, _, N = u
                 γ, λ = abs.(@view(p[1:2]))
@@ -59,7 +60,8 @@ end
 """
 Get the initial set of parameters of the baselien SEIRD model with Facebook movement range
 """
-get_model_initial_params(model::CovidModelSEIRDBaseline) = [1 / 2; 1 / 4; initial_params(model.β_ann)]
+get_model_initial_params(model::CovidModelSEIRDBaseline) =
+    [1 / 2; 1 / 4; initial_params(model.β_ann)]
 
 """
 A struct for containing the SEIRD model with Facebook movement range
@@ -91,10 +93,10 @@ struct CovidModelSEIRDFacebookMovementRange
         β_ann = FastChain(
             FastDense(4, 8, relu),
             FastDense(8, 8, relu),
-            FastDense(8, 1, softplus)
+            FastDense(8, 1, softplus),
         )
         # system dynamics
-        function dudt!(du, u, p, t; α=0.025)
+        function dudt!(du, u, p, t; α = 0.025)
             @inbounds begin
                 S, E, I, _, _, _, N = u
                 γ, λ = abs.(@view(p[1:2]))
@@ -122,6 +124,7 @@ end
 """
 Get the initial set of parameters of the SEIRD model with Facebook movement range
 """
-get_model_initial_params(model::CovidModelSEIRDFacebookMovementRange) = [1 / 2; 1 / 4; initial_params(model.β_ann)]
+get_model_initial_params(model::CovidModelSEIRDFacebookMovementRange) =
+    [1 / 2; 1 / 4; initial_params(model.β_ann)]
 
 end

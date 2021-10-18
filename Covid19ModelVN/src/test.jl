@@ -12,5 +12,5 @@ df_cases_timeseries = VnCdcData.save_cases_timeseries(
     "vncdc-timeseries-by-province",
     Date(2021, 4, 27),
     Date(2021, 10, 13),
-    recreate=true,
+    recreate = true,
 )

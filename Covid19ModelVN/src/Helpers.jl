@@ -1,6 +1,7 @@
 module Helpers
 
-export Predictor, Loss, TrainCallback, TrainCallbackConfig, mape, mse, sse, rmse, rmsle, plot_forecasts
+export Predictor,
+    Loss, TrainCallback, TrainCallbackConfig, mape, mse, sse, rmse, rmsle, plot_forecasts
 
 using Serialization, Printf, Statistics, Plots, ProgressMeter, OrdinaryDiffEq
 using Covid19ModelVN.Datasets
@@ -15,7 +16,7 @@ A struct that solves the underlying DiffEq problem and returns the solution when
 """
 struct Predictor
     problem::ODEProblem
-    solver
+    solver::Any
 end
 
 Predictor(problem::ODEProblem) = Predictor(problem, Tsit5())
@@ -30,8 +31,8 @@ Call an object of struct `CovidModelPredict` to solve the underlying DiffEq prob
 * `saveat`: the collocation coordinates
 """
 function (p::Predictor)(params, tspan, saveat)
-    problem = remake(p.problem, p=params, tspan=tspan)
-    return solve(problem, p.solver, saveat=saveat)
+    problem = remake(p.problem, p = params, tspan = tspan)
+    return solve(problem, p.solver, saveat = saveat)
 end
 
 """
@@ -97,7 +98,14 @@ mutable struct TrainCallbackState
     minimizer_loss::Real
 end
 
-TrainCallbackState(maxiters::Int) = TrainCallbackState(0, Progress(maxiters, showspeed=true), Float64[], Float64[], Float64[], Inf)
+TrainCallbackState(maxiters::Int) = TrainCallbackState(
+    0,
+    Progress(maxiters, showspeed = true),
+    Float64[],
+    Float64[],
+    Float64[],
+    Inf,
+)
 
 """
 Configuration of the callback struct
@@ -118,7 +126,8 @@ struct TrainCallbackConfig
     params_save_interval::Int
 end
 
-TrainCallbackConfig() = TrainCallbackConfig(nothing, nothing, typemax(Int), nothing, typemax(Int))
+TrainCallbackConfig() =
+    TrainCallbackConfig(nothing, nothing, typemax(Int), nothing, typemax(Int))
 
 """
 A callable struct that is used for handling callback for `sciml_train`
@@ -136,7 +145,8 @@ Create a callback for `sciml_train`
 * `maxiters::Int`: max number of iterations the optimizer will run
 * `config`: callback configurations
 """
-TrainCallback(maxiters::Int, config::TrainCallbackConfig=TrainCallbackConfig()) = TrainCallback(TrainCallbackState(maxiters), config)
+TrainCallback(maxiters::Int, config::TrainCallbackConfig = TrainCallbackConfig()) =
+    TrainCallback(TrainCallbackState(maxiters), config)
 
 """
 Call an object of type `TrainCallback`
@@ -157,21 +167,26 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
     end
 
     cb.state.iters += 1
-    if cb.state.iters % cb.config.losses_plot_interval == 0 && !isnothing(cb.config.losses_plot_fpath)
+    if cb.state.iters % cb.config.losses_plot_interval == 0 &&
+       !isnothing(cb.config.losses_plot_fpath)
         append!(cb.state.train_losses, train_loss)
         append!(cb.state.test_losses, test_loss)
         plt = plot(
             [cb.state.train_losses, cb.state.test_losses],
-            labels=["train loss" "test loss"],
-            legend=:outerright
+            labels = ["train loss" "test loss"],
+            legend = :outerright,
         )
         savefig(plt, cb.config.losses_plot_fpath)
     end
-    if cb.state.iters % cb.config.params_save_interval == 0 && !isnothing(cb.config.params_save_fpath)
+    if cb.state.iters % cb.config.params_save_interval == 0 &&
+       !isnothing(cb.config.params_save_fpath)
         Serialization.serialize(cb.config.params_save_fpath, cb.state.minimizer)
     end
 
-    next!(cb.state.progress, showvalues=[:train_loss => train_loss, :test_loss => test_loss])
+    next!(
+        cb.state.progress,
+        showvalues = [:train_loss => train_loss, :test_loss => test_loss],
+    )
     return false
 end
 
@@ -230,7 +245,7 @@ function plot_forecasts(
     forecast_ranges,
     vars,
     cols,
-    labels
+    labels,
 )
     fit = predict_fn(minimizer, train_dataset.tspan, train_dataset.tsteps)
     pred = predict_fn(minimizer, test_dataset.tspan, test_dataset.tsteps)
@@ -242,18 +257,22 @@ function plot_forecasts(
 
         err = metric_fn(pred[var, 1:days], data_new[1:days])
         title = @sprintf("%d-day loss = %.2f", days, err)
-        plt = plot(title=title, legend=:outertop, xrotation=45)
+        plt = plot(title = title, legend = :outertop, xrotation = 45)
 
-        scatter!([data_fit[:]; data_new[1:days]], label=label, fillcolor=nothing)
-        plot!([fit[var, :]; pred[var, 1:days]], label="forecast $label", lw=:2)
-        vline!([train_dataset.tspan[2]], color=:black, ls=:dash, label=nothing)
+        scatter!([data_fit[:]; data_new[1:days]], label = label, fillcolor = nothing)
+        plot!([fit[var, :]; pred[var, 1:days]], label = "forecast $label", lw = :2)
+        vline!([train_dataset.tspan[2]], color = :black, ls = :dash, label = nothing)
 
         push!(plts, plt)
     end
 
     nforecasts = length(forecast_ranges)
     nvariables = length(vars)
-    return plot(plts..., layout=(nforecasts, nvariables), size=(300*nvariables, 300*nforecasts))
+    return plot(
+        plts...,
+        layout = (nforecasts, nvariables),
+        size = (300 * nvariables, 300 * nforecasts),
+    )
 end
 
 end

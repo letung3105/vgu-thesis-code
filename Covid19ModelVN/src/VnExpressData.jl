@@ -11,11 +11,7 @@ Clean the data from VnExpress
 * `firstdate::Date`: date of the first entry in the returned data
 * `lastdate::Date`: date of the last entry in the returned data
 """
-function clean_cases_timeseries!(
-    df::DataFrame,
-    first_date::Date,
-    last_date::Date
-)
+function clean_cases_timeseries!(df::DataFrame, first_date::Date, last_date::Date)
     select!(
         df,
         "day_full" => (x -> Date.(x, dateformat"Y/m/d")) => :date,
@@ -28,10 +24,10 @@ function clean_cases_timeseries!(
     )
     filter!(:date => d -> d >= first_date && d <= last_date, df)
     sort!(df, :date)
-    transform!(df,
-        [:confirmed_total, :dead_total, :recovered_total]
-            => ((x, y, z) -> x - y - z)
-            => :infective
+    transform!(
+        df,
+        [:confirmed_total, :dead_total, :recovered_total] =>
+            ((x, y, z) -> x - y - z) => :infective,
     )
     return df
 end
@@ -52,11 +48,14 @@ function save_cases_timeseries(
     fid::AbstractString,
     first_date::Date,
     last_date::Date;
-    url="https://vnexpress.net/microservice/sheet/type/covid19_2021_by_day",
-    date_format=dateformat"yyyymmdd",
-    recreate=false
+    url = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_day",
+    date_format = dateformat"yyyymmdd",
+    recreate = false,
 )
-    fpath = joinpath(fdir, "$(Dates.format(first_date, date_format))-$(Dates.format(last_date, date_format))-$fid.csv")
+    fpath = joinpath(
+        fdir,
+        "$(Dates.format(first_date, date_format))-$(Dates.format(last_date, date_format))-$fid.csv",
+    )
     # file exists and don't need to be updated
     if isfile(fpath) && !recreate
         return CSV.read(fpath, DataFrame)
