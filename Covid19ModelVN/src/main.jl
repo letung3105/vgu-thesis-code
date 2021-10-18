@@ -6,14 +6,14 @@ end
 
 using Covid19ModelVN.Cmds, Covid19ModelVN.Models, Covid19ModelVN.Helpers
 
-const DEFAULT_DATASETS_ROOT = "datasets"
-const DEFAULT_SNAPSHOTS_ROOT = "snapshots"
+const DEFAULT_DATASETS_DIR = "datasets"
+const DEFAULT_SNAPSHOTS_DIR = "snapshots"
 
 function train_and_evaluate_experiment_preset_vietnam(
     exp_name::AbstractString;
     fb_movement_range_fpath::AbstractString,
-    datasets_dir::AbstractString=DEFAULT_DATASETS_ROOT,
-    snapshots_dir::AbstractString=DEFAULT_SNAPSHOTS_ROOT,
+    datasets_dir::AbstractString=DEFAULT_DATASETS_DIR,
+    snapshots_dir::AbstractString=DEFAULT_SNAPSHOTS_DIR,
 )
     df_cases_timeseries, df_fb_movement_range = setup_experiment_data_vietnam(
         datasets_dir,
@@ -36,7 +36,7 @@ function train_and_evaluate_experiment_preset_vietnam(
     train_model_default_2steps(
         exp_name, train_loss_fn, test_loss_fn, p0,
         snapshots_dir=snapshots_dir,
-        adam_maxiters=1000,
+        adam_maxiters=500,
         bfgs_maxiters=100,
     )
 
@@ -52,7 +52,7 @@ end
 train_and_evaluate_experiment_preset_vietnam(
     "baseline.default.vietnam",
     fb_movement_range_fpath=joinpath(
-        DEFAULT_DATASETS_ROOT,
+        DEFAULT_DATASETS_DIR,
         "facebook",
         "movement-range-data-2021-10-09",
         "movement-range-2021-10-09.txt",
