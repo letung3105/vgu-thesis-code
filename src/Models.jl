@@ -35,7 +35,7 @@ struct CovidModelSEIRDBaseline
         # system dynamics
         dudt! = function (du, u, p, t; α=0.025)
             @inbounds begin
-                S, E, I, R, D, C, N = u
+                S, E, I, _, _, _, N = u
                 γ, λ = abs.(@view(p[1:2]))
 
                 # infection rate depends on time, susceptible, and infected
@@ -96,7 +96,7 @@ struct CovidModelSEIRDFacebookMovementRange
         # system dynamics
         function dudt!(du, u, p, t; α=0.025)
             @inbounds begin
-                S, E, I, R, D, C, N = u
+                S, E, I, _, _, _, N = u
                 γ, λ = abs.(@view(p[1:2]))
 
                 # daily mobility
