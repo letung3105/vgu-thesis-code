@@ -1,6 +1,7 @@
 module Models
 
-export CovidModelSEIRDBaseline, CovidModelSEIRDFacebookMovementRange, get_model_initial_params
+export CovidModelSEIRDBaseline,
+    CovidModelSEIRDFacebookMovementRange, get_model_initial_params
 
 using OrdinaryDiffEq, DiffEqFlux, Covid19ModelVN.Datasets
 

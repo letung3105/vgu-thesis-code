@@ -8,9 +8,6 @@ using Dates, DiffEqFlux, Serialization, Covid19ModelVN.Models, Covid19ModelVN.He
 
 import Covid19ModelVN.VnExpressData, Covid19ModelVN.FacebookData
 
-const DEFAULT_DATASETS_DIR = "datasets"
-const DEFAULT_SNAPSHOTS_DIR = "snapshots"
-
 """
 Setup different experiement scenarios for Vietnam country-wide data
 
@@ -23,8 +20,8 @@ Setup different experiement scenarios for Vietnam country-wide data
 """
 function setup_experiment_preset_vietnam(
     exp_name::AbstractString,
-    datasets_dir::AbstractString,
-    fb_movement_range_fpath::AbstractString;
+    fb_movement_range_fpath::AbstractString,
+    datasets_dir::AbstractString;
     recreate = false,
 )
     DEFAULT_POPULATION = 97_582_700
@@ -103,13 +100,17 @@ end
 
 
 function train_and_evaluate_experiment_preset_vietnam(
-    exp_name::AbstractString;
+    exp_name::AbstractString,
     fb_movement_range_fpath::AbstractString,
-    datasets_dir::AbstractString = DEFAULT_DATASETS_DIR,
-    snapshots_dir::AbstractString = DEFAULT_SNAPSHOTS_DIR,
+    datasets_dir::AbstractString,
+    snapshots_dir::AbstractString,
 )
-    model, train_dataset, test_dataset =
-        setup_experiment_preset_vietnam(exp_name, datasets_dir, fb_movement_range_fpath, recreate=false)
+    model, train_dataset, test_dataset = setup_experiment_preset_vietnam(
+        exp_name,
+        fb_movement_range_fpath,
+        datasets_dir,
+        recreate = false,
+    )
 
     predict_fn = Predictor(model.problem)
     train_loss_fn = Loss(mse, predict_fn, train_dataset, 3:6)
@@ -177,11 +178,13 @@ experiment_names = [
 for exp_name in experiment_names
     train_and_evaluate_experiment_preset_vietnam(
         exp_name,
-        fb_movement_range_fpath = joinpath(
-            DEFAULT_DATASETS_DIR,
+        joinpath(
+            "datasets",
             "facebook",
             "movement-range-data-2021-10-09",
             "movement-range-2021-10-09.txt",
         ),
+        "datasets",
+        "snapshots",
     )
 end
