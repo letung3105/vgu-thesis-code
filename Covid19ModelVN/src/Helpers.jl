@@ -10,20 +10,23 @@ export Predictor,
     sse,
     rmse,
     rmsle,
+    setup_seird_baseline,
+    setup_seird_fb_movement_range,
     train_model,
     plot_forecasts,
-    get_losses_plot_fpath,
-    get_params_save_fpath,
-    lookup_params_snapshots
+    lookup_saved_params
 
-using Serialization,
+using Dates,
     Printf,
+    Serialization,
     Statistics,
     Plots,
+    DataFrames,
     ProgressMeter,
     OrdinaryDiffEq,
     DiffEqFlux,
-    Covid19ModelVN.Datasets
+    Covid19ModelVN.Datasets,
+    Covid19ModelVN.Models
 
 """
 A struct that solves the underlying DiffEq problem and returns the solution when it is called
@@ -323,7 +326,7 @@ Get the file paths and uuids of all the saved parameters of an experiment
 * `snapshots_dir::AbstractString`: the directory that contains the saved parameters
 * `exp_name::AbstractString`: the experiment name
 """
-function lookup_params_snapshots(snapshots_dir::AbstractString, exp_name::AbstractString)
+function lookup_saved_params(snapshots_dir::AbstractString, exp_name::AbstractString)
     exp_dir = joinpath(snapshots_dir, exp_name)
     params_files = filter(x -> endswith(x, ".jls"), readdir(exp_dir))
     fpaths = map(f -> joinpath(snapshots_dir, exp_name, f), params_files)
@@ -384,6 +387,104 @@ function plot_forecasts(
         layout = (nforecasts, nvariables),
         size = (300 * nvariables, 300 * nforecasts),
     )
+end
+
+setup_seird_initial_states(dataset::TimeseriesDataset, population::Real) = [
+    population - dataset.data[4, 1] - dataset.data[1, 1] * 2,
+    dataset.data[1, 1] * 2,
+    dataset.data[1, 1],
+    dataset.data[2, 1],
+    dataset.data[3, 1],
+    dataset.data[4, 1],
+    population - dataset.data[3, 1],
+]
+
+"""
+Prepare the datasets for training and testing, and create the baseline SEIRD model from the data
+
+# Arguments
+
+* `df_cases_timeseries::DataFrame`: a dataframe containing the cases timeseries data with 4 required columns:
+"infective" contains the number of current infective indiduals, "recovered_total" contains the number of total
+recoveries, "dead_total" contains the number of total deaths caused by the disease, "confirmed_total" contains
+the total number of confirmed cases.
+* `population::Real`: the total population of the area that is being modeled
+* `train_first_date`: the first date where data is used for training the model
+* `train_range`: number of days in the training dataset
+* `forecast_range`: number of days in the testing dataset
+"""
+function setup_seird_baseline(
+    df_cases_timeseries::DataFrame,
+    population::Real,
+    train_first_date::Date,
+    train_range::Day,
+    forecast_range::Day,
+)
+    train_dataset, test_dataset = load_covid_cases_datasets(
+        df_cases_timeseries,
+        [:infective, :recovered_total, :dead_total, :confirmed_total],
+        train_first_date,
+        train_range,
+        forecast_range,
+    )
+
+    u0 = setup_seird_initial_states(train_dataset, population)
+    model = CovidModelSEIRDBaseline(u0, train_dataset.tspan)
+    return model, train_dataset, test_dataset
+end
+
+"""
+Prepare the datasets for training and testing, and create the SEIRD model with Facebook movement range
+from the data
+
+# Arguments
+
+* `df_cases_timeseries::DataFrame`: a dataframe containing the cases timeseries data with 4 required columns:
+"infective" contains the number of current infective indiduals, "recovered_total" contains the number of total
+recoveries, "dead_total" contains the number of total deaths caused by the disease, "confirmed_total" contains
+the total number of confirmed cases
+* `df_movement_range::DataFrame` a dataframe containing the movement range data for the area with 2 required
+columns "all_day_bing_tiles_visited_relative_change" and "all_day_ratio_single_tile_users" as specified in the
+original dataset from Facebook
+* `population::Real`: the total population of the area that is being modeled
+* `train_first_date`: the first date where data is used for training the model
+* `train_range`: number of days in the training dataset
+* `forecast_range`: number of days in the testing dataset
+* `movement_range_delay`: the number of days where movement range day is delayed when given as input to
+the neural network of the model
+"""
+function setup_seird_fb_movement_range(
+    df_cases_timeseries::DataFrame,
+    df_movement_range::DataFrame,
+    population::Real,
+    train_first_date::Date,
+    train_range::Day,
+    forecast_range::Day,
+    movement_range_delay::Day,
+)
+    train_dataset, test_dataset = load_covid_cases_datasets(
+        df_cases_timeseries,
+        [:infective, :recovered_total, :dead_total, :confirmed_total],
+        train_first_date,
+        train_range,
+        forecast_range,
+    )
+    movement_range_dataset = load_fb_movement_range(
+        df_movement_range,
+        [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users],
+        train_first_date,
+        train_range,
+        forecast_range,
+        movement_range_delay,
+    )
+
+    u0 = setup_seird_initial_states(train_dataset, population)
+    model = CovidModelSEIRDFacebookMovementRange(
+        u0,
+        train_dataset.tspan,
+        movement_range_dataset,
+    )
+    return model, train_dataset, test_dataset
 end
 
 end
