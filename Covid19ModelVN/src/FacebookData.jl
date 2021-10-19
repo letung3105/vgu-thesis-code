@@ -36,15 +36,15 @@ function save_country_average_movement_range(
     filter!(x -> x.country == "VNM", df)
     transform!(df, :ds => x -> Date.(x), renamecols = false)
 
-    df_final = combine(
+    df = combine(
         DataFrames.groupby(df, :ds),
         :all_day_bing_tiles_visited_relative_change => mean,
         :all_day_ratio_single_tile_users => mean,
         renamecols = false,
     )
     # save csv
-    CSV.write(fpath, df_final)
-    return df_final
+    CSV.write(fpath, df)
+    return df
 end
 
 """
@@ -64,6 +64,33 @@ function get_movement_range_moving_average(df::DataFrame, n::Int = 7)
         :all_day_ratio_single_tile_users => moving_average,
         renamecols = false,
     )
+end
+
+function save_intra_country_gadm1_nuts2_connectedness_index(
+    source_fpath::AbstractString,
+    fdir::AbstractString,
+    fid::AbstractString,
+    country::AbstractString;
+    recreate::Bool = false,
+)
+    fpath = joinpath(fdir, "$country-$fid.csv")
+    # file exists and don't need to be updated
+    if isfile(fpath) && !recreate
+        return CSV.read(fpath, DataFrame)
+    end
+    # create containing folder if not exists
+    if !isdir(fdir)
+        mkpath(fdir)
+    end
+
+    data, header = readdlm(source_fpath, '\t', header = true)
+    df = identity.(DataFrame(data, vec(header)))
+    # only get friendship between cities/provinces in the country
+    filter!(x -> startswith(x.user_loc, country) && startswith(x.fr_loc, country), df)
+
+    # save csv
+    CSV.write(fpath, df)
+    return df
 end
 
 end # module FacebookData
