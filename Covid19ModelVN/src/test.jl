@@ -5,6 +5,7 @@ if isfile("Project.toml") && isfile("Manifest.toml")
 end
 
 using Dates
+
 import Covid19ModelVN.VnCdcData
 
 df_cases_timeseries = VnCdcData.save_cases_timeseries(

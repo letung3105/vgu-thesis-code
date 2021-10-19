@@ -3,8 +3,7 @@ module Models
 export CovidModelSEIRDBaseline,
     CovidModelSEIRDFacebookMovementRange, get_model_initial_params
 
-using OrdinaryDiffEq, DiffEqFlux, Dates, DataFrames
-using Covid19ModelVN.Datasets, Covid19ModelVN.Helpers
+using OrdinaryDiffEq, DiffEqFlux, Dates, DataFrames, Covid19ModelVN.Datasets, Covid19ModelVN.Helpers
 
 """
 A struct for containing the SEIRD baseline model
