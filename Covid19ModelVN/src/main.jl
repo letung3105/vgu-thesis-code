@@ -20,8 +20,8 @@ function train_and_evaluate_experiment_preset_vietnam(
     model, train_dataset, test_dataset =
         setup_experiment_preset_vietnam(exp_name, df_cases_timeseries, df_fb_movement_range)
     predict_fn = Predictor(model.problem)
-    train_loss_fn = Loss(sse, predict_fn, train_dataset, 3:6)
-    test_loss_fn = Loss(sse, predict_fn, test_dataset, 3:6)
+    train_loss_fn = Loss(mse, predict_fn, train_dataset, 3:6)
+    test_loss_fn = Loss(mse, predict_fn, test_dataset, 3:6)
     p0 = get_model_initial_params(model)
 
     @info train_loss_fn(p0)
@@ -34,8 +34,8 @@ function train_and_evaluate_experiment_preset_vietnam(
         test_loss_fn,
         p0,
         snapshots_dir = snapshots_dir,
-        adam_maxiters = 500,
-        bfgs_maxiters = 100,
+        adam_maxiters = 6500,
+        bfgs_maxiters = 500,
     )
 
     @info "Ploting evaluations"
@@ -50,22 +50,19 @@ function train_and_evaluate_experiment_preset_vietnam(
     return nothing
 end
 
-# train_and_evaluate_experiment_preset_vietnam(
-#     "baseline.default.vietnam",
-#     fb_movement_range_fpath=joinpath(
-#         DEFAULT_DATASETS_DIR,
-#         "facebook",
-#         "movement-range-data-2021-10-09",
-#         "movement-range-2021-10-09.txt",
-#     ),
-# )
-
-train_and_evaluate_experiment_preset_vietnam(
+experiment_names = [
+    "baseline.default.vietnam",
     "fbmobility.default.vietnam",
-    fb_movement_range_fpath = joinpath(
-        DEFAULT_DATASETS_DIR,
-        "facebook",
-        "movement-range-data-2021-10-09",
-        "movement-range-2021-10-09.txt",
-    ),
-)
+]
+
+for exp_name in experiment_names
+    train_and_evaluate_experiment_preset_vietnam(
+        exp_name,
+        fb_movement_range_fpath = joinpath(
+            DEFAULT_DATASETS_DIR,
+            "facebook",
+            "movement-range-data-2021-10-09",
+            "movement-range-2021-10-09.txt",
+        ),
+    )
+end

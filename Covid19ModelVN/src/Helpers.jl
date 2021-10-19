@@ -191,22 +191,28 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
 end
 
 """
-Calculate the mean absolute squared error between 2 values. Note that the input arguments must be of the same size.
+Calculate the mean absolute error between 2 values. Note that the input arguments must be of the same size.
+The function does not check if the inputs are valid and may produces erroneous output.
+"""
+mae(ŷ, y) = mean(abs, (ŷ .- y))
+
+"""
+Calculate the mean absolute percentge error between 2 values. Note that the input arguments must be of the same size.
 The function does not check if the inputs are valid and may produces erroneous output.
 """
 mape(ŷ, y) = 100 * mean(abs, (ŷ .- y) ./ y)
-
-"""
-Calculate the mean squared error between 2 values. Note that the input arguments must be of the same size.
-The function does not check if the inputs are valid and may produces erroneous output.
-"""
-mse(ŷ, y) = mean(abs2, ŷ .- y)
 
 """
 Calculate the sum squared error between 2 values. Note that the input arguments must be of the same size.
 The function does not check if the inputs are valid and may produces erroneous output.
 """
 sse(ŷ, y) = sum(abs2, ŷ .- y)
+
+"""
+Calculate the mean squared error between 2 values. Note that the input arguments must be of the same size.
+The function does not check if the inputs are valid and may produces erroneous output.
+"""
+mse(ŷ, y) = mean(abs2, ŷ .- y)
 
 """
 Calculate the root mean squared error between 2 values. Note that the input arguments must be of the same size.
