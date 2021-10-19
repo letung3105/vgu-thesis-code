@@ -276,7 +276,8 @@ struct TrainSession
 end
 
 function train_model(
-    loss_fn::Loss,
+    train_loss_fn::Loss,
+    test_loss_fn::Loss,
     p0::AbstractVector{<:Real},
     sessions::AbstractVector{TrainSession},
 )
@@ -287,7 +288,7 @@ function train_model(
         cb = TrainCallback(
             sess.maxiters,
             TrainCallbackConfig(
-                loss_fn,
+                train_loss_fn,
                 losses_plot_fpath,
                 div(sess.maxiters, 100),
                 params_save_fpath,
@@ -298,7 +299,7 @@ function train_model(
         @info "Running $(sess.name)"
         try
             DiffEqFlux.sciml_train(
-                loss_fn,
+                test_loss_fn,
                 params,
                 sess.optimizer,
                 maxiters = sess.maxiters,

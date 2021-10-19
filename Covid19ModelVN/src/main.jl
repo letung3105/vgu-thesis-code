@@ -45,7 +45,7 @@ function train_and_evaluate_experiment_preset_vietnam(
     ]
 
     @info "Start training"
-    train_model(train_loss_fn, p0, sessions)
+    train_model(train_loss_fn, test_loss_fn, p0, sessions)
 
     @info "Ploting evaluations"
     fpaths_params, uuids = lookup_params_snapshots(snapshots_dir, exp_name)
@@ -73,7 +73,14 @@ function train_and_evaluate_experiment_preset_vietnam(
     return nothing
 end
 
-experiment_names = ["baseline.default.vietnam", "fbmobility.default.vietnam"]
+experiment_names = [
+    "baseline.default.vietnam",
+    "fbmobility.default.vietnam",
+    "fbmobility.4daydelay.vietnam",
+    "fbmobility.ma7movementrange.default.vietnam",
+    "fbmobility.ma7movementrange.default.vietnam",
+]
+
 for exp_name in experiment_names
     train_and_evaluate_experiment_preset_vietnam(
         exp_name,

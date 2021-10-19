@@ -140,6 +140,8 @@ function setup_experiment_preset_vietnam(
         "VNM",
         recreate = recreate,
     )
+    df_fb_movement_range_ma7 =
+        FacebookData.get_movement_range_moving_average(df_fb_movement_range)
 
     return if exp_name == "baseline.default.vietnam"
         setup_seird_baseline(
@@ -170,8 +172,6 @@ function setup_experiment_preset_vietnam(
             Day(4),
         )
     elseif exp_name == "fbmobility.ma7movementrange.default.vietnam"
-        df_fb_movement_range_ma7 =
-            FacebookData.get_movement_range_moving_average(df_fb_movement_range)
         setup_seird_fb_movement_range(
             df_cases_timeseries,
             df_fb_movement_range_ma7,
@@ -182,8 +182,6 @@ function setup_experiment_preset_vietnam(
             DEFAULT_MOVEMENT_RANGE_DELAY,
         )
     elseif exp_name == "fbmobility.ma7movementrange.4daydelay.vietnam"
-        df_fb_movement_range_ma7 =
-            FacebookData.get_movement_range_moving_average(df_fb_movement_range)
         setup_seird_fb_movement_range(
             df_cases_timeseries,
             df_fb_movement_range_ma7,
