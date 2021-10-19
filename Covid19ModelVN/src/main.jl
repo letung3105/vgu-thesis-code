@@ -4,7 +4,7 @@ if isfile("Project.toml") && isfile("Manifest.toml")
     Pkg.activate(".")
 end
 
-using Dates, DiffEqFlux, Covid19ModelVN.Models, Covid19ModelVN.Helpers
+using Dates, DiffEqFlux, Serialization, Covid19ModelVN.Models, Covid19ModelVN.Helpers
 
 import Covid19ModelVN.VnExpressData, Covid19ModelVN.FacebookData
 

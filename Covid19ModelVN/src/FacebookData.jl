@@ -60,8 +60,8 @@ function get_movement_range_moving_average(df::DataFrame, n::Int = 7)
     return combine(
         df,
         :ds => x -> x[n:end],
-        :all_day_bing_tiles_visited_relative_change => x -> moving_average,
-        :all_day_ratio_single_tile_users => x -> moving_average,
+        :all_day_bing_tiles_visited_relative_change => moving_average,
+        :all_day_ratio_single_tile_users => moving_average,
         renamecols = false,
     )
 end
