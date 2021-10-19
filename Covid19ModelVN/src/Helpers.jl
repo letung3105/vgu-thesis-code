@@ -1,10 +1,29 @@
 module Helpers
 
 export Predictor,
-    Loss, TrainCallback, TrainCallbackConfig, mape, mse, sse, rmse, rmsle, plot_forecasts
+    Loss,
+    TrainCallback,
+    TrainCallbackConfig,
+    TrainSession,
+    mape,
+    mse,
+    sse,
+    rmse,
+    rmsle,
+    train_model,
+    plot_forecasts,
+    get_losses_plot_fpath,
+    get_params_save_fpath,
+    lookup_params_snapshots
 
-using Serialization, Printf, Statistics, Plots, ProgressMeter, OrdinaryDiffEq
-using Covid19ModelVN.Datasets
+using Serialization,
+    Printf,
+    Statistics,
+    Plots,
+    ProgressMeter,
+    OrdinaryDiffEq,
+    DiffEqFlux,
+    Covid19ModelVN.Datasets
 
 """
 A struct that solves the underlying DiffEq problem and returns the solution when it is called
@@ -75,6 +94,42 @@ function (l::Loss)(params)
 
     return l.metric_fn(pred, l.dataset.data)
 end
+
+"""
+Calculate the mean absolute error between 2 values. Note that the input arguments must be of the same size.
+The function does not check if the inputs are valid and may produces erroneous output.
+"""
+mae(ŷ, y) = mean(abs, (ŷ .- y))
+
+"""
+Calculate the mean absolute percentge error between 2 values. Note that the input arguments must be of the same size.
+The function does not check if the inputs are valid and may produces erroneous output.
+"""
+mape(ŷ, y) = 100 * mean(abs, (ŷ .- y) ./ y)
+
+"""
+Calculate the sum squared error between 2 values. Note that the input arguments must be of the same size.
+The function does not check if the inputs are valid and may produces erroneous output.
+"""
+sse(ŷ, y) = sum(abs2, ŷ .- y)
+
+"""
+Calculate the mean squared error between 2 values. Note that the input arguments must be of the same size.
+The function does not check if the inputs are valid and may produces erroneous output.
+"""
+mse(ŷ, y) = mean(abs2, ŷ .- y)
+
+"""
+Calculate the root mean squared error between 2 values. Note that the input arguments must be of the same size.
+The function does not check if the inputs are valid and may produces erroneous output.
+"""
+rmse(ŷ, y) = sqrt(mean(abs2, ŷ .- y))
+
+"""
+Calculate the root mean squared log error between 2 values. Note that the input arguments must be of the same size.
+The function does not check if the inputs are valid and may produces erroneous output.
+"""
+rmsle(ŷ, y) = sqrt(mean(abs2, log.(ŷ .+ 1) .- log.(y .+ 1)))
 
 
 """
@@ -191,40 +246,89 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
 end
 
 """
-Calculate the mean absolute error between 2 values. Note that the input arguments must be of the same size.
-The function does not check if the inputs are valid and may produces erroneous output.
+Get default losses figure file path
+
+# Arguments
+
+* `fdir::AbstractString`: the root directory of the file
+* `uuid::AbstractString`: the file unique identifier
 """
-mae(ŷ, y) = mean(abs, (ŷ .- y))
+get_losses_plot_fpath(fdir::AbstractString, uuid::AbstractString) =
+    joinpath(fdir, "$uuid.losses.png")
 
 """
-Calculate the mean absolute percentge error between 2 values. Note that the input arguments must be of the same size.
-The function does not check if the inputs are valid and may produces erroneous output.
+Get default file path for saved parameters
+
+# Arguments
+
+* `fdir::AbstractString`: the root directory of the file
+* `uuid::AbstractString`: the file unique identifier
 """
-mape(ŷ, y) = 100 * mean(abs, (ŷ .- y) ./ y)
+get_params_save_fpath(fdir::AbstractString, uuid::AbstractString) =
+    joinpath(fdir, "$uuid.params.jls")
+
+struct TrainSession
+    name::AbstractString
+    optimizer::Any
+    maxiters::Int
+    losses_plot_dir::AbstractString
+    params_save_dir::AbstractString
+end
+
+function train_model(
+    loss_fn::Loss,
+    p0::AbstractVector{<:Real},
+    sessions::AbstractVector{TrainSession},
+)
+    params = p0
+    for sess in sessions
+        losses_plot_fpath = get_losses_plot_fpath(sess.losses_plot_dir, sess.name)
+        params_save_fpath = get_params_save_fpath(sess.params_save_dir, sess.name)
+        cb = TrainCallback(
+            sess.maxiters,
+            TrainCallbackConfig(
+                loss_fn,
+                losses_plot_fpath,
+                div(sess.maxiters, 100),
+                params_save_fpath,
+                div(sess.maxiters, 100),
+            ),
+        )
+
+        @info "Running $(sess.name)"
+        try
+            DiffEqFlux.sciml_train(
+                loss_fn,
+                params,
+                sess.optimizer,
+                maxiters = sess.maxiters,
+                cb = cb,
+            )
+        catch e
+            @error e
+        end
+
+        params = cb.state.minimizer
+        Serialization.serialize(params_save_fpath, params)
+    end
+    return nothing
+end
 
 """
-Calculate the sum squared error between 2 values. Note that the input arguments must be of the same size.
-The function does not check if the inputs are valid and may produces erroneous output.
-"""
-sse(ŷ, y) = sum(abs2, ŷ .- y)
+Get the file paths and uuids of all the saved parameters of an experiment
 
-"""
-Calculate the mean squared error between 2 values. Note that the input arguments must be of the same size.
-The function does not check if the inputs are valid and may produces erroneous output.
-"""
-mse(ŷ, y) = mean(abs2, ŷ .- y)
+# Arguments
 
+* `snapshots_dir::AbstractString`: the directory that contains the saved parameters
+* `exp_name::AbstractString`: the experiment name
 """
-Calculate the root mean squared error between 2 values. Note that the input arguments must be of the same size.
-The function does not check if the inputs are valid and may produces erroneous output.
-"""
-rmse(ŷ, y) = sqrt(mean(abs2, ŷ .- y))
-
-"""
-Calculate the root mean squared log error between 2 values. Note that the input arguments must be of the same size.
-The function does not check if the inputs are valid and may produces erroneous output.
-"""
-rmsle(ŷ, y) = sqrt(mean(abs2, log.(ŷ .+ 1) .- log.(y .+ 1)))
+function lookup_params_snapshots(snapshots_dir::AbstractString, exp_name::AbstractString)
+    exp_dir = joinpath(snapshots_dir, exp_name)
+    params_files = filter(x -> endswith(x, ".jls"), readdir(exp_dir))
+    fpaths = map(f -> joinpath(snapshots_dir, exp_name, f), params_files)
+    uuids = map(f -> first(rsplit(f, ".", limit = 3)), params_files)
+    return fpaths, uuids
+end
 
 """
 Plot the forecasted values produced by `predict_fn` against the ground truth data and calculated the error for each
