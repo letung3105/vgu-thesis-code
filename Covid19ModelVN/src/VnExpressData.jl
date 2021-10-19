@@ -64,7 +64,31 @@ function save_cases_timeseries(
 end
 
 hasmissing(df::DataFrame) =
-	any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
+    any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
+
+function rename_vnexpress_cities_provinces_names_to_gso!(df::DataFrame)
+    rename!(
+        df,
+        "TP HCM" => "Hồ Chí Minh city",
+        "Thừa Thiên Huế" => "Thừa Thiên - Huế",
+        "Đăk Lăk" => "Đắk Lắk",
+    )
+    return nothing
+end
+
+function clean_provinces_confirmed_cases_timeseries!(df::DataFrame)
+    # removes extra rows and columns
+    delete!(df, 1)
+    select!(df, 1:63)
+    rename_vnexpress_cities_provinces_names_to_gso!(df)
+    # Convert string to date and only select needed columns
+    select!(
+        df,
+        "Ngày" => (x -> Date.(x .* "/2021", dateformat"d/m/Y")) => :date,
+        Not("Ngày")
+    )
+    return nothing
+end
 
 function save_provinces_confirmed_cases_timeseries(
     fdir::AbstractString,
@@ -91,18 +115,15 @@ function save_provinces_confirmed_cases_timeseries(
     # request data
     res = HTTP.get(url)
     df = CSV.read(res.body, DataFrame)
-    # Remove the first row that has missing date
-	delete!(df, 1)
-    df = df[!, 1:63]
-	# Convert string to date and only select needed columns
-	transform!(df, "Ngày" => (x -> Date.(x .* "/2021", dateformat"d/m/Y")) => :date)
+
+    clean_provinces_confirmed_cases_timeseries!(df)
     # Filter date range
     filter!(:date => d -> d >= first_date && d <= last_date, df)
-	# Replace missing with 0
-	df = coalesce.(df, 0)
+    # Replace missing with 0
+    df = coalesce.(df, 0)
 
-	# Should be no missing field
-	@assert !hasmissing(df)
+    # Should be no missing field
+    @assert !hasmissing(df)
     CSV.write(fpath, df)
     return df
 end
@@ -132,16 +153,13 @@ function save_provinces_total_confirmed_cases_timeseries(
     # request data
     res = HTTP.get(url)
     df = CSV.read(res.body, DataFrame)
-	# Remove the first row that has missing date
-	delete!(df, 1)
-    df = df[!, 1:63]
-	# Convert string to date and only select needed columns
-	transform!(df, "Ngày" => (x -> Date.(x .* "/2021", dateformat"d/m/Y")) => :date)
+
+    clean_provinces_confirmed_cases_timeseries!(df)
     # Filter date range
     filter!(:date => d -> d >= first_date && d <= last_date, df)
 
-	# Should be no missing field
-	@assert !hasmissing(df)
+    # Should be no missing field
+    @assert !hasmissing(df)
     CSV.write(fpath, df)
     return df
 end

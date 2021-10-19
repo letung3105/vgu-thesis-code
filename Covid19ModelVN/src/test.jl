@@ -4,11 +4,11 @@ if isfile("Project.toml") && isfile("Manifest.toml")
     Pkg.activate(".")
 end
 
-using Dates
+using Dates, DataFrames
 import Covid19ModelVN.PopulationData,
-    Covid19ModelVN.FacebookData, Covid19ModelVN.VnExpressData
+    Covid19ModelVN.FacebookData, Covid19ModelVN.VnExpressData, HTTP, CSV
 
-FacebookData.save_intra_country_gadm1_nuts2_connectedness_index(
+df_vn_fb_connedtedness = FacebookData.save_intra_country_gadm1_nuts2_connectedness_index(
     joinpath(
         "datasets",
         "facebook",
@@ -18,31 +18,50 @@ FacebookData.save_intra_country_gadm1_nuts2_connectedness_index(
     "datasets",
     "facebook-gadm1-nuts2-connectedness-index",
     "VNM",
-    recreate = true,
 )
 
-PopulationData.save_vietnam_gadm1_population(
+df_population_data = PopulationData.save_vietnam_gadm1_population(
     joinpath("datasets", "gadm", "VNM_adm.gpkg"),
     joinpath("datasets", "gso", "VNM-2020-population-all-regions.csv"),
     "datasets",
     "VNM-gadm1-population",
-    recreate = true,
 )
 
 df_provinces_confirmed_cases = VnExpressData.save_provinces_confirmed_cases_timeseries(
     "datasets",
-    "vnexpress-provinces-confirmed-cases",
+    "vietnam-provinces-confirmed-cases",
     Date(2021, 4, 27),
     Date(2021, 10, 13),
-    recreate = true,
+    recreate = true
 )
 
 df_provinces_total_confirmed_cases = VnExpressData.save_provinces_total_confirmed_cases_timeseries(
     "datasets",
-    "vnexpress-provinces-total-confirmed-cases",
+    "vietnam-provinces-total-confirmed-cases",
     Date(2021, 4, 27),
     Date(2021, 10, 13),
-    recreate = true,
+    recreate = true
 )
 
-setdiff(df_cases_timeseries[!, 2:end], df_)
+df_provinces_confirmed_cases
+let
+    province_city_names = names(df_provinces_confirmed_cases)[2:end]
+    @show setdiff(province_city_names, df_population_data.gadm1_name)
+    @show setdiff(df_population_data.gadm1_name, province_city_names)
+    nothing
+end
+
+let
+    province_city_names = names(df_provinces_total_confirmed_cases)[2:end]
+    @show setdiff(province_city_names, df_population_data.gadm1_name)
+    @show setdiff(df_population_data.gadm1_name, province_city_names)
+    nothing
+end
+
+let
+    url = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_location"
+    res = HTTP.get(url)
+    df = CSV.read(res.body, DataFrame)
+    VnExpressData.clean_provinces_confirmed_cases_timeseries!(df)
+    df
+end
