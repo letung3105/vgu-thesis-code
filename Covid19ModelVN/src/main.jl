@@ -4,9 +4,12 @@ if isfile("Project.toml") && isfile("Manifest.toml")
     Pkg.activate(".")
 end
 
-using Dates, DiffEqFlux, Serialization, Covid19ModelVN.Models, Covid19ModelVN.Helpers
-
-import Covid19ModelVN.VnExpressData, Covid19ModelVN.FacebookData
+using Dates,
+    DiffEqFlux,
+    Serialization,
+    Covid19ModelVN.Models,
+    Covid19ModelVN.Helpers,
+    Covid19ModelVN.Datasets
 
 """
 Setup different experiement scenarios for Vietnam country-wide data
@@ -29,23 +32,12 @@ function setup_experiment_preset_vietnam(
     DEFAULT_TRAIN_RANGE = Day(31) # roughly 1 month
     DEFAULT_FORECAST_RANGE = Day(28) # for 7-day, 14-day, and 28-day forecasts
     DEFAULT_MOVEMENT_RANGE_DELAY = Day(2) # incubation day is roughly 2 days
+    DEFAULT_MOVEMENT_RANGE_MA = 1 # no moving average
 
-    df_cases_timeseries = VnExpressData.save_cases_timeseries(
-        datasets_dir,
-        "vnexpress-timeseries",
-        Date(2021, 4, 27),
-        Date(2021, 10, 13),
-        recreate = recreate,
-    )
-    df_fb_movement_range = FacebookData.save_country_average_movement_range(
-        fb_movement_range_fpath,
-        datasets_dir,
-        "facebook-average-movement-range",
-        "VNM",
-        recreate = recreate,
-    )
-    df_fb_movement_range_ma7 =
-        FacebookData.get_movement_range_moving_average(df_fb_movement_range)
+    df_cases_timeseries =
+        DEFAULT_VIETNAM_COVID_DATA_TIMESERIES(datasets_dir, recreate = recreate)
+    df_fb_movement_range =
+        DEFAULT_VIETNAM_AVERAGE_MOVEMENT_RANGE(datasets_dir, recreate = recreate)
 
     return if exp_name == "baseline.default.vietnam"
         setup_seird_baseline(
@@ -64,6 +56,7 @@ function setup_experiment_preset_vietnam(
             DEFAULT_TRAIN_RANGE,
             DEFAULT_FORECAST_RANGE,
             DEFAULT_MOVEMENT_RANGE_DELAY,
+            DEFAULT_MOVEMENT_RANGE_MA,
         )
     elseif exp_name == "fbmobility.4daydelay.vietnam"
         setup_seird_fb_movement_range(
@@ -74,26 +67,29 @@ function setup_experiment_preset_vietnam(
             DEFAULT_TRAIN_RANGE,
             DEFAULT_FORECAST_RANGE,
             Day(4),
+            DEFAULT_MOVEMENT_RANGE_MA,
         )
     elseif exp_name == "fbmobility.ma7movementrange.default.vietnam"
         setup_seird_fb_movement_range(
             df_cases_timeseries,
-            df_fb_movement_range_ma7,
+            df_fb_movement_range,
             DEFAULT_POPULATION,
             DEFAULT_TRAIN_FIRST_DATE,
             DEFAULT_TRAIN_RANGE,
             DEFAULT_FORECAST_RANGE,
             DEFAULT_MOVEMENT_RANGE_DELAY,
+            7,
         )
     elseif exp_name == "fbmobility.ma7movementrange.4daydelay.vietnam"
         setup_seird_fb_movement_range(
             df_cases_timeseries,
-            df_fb_movement_range_ma7,
+            df_fb_movement_range,
             DEFAULT_POPULATION,
             DEFAULT_TRAIN_FIRST_DATE,
             DEFAULT_TRAIN_RANGE,
             DEFAULT_FORECAST_RANGE,
             Day(4),
+            7,
         )
     end
 end

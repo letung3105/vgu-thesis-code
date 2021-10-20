@@ -1,9 +1,9 @@
 module Covid19ModelVN
 
-include("Datasets.jl")
 include("VnExpressData.jl")
 include("FacebookData.jl")
 include("PopulationData.jl")
+include("Datasets.jl")
 
 include("Models.jl")
 include("Helpers.jl")

@@ -461,6 +461,7 @@ function setup_seird_fb_movement_range(
     train_range::Day,
     forecast_range::Day,
     movement_range_delay::Day,
+    movement_range_ma::Int,
 )
     train_dataset, test_dataset = load_covid_cases_datasets(
         df_cases_timeseries,
@@ -476,6 +477,7 @@ function setup_seird_fb_movement_range(
         train_range,
         forecast_range,
         movement_range_delay,
+        movement_range_ma,
     )
 
     u0 = setup_seird_initial_states(train_dataset, population)

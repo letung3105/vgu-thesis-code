@@ -2,6 +2,8 @@ module VnExpressData
 
 using Dates, DataFrames, CSV, HTTP
 
+hasmissing(df::DataFrame) =
+    any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
 
 """
 Request, clean, and save the cases timeseries from VnExpress
@@ -58,13 +60,11 @@ function save_cases_timeseries(
             ((x, y, z) -> x - y - z) => :infective,
     )
 
-    # save csv
+    @assert !hasmissing(df)
+    df[!, Not(:date)] = Int.(df[!, Not(:date)])
     CSV.write(fpath, df)
     return df
 end
-
-hasmissing(df::DataFrame) =
-    any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
 
 function rename_vnexpress_cities_provinces_names_to_gso!(df::DataFrame)
     rename!(
@@ -122,8 +122,8 @@ function save_provinces_confirmed_cases_timeseries(
     # Replace missing with 0
     df = coalesce.(df, 0)
 
-    # Should be no missing field
     @assert !hasmissing(df)
+    df[!, Not(:date)] = Int.(df[!, Not(:date)])
     CSV.write(fpath, df)
     return df
 end
@@ -158,8 +158,8 @@ function save_provinces_total_confirmed_cases_timeseries(
     # Filter date range
     filter!(:date => d -> d >= first_date && d <= last_date, df)
 
-    # Should be no missing field
     @assert !hasmissing(df)
+    df[!, Not(:date)] = Int.(df[!, Not(:date)])
     CSV.write(fpath, df)
     return df
 end

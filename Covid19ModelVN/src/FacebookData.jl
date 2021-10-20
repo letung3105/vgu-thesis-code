@@ -47,25 +47,6 @@ function save_country_average_movement_range(
     return df
 end
 
-"""
-Get the moving average of the given movement range data
-
-# Arguments
-
-* `df::DataFrame`: the `DataFrame` that contains the data
-* `n::Int`: number of samples for the moving average
-"""
-function get_movement_range_moving_average(df::DataFrame, n::Int = 7)
-    moving_average(xs) = [mean(@view xs[i-n+1:i]) for i = n:length(xs)]
-    return combine(
-        df,
-        :ds => x -> x[n:end],
-        :all_day_bing_tiles_visited_relative_change => moving_average,
-        :all_day_ratio_single_tile_users => moving_average,
-        renamecols = false,
-    )
-end
-
 function save_intra_country_gadm1_nuts2_connectedness_index(
     source_fpath::AbstractString,
     fdir::AbstractString,
