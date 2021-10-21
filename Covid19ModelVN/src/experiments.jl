@@ -106,6 +106,7 @@ function setup_experiment_preset_vietnam(
         train_first_date,
         train_range,
         forecast_range,
+        1,
     )
 
     population = 97_582_700
@@ -161,7 +162,7 @@ function setup_experiment_preset_vietnam_province(
         return province.gadm1_id, province.avg_population
     end
 
-    function load_experiment_covid_data(dataset_name, population)
+    function load_experiment_covid_data(dataset_name, population, moving_average_days)
         df_covid_timeseries = DEFAULT_VIETNAM_PROVINCE_CONFIRMED_AND_DEATHS_TIMESERIES(
             datasets_dir,
             dataset_name,
@@ -176,6 +177,7 @@ function setup_experiment_preset_vietnam_province(
             train_first_date,
             train_range,
             forecast_range,
+            moving_average_days,
         )
 
         # dead
@@ -202,6 +204,7 @@ function setup_experiment_preset_vietnam_province(
         province_name,
         train_first_date,
         delay,
+        moving_average_days,
     ) = load_social_proximity_to_cases_index(
         DEFAULT_VIETNAM_SOCIAL_PROXIMITY_TO_CASES_INDEX(datasets_dir),
         province_name,
@@ -209,6 +212,7 @@ function setup_experiment_preset_vietnam_province(
         train_range,
         forecast_range,
         delay,
+        moving_average_days,
     )
 
     load_experiment_movement_range(
@@ -228,13 +232,13 @@ function setup_experiment_preset_vietnam_province(
     if exp_name == "baseline.default.hcm"
         _, population = get_province_id_and_population("Hồ Chí Minh city")
         u0, train_dataset, test_dataset, _ =
-            load_experiment_covid_data("HoChiMinh", population)
+            load_experiment_covid_data("HoChiMinh", population, 1)
         model = CovidModelSEIRDBaseline(u0, train_dataset.tspan)
         return model, train_dataset, test_dataset
     elseif exp_name == "fbmobility1.default.hcm"
         province_id, population = get_province_id_and_population("Hồ Chí Minh city")
         u0, train_dataset, test_dataset, train_first_date =
-            load_experiment_covid_data("HoChiMinh", population)
+            load_experiment_covid_data("HoChiMinh", population, 1)
         movement_range_dataset =
             load_experiment_movement_range(province_id, train_first_date, Day(2), 1)
         model = CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
@@ -242,13 +246,14 @@ function setup_experiment_preset_vietnam_province(
     elseif exp_name == "fbmobility2.default.hcm"
         province_id, population = get_province_id_and_population("Hồ Chí Minh city")
         u0, train_dataset, test_dataset, train_first_date =
-            load_experiment_covid_data("HoChiMinh", population)
+            load_experiment_covid_data("HoChiMinh", population, 1)
         movement_range_dataset =
             load_experiment_movement_range(province_id, train_first_date, Day(2), 1)
         social_proximity_to_cases_index = load_experiment_social_proximity_to_cases_index(
             "Hồ Chí Minh city",
             train_first_date,
             Day(2),
+            1,
         )
         model = CovidModelSEIRDFbMobility2(
             u0,

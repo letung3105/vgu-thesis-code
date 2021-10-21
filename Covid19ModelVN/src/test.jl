@@ -40,6 +40,7 @@ let
         train_first_date,
         train_range,
         forecast_range,
+        7,
     )
     plt = plot(title="covid cases", legend = :outertop)
     plot!([train_dataset.data test_dataset.data]', labels=["dead total" "confirmed total"])
@@ -69,6 +70,7 @@ let
         train_range,
         forecast_range,
         Day(2),
+        7,
     )
     plt = plot(title="Social Proximity to Cases Index", legend = :outertop)
     plot!(spc_data)

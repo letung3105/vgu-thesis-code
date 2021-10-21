@@ -23,7 +23,7 @@ import Covid19ModelVN.FacebookData,
 DEFAULT_VIETNAM_SOCIAL_PROXIMITY_TO_CASES_INDEX(datasets_dir; recreate = false) =
     FacebookData.save_social_proximity_to_cases_index(
         joinpath(datasets_dir, "VNM-gadm1-population.csv"),
-        joinpath(datasets_dir, "20210427-20211013-vietnam-provinces-total-confirmed-timeseries.csv"),
+        joinpath(datasets_dir, "20210427-20211013-vietnam-provinces-confirmed-timeseries.csv"),
         joinpath(datasets_dir, "VNM-facebook-intra-connectedness-index.csv"),
         datasets_dir,
         "VNM-social-proximity-to-cases",
@@ -155,6 +155,8 @@ function TimeseriesDataset(
     return TimeseriesDataset(data, tspan, tsteps)
 end
 
+moving_average(xs, n) = [mean(@view xs[i-n+1:i]) for i = n:length(xs)]
+
 """
 Load the train and test datasets for the given dates
 
@@ -172,7 +174,14 @@ function load_covid_cases_datasets(
     train_first_date::Date,
     train_range::Day,
     forecast_range::Day,
+    moving_average_days::Int,
 )
+    df = combine(
+        df,
+        :date => x -> x[moving_average_days:end],
+        names(df, Not(:date)) .=> x -> moving_average(x, moving_average_days),
+        renamecols = false,
+    )
     train_last_date = train_first_date + train_range
     test_first_date = train_last_date + Day(1)
     test_last_date = test_first_date + forecast_range
@@ -207,20 +216,16 @@ function load_fb_movement_range(
     delay::Day,
     moving_average_days::Int,
 )
-    moving_average(xs) =
-        [mean(@view xs[i-moving_average_days+1:i]) for i = moving_average_days:length(xs)]
     df = combine(
         df,
         :ds => x -> x[moving_average_days:end],
-        :all_day_bing_tiles_visited_relative_change => moving_average,
-        :all_day_ratio_single_tile_users => moving_average,
+        names(df, Not(:ds)) .=> x -> moving_average(x, moving_average_days),
         renamecols = false,
     )
     first_date = train_first_date - delay
     last_date = train_first_date + train_range + forecast_range - delay
     filter!(x -> x.ds >= first_date && x.ds <= last_date, df)
-    cols = [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users]
-    return Array(df[!, Cols(cols)])
+    return Array(df[!, Not(:ds)])
 end
 
 function load_social_proximity_to_cases_index(
@@ -230,7 +235,14 @@ function load_social_proximity_to_cases_index(
     train_range::Day,
     forecast_range::Day,
     delay::Day,
+    moving_average_days::Int,
 )
+    df = combine(
+        df,
+        :date => x -> x[moving_average_days:end],
+        names(df, Not(:date)) .=> x -> moving_average(x, moving_average_days),
+        renamecols = false,
+    )
     first_date = train_first_date - delay
     last_date = train_first_date + train_range + forecast_range - delay
     filter!(x -> x.date >= first_date && x.date <= last_date, df)
