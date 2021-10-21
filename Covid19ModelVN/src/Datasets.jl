@@ -13,8 +13,7 @@ export TimeseriesDataset,
     DEFAULT_VIETNAM_PROVINCE_AVERAGE_MOVEMENT_RANGE,
     DEFAULT_VIETNAM_SOCIAL_PROXIMITY_TO_CASES_INDEX
 
-using Dates, DataFrames
-
+using Dates, DataFrames, Statistics
 import Covid19ModelVN.FacebookData,
     Covid19ModelVN.VnExpressData,
     Covid19ModelVN.PopulationData,

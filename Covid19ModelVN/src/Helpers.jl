@@ -481,7 +481,7 @@ function setup_seird_fb_movement_range(
     )
 
     u0 = setup_seird_initial_states(train_dataset, population)
-    model = CovidModelSEIRDFacebookMovementRange(
+    model = CovidModelSEIRDFbMobility1(
         u0,
         train_dataset.tspan,
         movement_range_dataset,
