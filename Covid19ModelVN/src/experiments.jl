@@ -265,55 +265,46 @@ function setup_experiment_preset_vietnam_province(
     return nothing
 end
 
-function main()
-    let
-        experiment_names = [
-            "baseline.default.vietnam",
-            "fbmobility1.default.vietnam",
-            "fbmobility1.4daydelay.vietnam",
-            "fbmobility1.ma7movementrange.default.vietnam",
-            "fbmobility1.ma7movementrange.default.vietnam",
-        ]
-        for exp_name in experiment_names
-            model, train_dataset, test_dataset = setup_experiment_preset_vietnam(
-                exp_name,
-                DEFAULT_DATASETS_DIR,
-            )
-            train_and_evaluate_experiment(
-                exp_name,
-                model,
-                train_dataset,
-                test_dataset,
-                DEFAULT_SNAPSHOTS_DIR,
-                [7, 14, 28],
-                3:6,
-                ["infective" "recovered" "dead" "total confirmed"]
-            )
-        end
+function main(
+    # "baseline.default.vietnam",
+    # "fbmobility1.default.vietnam",
+    # "fbmobility1.4daydelay.vietnam",
+    # "fbmobility1.ma7movementrange.default.vietnam",
+    # "fbmobility1.ma7movementrange.default.vietnam",
+    vn_experiments = [],
+    # "baseline.default.hcm",
+    # "fbmobility1.default.hcm",
+    # "fbmobility2.default.hcm",
+    vn_gadm1_experiments = [],
+)
+    for exp_name in vn_experiments
+        model, train_dataset, test_dataset =
+            setup_experiment_preset_vietnam(exp_name, DEFAULT_DATASETS_DIR)
+        train_and_evaluate_experiment(
+            exp_name,
+            model,
+            train_dataset,
+            test_dataset,
+            DEFAULT_SNAPSHOTS_DIR,
+            [7, 14, 28],
+            3:6,
+            ["infective" "recovered" "dead" "total confirmed"],
+        )
     end
 
-    let
-        experiment_names = [
-            "baseline.default.hcm",
-            "fbmobility1.default.hcm",
-            "fbmobility2.default.hcm",
-        ]
-        for exp_name in experiment_names
-            model, train_dataset, test_dataset = setup_experiment_preset_vietnam_province(
-                exp_name,
-                DEFAULT_DATASETS_DIR,
-            )
-            train_and_evaluate_experiment(
-                exp_name,
-                model,
-                train_dataset,
-                test_dataset,
-                DEFAULT_SNAPSHOTS_DIR,
-                [7, 14, 28],
-                5:6,
-                ["dead" "total confirmed"]
-            )
-        end
+    for exp_name in vn_gadm1_experiments
+        model, train_dataset, test_dataset =
+            setup_experiment_preset_vietnam_province(exp_name, DEFAULT_DATASETS_DIR)
+        train_and_evaluate_experiment(
+            exp_name,
+            model,
+            train_dataset,
+            test_dataset,
+            DEFAULT_SNAPSHOTS_DIR,
+            [7, 14, 28],
+            5:6,
+            ["dead" "total confirmed"],
+        )
     end
 end
 

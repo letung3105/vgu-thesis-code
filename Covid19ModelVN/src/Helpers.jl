@@ -291,9 +291,9 @@ function train_model(
             TrainCallbackConfig(
                 train_loss_fn,
                 losses_plot_fpath,
-                div(sess.maxiters, 100),
+                div(sess.maxiters, 20),
                 params_save_fpath,
-                div(sess.maxiters, 100),
+                div(sess.maxiters, 20),
             ),
         )
 
