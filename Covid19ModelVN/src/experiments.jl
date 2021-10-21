@@ -7,7 +7,7 @@ end
 using Dates,
     Serialization,
     Plots,
-    DiffEqFlux,
+    DiffEqFlux.GalacticOptim,
     Covid19ModelVN.Models,
     Covid19ModelVN.Helpers,
     Covid19ModelVN.Datasets
@@ -43,8 +43,8 @@ function train_and_evaluate_experiment(
     sessions = [
         TrainSession("$timestamp.adam", ADAM(1e-2), 10000, exp_dir, exp_dir),
         TrainSession(
-            "$timestamp.bfgs",
-            BFGS(initial_stepnorm = 1e-2),
+            "$timestamp.lbfgs",
+            LBFGS(),
             1000,
             exp_dir,
             exp_dir,
@@ -55,26 +55,16 @@ function train_and_evaluate_experiment(
     train_model(train_loss_fn, test_loss_fn, p0, sessions)
 
     @info "Ploting evaluations"
-    fpaths_params, uuids = lookup_saved_params(snapshots_dir, exp_name)
-    for (fpath_params, uuid) in zip(fpaths_params, uuids)
-        fig_fpath = joinpath(snapshots_dir, exp_name, "$uuid.evaluate.forecasts.mape.png")
-        if !isfile(fig_fpath)
-            plt = plot_forecasts(
-                predict_fn,
-                mape,
-                train_dataset,
-                test_dataset,
-                Serialization.deserialize(fpath_params),
-                eval_forecast_ranges,
-                eval_vars,
-                eval_labels,
-            )
-            savefig(
-                plt,
-                joinpath(snapshots_dir, exp_name, "$uuid.evaluate.forecasts.mape.png"),
-            )
-        end
-    end
+    evaluate_model(
+        exp_name,
+        predict_fn,
+        train_dataset,
+        test_dataset,
+        snapshots_dir,
+        eval_forecast_ranges,
+        eval_vars,
+        eval_labels,
+    )
 
     return nothing
 end
@@ -99,6 +89,8 @@ function setup_experiment_preset_vietnam(
         first(filter(x -> x.confirmed_total >= 500, df_covid_timeseries)).date
     train_range = Day(31) # roughly 1 month
     forecast_range = Day(28) # for 7-day, 14-day, and 28-day forecasts
+
+    @info "First date: $train_first_date"
 
     train_dataset, test_dataset = load_covid_cases_datasets(
         df_covid_timeseries,
@@ -170,6 +162,8 @@ function setup_experiment_preset_vietnam_province(
 
         train_first_date =
             first(filter(x -> x.confirmed_total >= 500, df_covid_timeseries)).date
+
+        @info "First date: $train_first_date"
 
         train_dataset, test_dataset = load_covid_cases_datasets(
             df_covid_timeseries,
@@ -310,4 +304,17 @@ function main(
     end
 end
 
-main()
+main(
+    [
+    # "baseline.default.vietnam",
+    # "fbmobility1.default.vietnam",
+    # "fbmobility1.4daydelay.vietnam",
+    # "fbmobility1.ma7movementrange.default.vietnam",
+    # "fbmobility1.ma7movementrange.default.vietnam",
+    ],
+    [
+    # "baseline.default.hcm",
+    # "fbmobility1.default.hcm",
+    # "fbmobility2.default.hcm",
+    ],
+)
