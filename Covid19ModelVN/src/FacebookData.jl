@@ -18,10 +18,15 @@ function save_country_average_movement_range(
     source_fpath::AbstractString,
     fdir::AbstractString,
     fid::AbstractString,
-    country::AbstractString;
+    country::AbstractString,
+    gadm1_id::Union{Nothing, Int} = nothing;
     recreate::Bool = false,
 )
-    fpath = joinpath(fdir, "$country-$fid.csv")
+    fpath = if isnothing(gadm1_id)
+        joinpath(fdir, "$country-$fid.csv")
+    else
+        joinpath(fdir, "$country$gadm1_id-$fid.csv")
+    end
     # file exists and don't need to be updated
     if isfile(fpath) && !recreate
         return CSV.read(fpath, DataFrame)
@@ -31,20 +36,23 @@ function save_country_average_movement_range(
         mkpath(fdir)
     end
 
-    data, header = readdlm(source_fpath, '\t', header = true)
+    data, header = readdlm(source_fpath, '\t', header=true)
     df = identity.(DataFrame(data, vec(header)))
     filter!(x -> x.country == "VNM", df)
-    transform!(df, :ds => x -> Date.(x), renamecols = false)
+    if !isnothing(gadm1_id)
+        filter!(x -> startswith(x.polygon_id, "$country.$gadm1_id"), df)
+    end
+    transform!(df, :ds => x -> Date.(x), renamecols=false)
 
-    df = combine(
+    df_final = combine(
         DataFrames.groupby(df, :ds),
         :all_day_bing_tiles_visited_relative_change => mean,
         :all_day_ratio_single_tile_users => mean,
-        renamecols = false,
+        renamecols=false
     )
     # save csv
-    CSV.write(fpath, df)
-    return df
+    CSV.write(fpath, df_final)
+    return df_final
 end
 
 function save_intra_country_gadm1_nuts2_connectedness_index(

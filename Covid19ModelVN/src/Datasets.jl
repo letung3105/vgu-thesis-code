@@ -8,12 +8,37 @@ export TimeseriesDataset,
     DEFAULT_VIETNAM_PROVINCES_CONFIRMED_TIMESERIES,
     DEFAULT_VIETNAM_PROVINCES_TOTAL_CONFIRMED_TIMESERIES,
     DEFAULT_VIETNAM_AVERAGE_MOVEMENT_RANGE,
-    DEFAULT_VIETNAM_INTRA_CONNECTEDNESS_INDEX
+    DEFAULT_VIETNAM_INTRA_CONNECTEDNESS_INDEX,
+    DEFAULT_VIETNAM_PROVINCE_CONFIRMED_AND_DEATHS_TIMESERIES,
+    DEFAULT_VIETNAM_PROVINCE_AVERAGE_MOVEMENT_RANGE
 
 using Dates, DataFrames
 
 import Covid19ModelVN.FacebookData,
-    Covid19ModelVN.VnExpressData, Covid19ModelVN.PopulationData
+    Covid19ModelVN.VnExpressData,
+    Covid19ModelVN.PopulationData,
+    Covid19ModelVN.VnCdcData
+
+DEFAULT_VIETNAM_PROVINCE_CONFIRMED_AND_DEATHS_TIMESERIES(datasets_dir, name) =
+    VnCdcData.parse_json_cases_and_deaths(
+        joinpath(datasets_dir, "vncdc", "$name.json"),
+    )
+
+DEFAULT_VIETNAM_PROVINCE_AVERAGE_MOVEMENT_RANGE(datasets_dir, province_id; recreate = false) =
+    FacebookData.save_country_average_movement_range(
+        joinpath(
+            datasets_dir,
+            "facebook",
+            "movement-range-data-2021-10-09",
+            "movement-range-2021-10-09.txt",
+        ),
+        datasets_dir ,
+        "facebook-average-movement-range",
+        "VNM",
+        province_id,
+        recreate = recreate,
+    )
+
 
 DEFAULT_VIETNAM_GADM1_POPULATION_DATASET(datasets_dir; recreate = false) =
     PopulationData.save_vietnam_gadm1_population(
