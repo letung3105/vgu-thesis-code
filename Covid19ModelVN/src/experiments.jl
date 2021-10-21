@@ -119,17 +119,15 @@ function setup_experiment_preset_vietnam(
         population - train_dataset.data[3, 1],
     ]
 
-    function load_experiment_movement_range(delay::Day, moving_average_days::Int)
-        return load_fb_movement_range(
+    load_experiment_movement_range(delay::Day, moving_average_days::Int) =
+        load_fb_movement_range(
             DEFAULT_VIETNAM_AVERAGE_MOVEMENT_RANGE(datasets_dir),
-            [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users],
             train_first_date,
             train_range,
             forecast_range,
             delay,
             moving_average_days,
         )
-    end
 
     model = if exp_name == "baseline.default.vietnam"
         CovidModelSEIRDBaseline(u0, train_dataset.tspan)
@@ -220,7 +218,6 @@ function setup_experiment_preset_vietnam_province(
         moving_average_days,
     ) = load_fb_movement_range(
         DEFAULT_VIETNAM_PROVINCE_AVERAGE_MOVEMENT_RANGE(datasets_dir, province_id),
-        [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users],
         train_first_date,
         train_range,
         forecast_range,

@@ -28,38 +28,50 @@ function main()
 end
 
 let
-    df_covid1 = DEFAULT_VIETNAM_PROVINCE_CONFIRMED_AND_DEATHS_TIMESERIES(DEFAULT_DATASETS_DIR, "HoChiMinh")
-    df_covid2 = DEFAULT_VIETNAM_PROVINCES_TOTAL_CONFIRMED_TIMESERIES(DEFAULT_DATASETS_DIR)
+    df_covid = DEFAULT_VIETNAM_PROVINCE_CONFIRMED_AND_DEATHS_TIMESERIES(DEFAULT_DATASETS_DIR, "HoChiMinh")
 
-    filter!(x -> Date(2021, 5, 14) <= x.date <= Date(2021, 7, 14), df_covid1)
-    filter!(x -> Date(2021, 5, 14) <= x.date <= Date(2021, 7, 14), df_covid2)
+    train_first_date = first(filter!(x -> x.confirmed_total >= 500, df_covid).date)
+    train_range = Day(30)
+    forecast_range = Day(30)
 
-    @show df_covid1.confirmed_total
-    @show df_covid2[!, "Hồ Chí Minh city"]
-
-    plt = plot()
-    plot!(df_covid1.date, df_covid1.confirmed_total)
-    plot!(df_covid2.date, df_covid2[!, "Hồ Chí Minh city"])
-    display(plt)
-
-    df_spc = DEFAULT_VIETNAM_SOCIAL_PROXIMITY_TO_CASES_INDEX(DEFAULT_DATASETS_DIR)
-
-    plt = plot(df_spc.date, Array(df_spc[!, ["Hồ Chí Minh city", "Bình Dương"]]))
+    train_dataset, test_dataset = load_covid_cases_datasets(
+        df_covid,
+        [:dead_total, :confirmed_total],
+        train_first_date,
+        train_range,
+        forecast_range,
+    )
+    plt = plot(title="covid cases", legend = :outertop)
+    plot!([train_dataset.data test_dataset.data]', labels=["dead total" "confirmed total"])
     display(plt)
 
     df_population = DEFAULT_VIETNAM_GADM1_POPULATION_DATASET(DEFAULT_DATASETS_DIR)
-    id_hcm = first(filter(x -> x.gadm1_name == "Hồ Chí Minh city", df_population).gadm1_id)
-    id_bd = first(filter(x -> x.gadm1_name == "Bình Dương", df_population).gadm1_id)
+    province_id = first(filter(x -> x.gadm1_name == "Hồ Chí Minh city", df_population).gadm1_id)
 
-    @show id_hcm
-    @show id_bd
+    df_movement = DEFAULT_VIETNAM_PROVINCE_AVERAGE_MOVEMENT_RANGE(DEFAULT_DATASETS_DIR, province_id)
+    movement_data= load_fb_movement_range(
+        df_movement,
+        train_first_date,
+        train_range,
+        forecast_range,
+        Day(2),
+        7,
+    )
+    plt = plot(title = "Movement Range Index", legend = :outertop)
+    plot!(movement_data, labels=["relative movement change" "relative stay put ratio"])
+    display(plt)
 
-    df_movement_hcm = DEFAULT_VIETNAM_PROVINCE_AVERAGE_MOVEMENT_RANGE(DEFAULT_DATASETS_DIR, id_hcm)
-    df_movement_bd = DEFAULT_VIETNAM_PROVINCE_AVERAGE_MOVEMENT_RANGE(DEFAULT_DATASETS_DIR, id_bd)
-
-    plt = plot()
-    plot!(df_movement_hcm.ds, Array(df_movement_hcm[!, Not(:ds)]))
-    plot!(df_movement_bd.ds, Array(df_movement_bd[!, Not(:ds)]))
+    df_spc = DEFAULT_VIETNAM_SOCIAL_PROXIMITY_TO_CASES_INDEX(DEFAULT_DATASETS_DIR)
+    spc_data = load_social_proximity_to_cases_index(
+        df_spc,
+        "Hồ Chí Minh city",
+        train_first_date,
+        train_range,
+        forecast_range,
+        Day(2),
+    )
+    plt = plot(title="Social Proximity to Cases Index", legend = :outertop)
+    plot!(spc_data)
     display(plt)
 
     nothing

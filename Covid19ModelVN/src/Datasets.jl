@@ -201,7 +201,6 @@ Load the train and test datasets for the given dates
 """
 function load_fb_movement_range(
     df::DataFrame,
-    cols,
     train_first_date::Date,
     train_range::Day,
     forecast_range::Day,
@@ -220,6 +219,7 @@ function load_fb_movement_range(
     first_date = train_first_date - delay
     last_date = train_first_date + train_range + forecast_range - delay
     filter!(x -> x.ds >= first_date && x.ds <= last_date, df)
+    cols = [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users]
     return Array(df[!, Cols(cols)])
 end
 
