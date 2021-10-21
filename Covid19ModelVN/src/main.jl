@@ -11,106 +11,23 @@ using Dates,
     Covid19ModelVN.Helpers,
     Covid19ModelVN.Datasets
 
-"""
-Setup different experiement scenarios for Vietnam country-wide data
+const DEFAULT_DATASETS_DIR = "datasets"
+const DEFAULT_SNAPSHOTS_DIR = "snapshots"
 
-# Arguments
-
-* `exp_name::AbstractString`: name of the preset experiment
-* `datasets_dir`: paths to the folder where newly created datasets are contained
-* `fb_movement_range_fpath`: paths to the Facebook movement range data file
-* `recreate=false`: true if we want to create a new file when one already exists
-"""
-function setup_experiment_preset_vietnam(
+function train_and_evaluate_experiment(
     exp_name::AbstractString,
-    fb_movement_range_fpath::AbstractString,
-    datasets_dir::AbstractString;
-    recreate = false,
-)
-    DEFAULT_POPULATION = 97_582_700
-    DEFAULT_TRAIN_FIRST_DATE = Date(2021, 5, 14) # first date where total cases >= 500
-    DEFAULT_TRAIN_RANGE = Day(31) # roughly 1 month
-    DEFAULT_FORECAST_RANGE = Day(28) # for 7-day, 14-day, and 28-day forecasts
-    DEFAULT_MOVEMENT_RANGE_DELAY = Day(2) # incubation day is roughly 2 days
-    DEFAULT_MOVEMENT_RANGE_MA = 1 # no moving average
-
-    df_cases_timeseries =
-        DEFAULT_VIETNAM_COVID_DATA_TIMESERIES(datasets_dir, recreate = recreate)
-    df_fb_movement_range =
-        DEFAULT_VIETNAM_AVERAGE_MOVEMENT_RANGE(datasets_dir, recreate = recreate)
-
-    return if exp_name == "baseline.default.vietnam"
-        setup_seird_baseline(
-            df_cases_timeseries,
-            DEFAULT_POPULATION,
-            DEFAULT_TRAIN_FIRST_DATE,
-            DEFAULT_TRAIN_RANGE,
-            DEFAULT_FORECAST_RANGE,
-        )
-    elseif exp_name == "fbmobility.default.vietnam"
-        setup_seird_fb_movement_range(
-            df_cases_timeseries,
-            df_fb_movement_range,
-            DEFAULT_POPULATION,
-            DEFAULT_TRAIN_FIRST_DATE,
-            DEFAULT_TRAIN_RANGE,
-            DEFAULT_FORECAST_RANGE,
-            DEFAULT_MOVEMENT_RANGE_DELAY,
-            DEFAULT_MOVEMENT_RANGE_MA,
-        )
-    elseif exp_name == "fbmobility.4daydelay.vietnam"
-        setup_seird_fb_movement_range(
-            df_cases_timeseries,
-            df_fb_movement_range,
-            DEFAULT_POPULATION,
-            DEFAULT_TRAIN_FIRST_DATE,
-            DEFAULT_TRAIN_RANGE,
-            DEFAULT_FORECAST_RANGE,
-            Day(4),
-            DEFAULT_MOVEMENT_RANGE_MA,
-        )
-    elseif exp_name == "fbmobility.ma7movementrange.default.vietnam"
-        setup_seird_fb_movement_range(
-            df_cases_timeseries,
-            df_fb_movement_range,
-            DEFAULT_POPULATION,
-            DEFAULT_TRAIN_FIRST_DATE,
-            DEFAULT_TRAIN_RANGE,
-            DEFAULT_FORECAST_RANGE,
-            DEFAULT_MOVEMENT_RANGE_DELAY,
-            7,
-        )
-    elseif exp_name == "fbmobility.ma7movementrange.4daydelay.vietnam"
-        setup_seird_fb_movement_range(
-            df_cases_timeseries,
-            df_fb_movement_range,
-            DEFAULT_POPULATION,
-            DEFAULT_TRAIN_FIRST_DATE,
-            DEFAULT_TRAIN_RANGE,
-            DEFAULT_FORECAST_RANGE,
-            Day(4),
-            7,
-        )
-    end
-end
-
-
-function train_and_evaluate_experiment_preset_vietnam(
-    exp_name::AbstractString,
-    fb_movement_range_fpath::AbstractString,
-    datasets_dir::AbstractString,
+    model,
+    train_dataset::TimeseriesDataset,
+    test_dataset::TimeseriesDataset,
     snapshots_dir::AbstractString,
+    eval_forecast_ranges::AbstractVector{Int},
+    eval_vars::Union{Int,AbstractVector{Int},OrdinalRange},
+    eval_cols::Union{Int,AbstractVector{Int},OrdinalRange},
+    eval_labels::AbstractArray{<:AbstractString},
 )
-    model, train_dataset, test_dataset = setup_experiment_preset_vietnam(
-        exp_name,
-        fb_movement_range_fpath,
-        datasets_dir,
-        recreate = false,
-    )
-
     predict_fn = Predictor(model.problem)
-    train_loss_fn = Loss(mse, predict_fn, train_dataset, 3:6)
-    test_loss_fn = Loss(mse, predict_fn, test_dataset, 3:6)
+    train_loss_fn = Loss(mse, predict_fn, train_dataset, eval_vars)
+    test_loss_fn = Loss(mse, predict_fn, test_dataset, eval_vars)
     p0 = get_model_initial_params(model)
 
     @info train_loss_fn(p0)
@@ -124,11 +41,11 @@ function train_and_evaluate_experiment_preset_vietnam(
 
     timestamp = Dates.format(now(), "yyyymmddHHMMSS")
     sessions = [
-        TrainSession("$timestamp.adam", ADAM(1e-2), 1000, exp_dir, exp_dir),
+        TrainSession("$timestamp.adam", ADAM(1e-2), 100, exp_dir, exp_dir),
         TrainSession(
             "$timestamp.bfgs",
             BFGS(initial_stepnorm = 1e-2),
-            1000,
+            10,
             exp_dir,
             exp_dir,
         ),
@@ -138,7 +55,7 @@ function train_and_evaluate_experiment_preset_vietnam(
     train_model(train_loss_fn, test_loss_fn, p0, sessions)
 
     @info "Ploting evaluations"
-    fpaths_params, uuids = lookup_saved_params(snapshots_dir, exp_name)
+    fpaths_params, uuids = lookup_params_snapshots(snapshots_dir, exp_name)
     for (fpath_params, uuid) in zip(fpaths_params, uuids)
         fig_fpath = joinpath(snapshots_dir, exp_name, "$uuid.evaluate.forecasts.mape.png")
         if !isfile(fig_fpath)
@@ -148,10 +65,10 @@ function train_and_evaluate_experiment_preset_vietnam(
                 train_dataset,
                 test_dataset,
                 Serialization.deserialize(fpath_params),
-                [7, 14, 28],
-                3:6,
-                1:4,
-                ["infective" "recoveries" "deaths" "total cases"],
+                eval_forecast_ranges,
+                eval_vars,
+                eval_cols,
+                eval_labels,
             )
             savefig(
                 plt,
@@ -163,24 +80,241 @@ function train_and_evaluate_experiment_preset_vietnam(
     return nothing
 end
 
-experiment_names = [
-    "baseline.default.vietnam",
-    "fbmobility.default.vietnam",
-    "fbmobility.4daydelay.vietnam",
-    "fbmobility.ma7movementrange.default.vietnam",
-    "fbmobility.ma7movementrange.default.vietnam",
-]
+"""
+Setup different experiement scenarios for Vietnam country-wide data
 
-for exp_name in experiment_names
-    train_and_evaluate_experiment_preset_vietnam(
-        exp_name,
-        joinpath(
-            "datasets",
-            "facebook",
-            "movement-range-data-2021-10-09",
-            "movement-range-2021-10-09.txt",
-        ),
-        "datasets",
-        "snapshots",
+# Arguments
+
+* `exp_name::AbstractString`: name of the preset experiment
+* `datasets_dir`: paths to the folder where newly created datasets are contained
+* `fb_movement_range_fpath`: paths to the Facebook movement range data file
+* `recreate=false`: true if we want to create a new file when one already exists
+"""
+function setup_experiment_preset_vietnam(
+    exp_name::AbstractString,
+    datasets_dir::AbstractString,
+)
+    df_covid_timeseries = DEFAULT_VIETNAM_COVID_DATA_TIMESERIES(datasets_dir)
+
+    train_first_date =
+        first(filter(x -> x.confirmed_total >= 500, df_covid_timeseries)).date
+    train_range = Day(31) # roughly 1 month
+    forecast_range = Day(28) # for 7-day, 14-day, and 28-day forecasts
+
+    train_dataset, test_dataset = load_covid_cases_datasets(
+        df_covid_timeseries,
+        [:infective, :recovered_total, :dead_total, :confirmed_total],
+        train_first_date,
+        train_range,
+        forecast_range,
     )
+
+    population = 97_582_700
+    u0 = [
+        population - train_dataset.data[4, 1] - train_dataset.data[1, 1] * 2,
+        train_dataset.data[1, 1] * 2,
+        train_dataset.data[1, 1],
+        train_dataset.data[2, 1],
+        train_dataset.data[3, 1],
+        train_dataset.data[4, 1],
+        population - train_dataset.data[3, 1],
+    ]
+
+    function load_experiment_movement_range(delay::Day, moving_average_days::Int)
+        return load_fb_movement_range(
+            DEFAULT_VIETNAM_AVERAGE_MOVEMENT_RANGE(datasets_dir),
+            [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users],
+            train_first_date,
+            train_range,
+            forecast_range,
+            delay,
+            moving_average_days,
+        )
+    end
+
+    model = if exp_name == "baseline.default.vietnam"
+        CovidModelSEIRDBaseline(u0, train_dataset.tspan)
+    elseif exp_name == "fbmobility1.default.vietnam"
+        movement_range_dataset = load_experiment_movement_range(Day(2), 1)
+        CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
+    elseif exp_name == "fbmobility1.4daydelay.vietnam"
+        movement_range_dataset = load_experiment_movement_range(Day(4), 1)
+        CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
+    elseif exp_name == "fbmobility1.ma7movementrange.default.vietnam"
+        movement_range_dataset = load_experiment_movement_range(Day(2), 7)
+        CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
+    elseif exp_name == "fbmobility1.ma7movementrange.4daydelay.vietnam"
+        movement_range_dataset = load_experiment_movement_range(Day(4), 7)
+        CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
+    end
+
+    return model, train_dataset, test_dataset
 end
+
+function setup_experiment_preset_vietnam_province(
+    exp_name::AbstractString,
+    datasets_dir::AbstractString,
+)
+    train_range = Day(31) # roughly 1 month
+    forecast_range = Day(28) # for 7-day, 14-day, and 28-day forecasts
+
+    function get_province_id_and_population(province_name)
+        df_vn_gadm1_population = DEFAULT_VIETNAM_GADM1_POPULATION_DATASET(datasets_dir)
+        province = first(filter(x -> x.gadm1_name == province_name, df_vn_gadm1_population))
+        return province.gadm1_id, province.avg_population
+    end
+
+    function load_experiment_covid_data(dataset_name, population)
+        df_covid_timeseries = DEFAULT_VIETNAM_PROVINCE_CONFIRMED_AND_DEATHS_TIMESERIES(
+            datasets_dir,
+            dataset_name,
+        )
+
+        train_first_date =
+            first(filter(x -> x.confirmed_total >= 500, df_covid_timeseries)).date
+
+        train_dataset, test_dataset = load_covid_cases_datasets(
+            df_covid_timeseries,
+            [:dead_total, :confirmed_total],
+            train_first_date,
+            train_range,
+            forecast_range,
+        )
+
+        # dead
+        D0 = train_dataset.data[1, 1]
+        # confirmed total
+        C0 = train_dataset.data[2, 1]
+        # effective population
+        N0 = population - D0
+        # infective assumed to be 1/2 of total confirmed
+        I0 = div(C0 - D0, 2)
+        # recovered derived from I, D, and C
+        R0 = C0 - I0 - D0
+        # exposed assumed to be 2x infectives
+        E0 = I0 * 2
+        # susceptible
+        S0 = population - C0 - E0
+        # initial state
+        u0 = [S0, E0, I0, R0, D0, C0, N0]
+
+        return u0, train_dataset, test_dataset, train_first_date
+    end
+
+    load_experiment_social_proximity_to_cases_index(
+        province_name,
+        train_first_date,
+        delay,
+    ) = load_social_proximity_to_cases_index(
+        DEFAULT_VIETNAM_SOCIAL_PROXIMITY_TO_CASES_INDEX(datasets_dir),
+        province_name,
+        train_first_date,
+        train_range,
+        forecast_range,
+        delay,
+    )
+
+    load_experiment_movement_range(
+        province_id,
+        train_first_date,
+        delay,
+        moving_average_days,
+    ) = load_fb_movement_range(
+        DEFAULT_VIETNAM_PROVINCE_AVERAGE_MOVEMENT_RANGE(datasets_dir, province_id),
+        [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users],
+        train_first_date,
+        train_range,
+        forecast_range,
+        delay,
+        moving_average_days,
+    )
+
+    if exp_name == "baseline.default.hcm"
+        _, population = get_province_id_and_population("Hồ Chí Minh city")
+        u0, train_dataset, test_dataset, _ =
+            load_experiment_covid_data("HoChiMinh", population)
+        model = CovidModelSEIRDBaseline(u0, train_dataset.tspan)
+        return model, train_dataset, test_dataset
+    elseif exp_name == "fbmobility1.default.hcm"
+        province_id, population = get_province_id_and_population("Hồ Chí Minh city")
+        u0, train_dataset, test_dataset, train_first_date =
+            load_experiment_covid_data("HoChiMinh", population)
+        movement_range_dataset =
+            load_experiment_movement_range(province_id, train_first_date, Day(2), 1)
+        model = CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
+        return model, train_dataset, test_dataset
+    elseif exp_name == "fbmobility2.default.hcm"
+        province_id, population = get_province_id_and_population("Hồ Chí Minh city")
+        u0, train_dataset, test_dataset, train_first_date =
+            load_experiment_covid_data("HoChiMinh", population)
+        movement_range_dataset =
+            load_experiment_movement_range(province_id, train_first_date, Day(2), 1)
+        social_proximity_to_cases_index = load_experiment_social_proximity_to_cases_index(
+            "Hồ Chí Minh city",
+            train_first_date,
+            Day(2),
+        )
+        model = CovidModelSEIRDFbMobility2(
+            u0,
+            train_dataset.tspan,
+            movement_range_dataset,
+            social_proximity_to_cases_index,
+        )
+        return model, train_dataset, test_dataset
+    end
+
+    return nothing
+end
+
+let
+    experiment_names = [
+        "baseline.default.vietnam",
+        "fbmobility1.default.vietnam",
+        "fbmobility1.4daydelay.vietnam",
+        "fbmobility1.ma7movementrange.default.vietnam",
+        "fbmobility1.ma7movementrange.default.vietnam",
+    ]
+    for exp_name in experiment_names
+        model, train_dataset, test_dataset = setup_experiment_preset_vietnam(
+            exp_name,
+            DEFAULT_DATASETS_DIR,
+        )
+        train_and_evaluate_experiment(
+            exp_name,
+            model,
+            train_dataset,
+            test_dataset,
+            DEFAULT_SNAPSHOTS_DIR,
+            [7, 14, 28],
+            3:6,
+            1:4,
+            ["infective" "recovered" "dead" "total confirmed"]
+        )
+    end
+end
+
+let
+    experiment_names = [
+        "baseline.default.hcm",
+        "fbmobility1.default.hcm",
+        "fbmobility2.default.hcm",
+    ]
+    for exp_name in experiment_names
+        model, train_dataset, test_dataset = setup_experiment_preset_vietnam_province(
+            exp_name,
+            DEFAULT_DATASETS_DIR,
+        )
+        train_and_evaluate_experiment(
+            exp_name,
+            model,
+            train_dataset,
+            test_dataset,
+            DEFAULT_SNAPSHOTS_DIR,
+            [7, 14, 28],
+            5:6,
+            1:2,
+            ["dead" "total confirmed"]
+        )
+    end
+end
+

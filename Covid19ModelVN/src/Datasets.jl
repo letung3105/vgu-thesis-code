@@ -222,4 +222,18 @@ function load_fb_movement_range(
     return Array(df[!, Cols(cols)])
 end
 
+function load_social_proximity_to_cases_index(
+    df::DataFrame,
+    cols,
+    train_first_date::Date,
+    train_range::Day,
+    forecast_range::Day,
+    delay::Day,
+)
+    first_date = train_first_date - delay
+    last_date = train_first_date + train_range + forecast_range - delay
+    filter!(x -> x.date >= first_date && x.date <= last_date, df)
+    return Array(df[!, Cols(cols)])
+end
+
 end
