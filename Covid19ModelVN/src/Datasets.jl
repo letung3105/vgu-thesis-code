@@ -10,7 +10,8 @@ export TimeseriesDataset,
     DEFAULT_VIETNAM_AVERAGE_MOVEMENT_RANGE,
     DEFAULT_VIETNAM_INTRA_CONNECTEDNESS_INDEX,
     DEFAULT_VIETNAM_PROVINCE_CONFIRMED_AND_DEATHS_TIMESERIES,
-    DEFAULT_VIETNAM_PROVINCE_AVERAGE_MOVEMENT_RANGE
+    DEFAULT_VIETNAM_PROVINCE_AVERAGE_MOVEMENT_RANGE,
+    DEFAULT_VIETNAM_SOCIAL_PROXIMITY_TO_CASES_INDEX
 
 using Dates, DataFrames
 
@@ -18,6 +19,16 @@ import Covid19ModelVN.FacebookData,
     Covid19ModelVN.VnExpressData,
     Covid19ModelVN.PopulationData,
     Covid19ModelVN.VnCdcData
+
+DEFAULT_VIETNAM_SOCIAL_PROXIMITY_TO_CASES_INDEX(datasets_dir; recreate = false) =
+    FacebookData.save_social_proximity_to_cases_index(
+        joinpath(datasets_dir, "VNM-gadm1-population.csv"),
+        joinpath(datasets_dir, "20210427-20211013-vietnam-provinces-total-confirmed-timeseries.csv"),
+        joinpath(datasets_dir, "VNM-facebook-intra-connectedness-index.csv"),
+        datasets_dir,
+        "VNM-social-proximity-to-cases",
+        recreate = recreate
+    )
 
 DEFAULT_VIETNAM_PROVINCE_CONFIRMED_AND_DEATHS_TIMESERIES(datasets_dir, name) =
     VnCdcData.parse_json_cases_and_deaths(
