@@ -3,6 +3,7 @@ module Datasets
 export TimeseriesDataset,
     load_covid_cases_datasets,
     load_fb_movement_range,
+    load_social_proximity_to_cases_index,
     DEFAULT_VIETNAM_GADM1_POPULATION_DATASET,
     DEFAULT_VIETNAM_COVID_DATA_TIMESERIES,
     DEFAULT_VIETNAM_PROVINCES_CONFIRMED_TIMESERIES,

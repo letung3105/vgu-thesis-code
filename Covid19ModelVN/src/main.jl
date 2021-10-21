@@ -5,8 +5,9 @@ if isfile("Project.toml") && isfile("Manifest.toml")
 end
 
 using Dates,
-    DiffEqFlux,
     Serialization,
+    Plots,
+    DiffEqFlux,
     Covid19ModelVN.Models,
     Covid19ModelVN.Helpers,
     Covid19ModelVN.Datasets
@@ -22,7 +23,6 @@ function train_and_evaluate_experiment(
     snapshots_dir::AbstractString,
     eval_forecast_ranges::AbstractVector{Int},
     eval_vars::Union{Int,AbstractVector{Int},OrdinalRange},
-    eval_cols::Union{Int,AbstractVector{Int},OrdinalRange},
     eval_labels::AbstractArray{<:AbstractString},
 )
     predict_fn = Predictor(model.problem)
@@ -55,7 +55,7 @@ function train_and_evaluate_experiment(
     train_model(train_loss_fn, test_loss_fn, p0, sessions)
 
     @info "Ploting evaluations"
-    fpaths_params, uuids = lookup_params_snapshots(snapshots_dir, exp_name)
+    fpaths_params, uuids = lookup_saved_params(snapshots_dir, exp_name)
     for (fpath_params, uuid) in zip(fpaths_params, uuids)
         fig_fpath = joinpath(snapshots_dir, exp_name, "$uuid.evaluate.forecasts.mape.png")
         if !isfile(fig_fpath)
@@ -67,7 +67,6 @@ function train_and_evaluate_experiment(
                 Serialization.deserialize(fpath_params),
                 eval_forecast_ranges,
                 eval_vars,
-                eval_cols,
                 eval_labels,
             )
             savefig(
@@ -287,7 +286,6 @@ let
             DEFAULT_SNAPSHOTS_DIR,
             [7, 14, 28],
             3:6,
-            1:4,
             ["infective" "recovered" "dead" "total confirmed"]
         )
     end
@@ -312,7 +310,6 @@ let
             DEFAULT_SNAPSHOTS_DIR,
             [7, 14, 28],
             5:6,
-            1:2,
             ["dead" "total confirmed"]
         )
     end

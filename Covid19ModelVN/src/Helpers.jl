@@ -356,17 +356,16 @@ function plot_forecasts(
     metric_fn::Function,
     train_dataset::TimeseriesDataset,
     test_dataset::TimeseriesDataset,
-    minimizer,
-    forecast_ranges,
-    vars,
-    cols,
-    labels,
+    minimizer::AbstractVector{<:Real},
+    forecast_ranges::AbstractVector{Int},
+    vars::Union{Int,AbstractVector{Int},OrdinalRange},
+    labels::AbstractArray{<:AbstractString},
 )
     fit = predict_fn(minimizer, train_dataset.tspan, train_dataset.tsteps)
     pred = predict_fn(minimizer, test_dataset.tspan, test_dataset.tsteps)
 
     plts = []
-    for days in forecast_ranges, (var, col, label) in zip(vars, cols, labels)
+    for days in forecast_ranges, (col, (var, label)) in enumerate(zip(vars, labels))
         data_fit = train_dataset.data[col, :]
         data_new = test_dataset.data[col, :]
 
