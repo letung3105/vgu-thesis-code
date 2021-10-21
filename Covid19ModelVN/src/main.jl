@@ -26,8 +26,8 @@ function train_and_evaluate_experiment(
     eval_labels::AbstractArray{<:AbstractString},
 )
     predict_fn = Predictor(model.problem)
-    train_loss_fn = Loss(mse, predict_fn, train_dataset, eval_vars)
-    test_loss_fn = Loss(mse, predict_fn, test_dataset, eval_vars)
+    train_loss_fn = Loss(rmse, predict_fn, train_dataset, eval_vars)
+    test_loss_fn = Loss(rmse, predict_fn, test_dataset, eval_vars)
     p0 = get_model_initial_params(model)
 
     @info train_loss_fn(p0)
@@ -41,11 +41,11 @@ function train_and_evaluate_experiment(
 
     timestamp = Dates.format(now(), "yyyymmddHHMMSS")
     sessions = [
-        TrainSession("$timestamp.adam", ADAM(1e-2), 100, exp_dir, exp_dir),
+        TrainSession("$timestamp.adam", ADAM(1e-2), 10000, exp_dir, exp_dir),
         TrainSession(
             "$timestamp.bfgs",
             BFGS(initial_stepnorm = 1e-2),
-            10,
+            1000,
             exp_dir,
             exp_dir,
         ),
@@ -265,53 +265,56 @@ function setup_experiment_preset_vietnam_province(
     return nothing
 end
 
-let
-    experiment_names = [
-        "baseline.default.vietnam",
-        "fbmobility1.default.vietnam",
-        "fbmobility1.4daydelay.vietnam",
-        "fbmobility1.ma7movementrange.default.vietnam",
-        "fbmobility1.ma7movementrange.default.vietnam",
-    ]
-    for exp_name in experiment_names
-        model, train_dataset, test_dataset = setup_experiment_preset_vietnam(
-            exp_name,
-            DEFAULT_DATASETS_DIR,
-        )
-        train_and_evaluate_experiment(
-            exp_name,
-            model,
-            train_dataset,
-            test_dataset,
-            DEFAULT_SNAPSHOTS_DIR,
-            [7, 14, 28],
-            3:6,
-            ["infective" "recovered" "dead" "total confirmed"]
-        )
+function main()
+    let
+        experiment_names = [
+            "baseline.default.vietnam",
+            "fbmobility1.default.vietnam",
+            "fbmobility1.4daydelay.vietnam",
+            "fbmobility1.ma7movementrange.default.vietnam",
+            "fbmobility1.ma7movementrange.default.vietnam",
+        ]
+        for exp_name in experiment_names
+            model, train_dataset, test_dataset = setup_experiment_preset_vietnam(
+                exp_name,
+                DEFAULT_DATASETS_DIR,
+            )
+            train_and_evaluate_experiment(
+                exp_name,
+                model,
+                train_dataset,
+                test_dataset,
+                DEFAULT_SNAPSHOTS_DIR,
+                [7, 14, 28],
+                3:6,
+                ["infective" "recovered" "dead" "total confirmed"]
+            )
+        end
+    end
+
+    let
+        experiment_names = [
+            "baseline.default.hcm",
+            "fbmobility1.default.hcm",
+            "fbmobility2.default.hcm",
+        ]
+        for exp_name in experiment_names
+            model, train_dataset, test_dataset = setup_experiment_preset_vietnam_province(
+                exp_name,
+                DEFAULT_DATASETS_DIR,
+            )
+            train_and_evaluate_experiment(
+                exp_name,
+                model,
+                train_dataset,
+                test_dataset,
+                DEFAULT_SNAPSHOTS_DIR,
+                [7, 14, 28],
+                5:6,
+                ["dead" "total confirmed"]
+            )
+        end
     end
 end
 
-let
-    experiment_names = [
-        "baseline.default.hcm",
-        "fbmobility1.default.hcm",
-        "fbmobility2.default.hcm",
-    ]
-    for exp_name in experiment_names
-        model, train_dataset, test_dataset = setup_experiment_preset_vietnam_province(
-            exp_name,
-            DEFAULT_DATASETS_DIR,
-        )
-        train_and_evaluate_experiment(
-            exp_name,
-            model,
-            train_dataset,
-            test_dataset,
-            DEFAULT_SNAPSHOTS_DIR,
-            [7, 14, 28],
-            5:6,
-            ["dead" "total confirmed"]
-        )
-    end
-end
-
+main()
