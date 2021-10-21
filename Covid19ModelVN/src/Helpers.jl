@@ -11,6 +11,7 @@ export Predictor,
     rmse,
     rmsle,
     train_model,
+    evaluate_model,
     plot_forecasts,
     lookup_saved_params
 
@@ -387,6 +388,38 @@ function plot_forecasts(
         layout = (nforecasts, nvariables),
         size = (300 * nvariables, 300 * nforecasts),
     )
+end
+
+function evaluate_model(
+    exp_name::AbstractString,
+    predict_fn::Predictor,
+    train_dataset::TimeseriesDataset,
+    test_dataset::TimeseriesDataset,
+    snapshots_dir::AbstractString,
+    eval_forecast_ranges::AbstractVector{Int},
+    eval_vars::Union{Int,AbstractVector{Int},OrdinalRange},
+    eval_labels::AbstractArray{<:AbstractString},
+)
+    fpaths_params, uuids = lookup_saved_params(snapshots_dir, exp_name)
+    for (fpath_params, uuid) in zip(fpaths_params, uuids)
+        fig_fpath = joinpath(snapshots_dir, exp_name, "$uuid.evaluate.forecasts.mape.png")
+        if !isfile(fig_fpath)
+            plt = plot_forecasts(
+                predict_fn,
+                mape,
+                train_dataset,
+                test_dataset,
+                Serialization.deserialize(fpath_params),
+                eval_forecast_ranges,
+                eval_vars,
+                eval_labels,
+            )
+            savefig(
+                plt,
+                joinpath(snapshots_dir, exp_name, "$uuid.evaluate.forecasts.mape.png"),
+            )
+        end
+    end
 end
 
 end
