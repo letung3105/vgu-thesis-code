@@ -41,8 +41,8 @@ function train_and_evaluate_experiment(
 
     timestamp = Dates.format(now(), "yyyymmddHHMMSS")
     sessions = [
-        TrainSession("$timestamp.adam", ADAM(1e-2), 10, exp_dir, exp_dir),
-        TrainSession("$timestamp.lbfgs", LBFGS(), 1, exp_dir, exp_dir),
+        TrainSession("$timestamp.adam", ADAM(1e-2), 10000, exp_dir, exp_dir),
+        TrainSession("$timestamp.lbfgs", LBFGS(), 1000, exp_dir, exp_dir),
     ]
 
     @info "Start training"
@@ -84,9 +84,6 @@ function setup_experiment_preset_vietnam(
 
     # load covid cases data
     df_covid_timeseries = DEFAULT_VIETNAM_COVID_DATA_TIMESERIES(datasets_dir)
-    covid_timeseries_cols = [:infective, :recovered_total, :dead_total, :confirmed_total]
-    Datasets.moving_average!(df_covid_timeseries, covid_timeseries_cols, 7)
-
     # first date that total number of confirmed cases passed 500
     first_date = first(filter(x -> x.confirmed_total >= 500, df_covid_timeseries)).date
     split_date = first_date + train_range
@@ -94,6 +91,9 @@ function setup_experiment_preset_vietnam(
 
     @info "First date: $first_date"
 
+    # ma7
+    covid_timeseries_cols = [:infective, :recovered_total, :dead_total, :confirmed_total]
+    Datasets.moving_average!(df_covid_timeseries, covid_timeseries_cols, 7)
     # separate dataframe into data arrays for train and test
     train_dataset, test_dataset = Datasets.train_test_split(
         df_covid_timeseries,
@@ -133,10 +133,10 @@ function setup_experiment_preset_vietnam(
     model = if exp_name == "baseline.default.vietnam"
         CovidModelSEIRDBaseline(u0, train_dataset.tspan)
     elseif exp_name == "fbmobility1.default.vietnam"
-        movement_range_dataset = load_experiment_movement_range(Day(2))
+        movement_range_dataset = load_movement_range(Day(2))
         CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
     elseif exp_name == "fbmobility1.4daylag.vietnam"
-        movement_range_dataset = load_experiment_movement_range(Day(4))
+        movement_range_dataset = load_movement_range(Day(4))
         CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
     end
 
@@ -158,15 +158,12 @@ function setup_experiment_preset_vietnam_province(
         return province.gadm1_id, province.avg_population
     end
 
-    function load_experiment_covid_data(dataset_name, population)
+    function load_covid_data(dataset_name, population)
         # load covid cases data
         df_covid_timeseries = DEFAULT_VIETNAM_PROVINCE_CONFIRMED_AND_DEATHS_TIMESERIES(
             datasets_dir,
             dataset_name,
         )
-        covid_timeseries_cols = [:dead_total, :confirmed_total]
-        Datasets.moving_average!(df_covid_timeseries, covid_timeseries_cols, 7)
-
         # first date that total number of confirmed cases passed 500
         first_date = first(filter(x -> x.confirmed_total >= 500, df_covid_timeseries)).date
         split_date = first_date + train_range
@@ -174,6 +171,9 @@ function setup_experiment_preset_vietnam_province(
 
         @info "First date: $first_date"
 
+        # ma7
+        covid_timeseries_cols = [:dead_total, :confirmed_total]
+        Datasets.moving_average!(df_covid_timeseries, covid_timeseries_cols, 7)
         # separate dataframe into data arrays for train and test
         train_dataset, test_dataset = Datasets.train_test_split(
             df_covid_timeseries,
@@ -198,7 +198,7 @@ function setup_experiment_preset_vietnam_province(
     end
 
     function load_social_proximity_to_cases_index(province_name, first_date, lag)
-        df_vn_spc = DEFAULT_VIETNAM_SOCIAL_PROXIMITY_TO_CASES_INDEX(datasets_dir),
+        df_vn_spc = DEFAULT_VIETNAM_SOCIAL_PROXIMITY_TO_CASES_INDEX(datasets_dir)
         Datasets.moving_average!(df_vn_spc, province_name, 7)
         return load_timeseries(
             df_vn_spc,
@@ -209,11 +209,11 @@ function setup_experiment_preset_vietnam_province(
         )
     end
 
-    function load_movement_range(province_id, train_first_date, lag)
+    function load_movement_range(province_id, first_date, lag)
         df_movement_range =
             DEFAULT_VIETNAM_PROVINCE_AVERAGE_MOVEMENT_RANGE(datasets_dir, province_id)
         movement_range_cols =
-            [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_user]
+            [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users]
         Datasets.moving_average!(df_movement_range, movement_range_cols, 7)
         return load_timeseries(
             df_movement_range,
@@ -241,26 +241,26 @@ function setup_experiment_preset_vietnam_province(
     if exp_model_type == "baseline.default"
         _, population = get_province_id_and_population(province_name)
         u0, train_dataset, test_dataset, _ =
-            load_experiment_covid_data(dataset_name, population)
+            load_covid_data(dataset_name, population)
         model = CovidModelSEIRDBaseline(u0, train_dataset.tspan)
         return model, train_dataset, test_dataset
 
     elseif exp_model_type == "fbmobility1.default"
         province_id, population = get_province_id_and_population(province_name)
         u0, train_dataset, test_dataset, train_first_date =
-            load_experiment_covid_data(dataset_name, population)
+            load_covid_data(dataset_name, population)
         movement_range_dataset =
-            load_experiment_movement_range(province_id, train_first_date, Day(2))
+            load_movement_range(province_id, train_first_date, Day(2))
         model = CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
         return model, train_dataset, test_dataset
 
     elseif exp_model_type == "fbmobility2.default"
         province_id, population = get_province_id_and_population(province_name)
         u0, train_dataset, test_dataset, train_first_date =
-            load_experiment_covid_data(dataset_name, population)
+            load_covid_data(dataset_name, population)
         movement_range_dataset =
-            load_experiment_movement_range(province_id, train_first_date, Day(2))
-        scp_index = load_experiment_social_proximity_to_cases_index(
+            load_movement_range(province_id, train_first_date, Day(2))
+        scp_index = load_social_proximity_to_cases_index(
             province_name,
             train_first_date,
             Day(2),
@@ -298,7 +298,7 @@ function main(
             train_dataset,
             test_dataset,
             DEFAULT_SNAPSHOTS_DIR,
-            [7, 14, 28],
+            [7, 14, 21, 28],
             3:6,
             ["infective" "recovered" "dead" "total confirmed"],
         )
@@ -313,7 +313,7 @@ function main(
             train_dataset,
             test_dataset,
             DEFAULT_SNAPSHOTS_DIR,
-            [7, 14, 28],
+            [7, 14, 21, 28],
             5:6,
             ["dead" "total confirmed"],
         )
@@ -339,19 +339,3 @@ end
 # main([
 # "baseline.default.vietnam",
 # ])
-
-using Plots
-
-let
-    model, train_data, test_data =
-        setup_experiment_preset_vietnam("baseline.default.vietnam", DEFAULT_DATASETS_DIR)
-    plot([train_data.data test_data.data]')
-end
-
-let
-    model, train_data, test_data = setup_experiment_preset_vietnam_province(
-        "baseline.default.dongnai",
-        DEFAULT_DATASETS_DIR,
-    )
-    plot([train_data.data test_data.data]')
-end
