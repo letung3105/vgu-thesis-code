@@ -1,9 +1,8 @@
 module Datasets
 
 export TimeseriesDataset,
-    load_covid_cases_datasets,
-    load_fb_movement_range,
-    load_social_proximity_to_cases_index,
+    load_timeseries,
+    train_test_split,
     DEFAULT_VIETNAM_GADM1_POPULATION_DATASET,
     DEFAULT_VIETNAM_COVID_DATA_TIMESERIES,
     DEFAULT_VIETNAM_PROVINCES_CONFIRMED_TIMESERIES,
@@ -16,39 +15,41 @@ export TimeseriesDataset,
 
 using Dates, DataFrames, Statistics
 import Covid19ModelVN.FacebookData,
-    Covid19ModelVN.VnExpressData,
-    Covid19ModelVN.PopulationData,
-    Covid19ModelVN.VnCdcData
+    Covid19ModelVN.VnExpressData, Covid19ModelVN.PopulationData, Covid19ModelVN.VnCdcData
 
 DEFAULT_VIETNAM_SOCIAL_PROXIMITY_TO_CASES_INDEX(datasets_dir; recreate = false) =
     FacebookData.save_social_proximity_to_cases_index(
         joinpath(datasets_dir, "VNM-gadm1-population.csv"),
-        joinpath(datasets_dir, "20210427-20211013-vietnam-provinces-confirmed-timeseries.csv"),
+        joinpath(
+            datasets_dir,
+            "20210427-20211013-vietnam-provinces-confirmed-timeseries.csv",
+        ),
         joinpath(datasets_dir, "VNM-facebook-intra-connectedness-index.csv"),
         datasets_dir,
         "VNM-social-proximity-to-cases",
-        recreate = recreate
+        recreate = recreate,
     )
 
 DEFAULT_VIETNAM_PROVINCE_CONFIRMED_AND_DEATHS_TIMESERIES(datasets_dir, name) =
-    VnCdcData.parse_json_cases_and_deaths(
-        joinpath(datasets_dir, "vncdc", "$name.json"),
-    )
+    VnCdcData.parse_json_cases_and_deaths(joinpath(datasets_dir, "vncdc", "$name.json"))
 
-DEFAULT_VIETNAM_PROVINCE_AVERAGE_MOVEMENT_RANGE(datasets_dir, province_id; recreate = false) =
-    FacebookData.save_country_average_movement_range(
-        joinpath(
-            datasets_dir,
-            "facebook",
-            "movement-range-data-2021-10-09",
-            "movement-range-2021-10-09.txt",
-        ),
-        datasets_dir ,
-        "facebook-average-movement-range",
-        "VNM",
-        province_id,
-        recreate = recreate,
-    )
+DEFAULT_VIETNAM_PROVINCE_AVERAGE_MOVEMENT_RANGE(
+    datasets_dir,
+    province_id;
+    recreate = false,
+) = FacebookData.save_country_average_movement_range(
+    joinpath(
+        datasets_dir,
+        "facebook",
+        "movement-range-data-2021-10-09",
+        "movement-range-2021-10-09.txt",
+    ),
+    datasets_dir,
+    "facebook-average-movement-range",
+    "VNM",
+    province_id,
+    recreate = recreate,
+)
 
 
 DEFAULT_VIETNAM_GADM1_POPULATION_DATASET(datasets_dir; recreate = false) =
@@ -115,6 +116,15 @@ DEFAULT_VIETNAM_INTRA_CONNECTEDNESS_INDEX(datasets_dir; recreate = false) =
         recreate = recreate,
     )
 
+view_dates_range(df::DataFrame, col, start_date::Date, end_date::Date) =
+    view(df, (df[!, col] .>= start_date) .& (df[!, col] .<= end_date), All())
+
+moving_average(xs, n::Int) =
+    [mean(@view xs[(i >= n ? i - n + 1 : 1):i]) for i = 1:length(xs)]
+
+moving_average!(df::DataFrame, cols, n::Int) =
+    transform!(df, names(df, Cols(cols)) .=> x -> moving_average(x, n), renamecols = false)
+
 """
 This contains the minimum required information for a timeseriese dataset that is used by UDEs
 
@@ -130,123 +140,41 @@ struct TimeseriesDataset
     tsteps::Union{Real,AbstractVector{<:Real},StepRange,StepRangeLen}
 end
 
-"""
-Construct a `TimeseriesDataset` from the `DataFrame`
-
-# Arguments
-
-* `df::DataFrame`: the `DataFrame` that contains a timeseries
-* `first_date::Date`: date of earliest data point
-* `last_date::Date`: date of latest data point
-* `cols`: `DataFrame` columns to consider
-* `timeoffset`: offset for `tspan` and `tsteps` when creating the dataset
-"""
-function TimeseriesDataset(
+function train_test_split(
     df::DataFrame,
-    cols,
+    data_cols,
+    date_col,
     first_date::Date,
-    last_date::Date;
-    timeoffset = 0,
+    split_date::Date,
+    last_date::Date,
 )
-    df = filter(x -> x.date >= first_date && x.date <= last_date, df)
-    data = Float64.(Array(df[!, cols])')
-    tspan = Float64.((0, Dates.value(last_date - first_date) + timeoffset))
-    tsteps = (tspan[1]+timeoffset):1:tspan[2]
-    return TimeseriesDataset(data, tspan, tsteps)
-end
+    df_train = view_dates_range(df, date_col, first_date, split_date)
+    df_test = view_dates_range(df, date_col, split_date + Day(1), last_date)
 
-moving_average(xs, n) = [mean(@view xs[i-n+1:i]) for i = n:length(xs)]
+    train_tspan = Float64.((0, Dates.value(split_date - first_date)))
+    test_tspan = Float64.((0, Dates.value(last_date - first_date)))
 
-"""
-Load the train and test datasets for the given dates
+    train_tsteps = train_tspan[1]:1:train_tspan[2]
+    test_tsteps = (train_tspan[2]+1):1:test_tspan[2]
 
-# Arguments
+    train_data = Float64.(Array(df_train[!, data_cols])')
+    test_data = Float64.(Array(df_test[!, data_cols])')
 
-* `df::DataFrame`: the `DataFrame` that contains a timeseries
-* `cols`: columns to consider
-* `train_first_date::Date`: date of earliest data point
-* `train_range::Day`: number of days in the training set
-* `forecast_range::Day`: number of days in the testing set
-"""
-function load_covid_cases_datasets(
-    df::DataFrame,
-    cols,
-    train_first_date::Date,
-    train_range::Day,
-    forecast_range::Day,
-    moving_average_days::Int,
-)
-    df = combine(
-        df,
-        :date => x -> x[moving_average_days:end],
-        names(df, Not(:date)) .=> x -> moving_average(x, moving_average_days),
-        renamecols = false,
-    )
-    train_last_date = train_first_date + train_range
-    test_first_date = train_last_date + Day(1)
-    test_last_date = test_first_date + forecast_range
-    train_dataset = TimeseriesDataset(df, cols, train_first_date, train_last_date)
-    test_dataset = TimeseriesDataset(
-        df,
-        cols,
-        test_first_date,
-        test_last_date,
-        timeoffset = train_dataset.tspan[2] + 1,
-    )
+    train_dataset = TimeseriesDataset(train_data, train_tspan, train_tsteps)
+    test_dataset = TimeseriesDataset(test_data, test_tspan, test_tsteps)
+
     return train_dataset, test_dataset
 end
 
-"""
-Load the train and test datasets for the given dates
-
-# Arguments
-
-* `df::DataFrame`: the `DataFrame` that contains a timeseries
-* `cols`: columns to consider
-* `train_first_date::Date': date of earliest data point
-* `train_range::Day': number of days in the training set
-* `forecast_range::Day': number of days in the testing set
-* `delay`: delay the data input versus the training dates and forecast dates
-"""
-function load_fb_movement_range(
+function load_timeseries(
     df::DataFrame,
-    train_first_date::Date,
-    train_range::Day,
-    forecast_range::Day,
-    delay::Day,
-    moving_average_days::Int,
+    data_cols,
+    date_col,
+    first_date::Date,
+    last_date::Date,
 )
-    df = combine(
-        df,
-        :ds => x -> x[moving_average_days:end],
-        names(df, Not(:ds)) .=> x -> moving_average(x, moving_average_days),
-        renamecols = false,
-    )
-    first_date = train_first_date - delay
-    last_date = train_first_date + train_range + forecast_range - delay
-    filter!(x -> x.ds >= first_date && x.ds <= last_date, df)
-    return Array(df[!, Not(:ds)])
-end
-
-function load_social_proximity_to_cases_index(
-    df::DataFrame,
-    cols,
-    train_first_date::Date,
-    train_range::Day,
-    forecast_range::Day,
-    delay::Day,
-    moving_average_days::Int,
-)
-    df = combine(
-        df,
-        :date => x -> x[moving_average_days:end],
-        names(df, Not(:date)) .=> x -> moving_average(x, moving_average_days),
-        renamecols = false,
-    )
-    first_date = train_first_date - delay
-    last_date = train_first_date + train_range + forecast_range - delay
-    filter!(x -> x.date >= first_date && x.date <= last_date, df)
-    return Array(df[!, Cols(cols)])
+    df = view_dates_range(df, date_col, first_date, last_date)
+    return Array(df[!, Cols(data_cols)])
 end
 
 end

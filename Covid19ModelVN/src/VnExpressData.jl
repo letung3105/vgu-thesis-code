@@ -85,7 +85,7 @@ function clean_provinces_confirmed_cases_timeseries!(df::DataFrame)
     select!(
         df,
         "Ngày" => (x -> Date.(x .* "/2021", dateformat"d/m/Y")) => :date,
-        Not("Ngày")
+        Not("Ngày"),
     )
     return nothing
 end

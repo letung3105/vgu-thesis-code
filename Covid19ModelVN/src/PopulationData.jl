@@ -26,7 +26,7 @@ function save_vietnam_gadm1_population(
         df_vn_adm,
         :NAME_1 => :gadm1_name,
         :VARNAME_1 => :gadm1_varname,
-        :ID_1 => :gadm1_id
+        :ID_1 => :gadm1_id,
     )
 
     # GSO's expected population for 2020 (EN version)
