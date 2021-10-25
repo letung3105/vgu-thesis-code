@@ -165,4 +165,46 @@ function save_social_proximity_to_cases_index(
     return df_social_proximity_to_cases
 end
 
+function read_movement_range(fpath)
+    data, header = readdlm(fpath, '\t', header = true)
+    df = identity.(DataFrame(data, vec(header)))
+    df[!, :ds] .= Date.(df[!, :ds])
+    return df
+end
+
+function read_social_connectedness(fpath)
+    data, header = readdlm(fpath, '\t', header = true)
+    df = identity.(DataFrame(data, vec(header)))
+    return df
+end
+
+function region_average_movement_range(
+    df_movement_range,
+    country_code,
+    subdivision_id = nothing,
+)
+    df_movement_range_region =
+        subset(df_movement_range, :country => x -> x .== country_code, view = true)
+    if !isnothing(subdivision_id)
+        df_movement_range_region = subset(
+            df_movement_range_region,
+            :polygon_id => x -> startswith.(x, "$country_code.$subdivision_id"),
+            view = true,
+        )
+    end
+
+    df_movement_range_region_avg = combine(
+        DataFrames.groupby(df_movement_range_region, :ds),
+        [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users] .=> mean,
+        renamecols = false,
+    )
+    return df_movement_range_region_avg
+end
+
+inter_province_social_connectedness(df_social_connectedness, country_code) = subset(
+    df_social_connectedness,
+    [:user_loc, :fr_loc] => ((x, y) -> startswith.(x, country_code) .& startswith.(y, country_code)),
+    view = true,
+)
+
 end # module FacebookData

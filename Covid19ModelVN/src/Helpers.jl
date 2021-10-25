@@ -4,7 +4,7 @@ export TimeseriesDataset,
     moving_average!,
     train_test_split,
     load_timeseries,
-    save_timeseries_csv,
+    save_dataframe,
     Predictor,
     Loss,
     TrainCallback,
@@ -17,6 +17,7 @@ export TimeseriesDataset,
 using Dates,
     Serialization,
     Statistics,
+    CSV,
     Plots,
     DataFrames,
     ProgressMeter,
@@ -83,7 +84,7 @@ function load_timeseries(
     return Array(df[!, Cols(data_cols)])
 end
 
-function save_timeseries_csv(df, fdir, fid; recreate = false)
+function save_dataframe(df, fdir, fid; recreate = false)
     fpath = joinpath(fdir, "$fid.csv")
 
     # file exists and don't need to be updated

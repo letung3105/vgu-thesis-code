@@ -6,7 +6,7 @@ end
 
 using Dates, Plots, DataDeps, DataFrames, CSV, Covid19ModelVN.Datasets, Covid19ModelVN.Helpers
 
-import Covid19ModelVN.JHUCSSEData
+import Covid19ModelVN.JHUCSSEData, Covid19ModelVN.FacebookData
 
 const DEFAULT_DATASETS_DIR = "datasets"
 
@@ -101,7 +101,7 @@ function test_visualizations()
     nothing
 end
 
-@time let
+let
     df_confirmed = CSV.read(
         datadep"jhu-csse-covid19/time_series_covid19_confirmed_global.csv",
         DataFrame,
@@ -113,30 +113,43 @@ end
     df_deaths =
         CSV.read(datadep"jhu-csse-covid19/time_series_covid19_deaths_global.csv", DataFrame)
 
-    df = JHUCSSEData.combine_country_level_timeseries(
+    @time df = JHUCSSEData.combine_country_level_timeseries(
         df_confirmed,
         df_recovered,
         df_deaths,
         "Vietnam",
     )
-    save_timeseries_csv(
+    save_dataframe(
         df,
         "datasets/jhu-csse-covid19",
         "time_series_covid19_combined_vietnam",
     )
 end
 
-@time let
+let
     df_confirmed =
         CSV.read(datadep"jhu-csse-covid19/time_series_covid19_confirmed_US.csv", DataFrame)
     df_deaths =
         CSV.read(datadep"jhu-csse-covid19/time_series_covid19_deaths_US.csv", DataFrame)
 
-    @show JHUCSSEData.get_us_county_population(df_deaths, "Alabama", "Autauga")
-    df = JHUCSSEData.combine_us_county_level_timeseries(df_confirmed, df_deaths, "Alabama", "Autauga")
-    save_timeseries_csv(
+    @time population = JHUCSSEData.get_us_county_population(df_deaths, "Alabama", "Autauga")
+    @time df = JHUCSSEData.combine_us_county_level_timeseries(df_confirmed, df_deaths, "Alabama", "Autauga")
+    @show population
+    save_dataframe(
         df,
         "datasets/jhu-csse-covid19",
         "time_series_covid19_combined_us_autauga",
     )
 end
+
+df_movement_range = FacebookData.read_movement_range(
+    "datasets/facebook/movement-range-data-2021-10-09/movement-range-2021-10-09.txt"
+)
+df_movement_range_vn = FacebookData.region_average_movement_range(df_movement_range, "VNM")
+save_dataframe(df_movement_range_vn, "datasets/facebook", "facebook-movement-range-average-vnm")
+
+df_social_connectedness = FacebookData.read_social_connectedness(
+    "datasets/facebook/social-connectedness-index/gadm1_nuts2_gadm1_nuts2_aug2020.tsv"
+)
+df_social_connectedness_vn = FacebookData.inter_province_social_connectedness(df_social_connectedness, "VNM")
+save_dataframe(df_social_connectedness_vn, "datasets/facebook", "facebook-social-connectedness-vnm")
