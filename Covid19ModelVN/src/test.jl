@@ -6,7 +6,7 @@ end
 
 using Dates, Plots, DataDeps, DataFrames, CSV, Covid19ModelVN.Datasets, Covid19ModelVN.Helpers
 
-import Covid19ModelVN.JHUCSSEData, Covid19ModelVN.FacebookData
+import Covid19ModelVN.JHUCSSEData, Covid19ModelVN.FacebookData, Covid19ModelVN.PopulationData
 
 const DEFAULT_DATASETS_DIR = "datasets"
 
@@ -101,17 +101,17 @@ function test_visualizations()
     nothing
 end
 
-let
+function test_save_jhu_csse_covid_timeseries_global()
     df_confirmed = CSV.read(
-        datadep"jhu-csse-covid19/time_series_covid19_confirmed_global.csv",
+        datadep"jhu-csse/time_series_covid19_confirmed_global.csv",
         DataFrame,
     )
     df_recovered = CSV.read(
-        datadep"jhu-csse-covid19/time_series_covid19_recovered_global.csv",
+        datadep"jhu-csse/time_series_covid19_recovered_global.csv",
         DataFrame,
     )
     df_deaths =
-        CSV.read(datadep"jhu-csse-covid19/time_series_covid19_deaths_global.csv", DataFrame)
+        CSV.read(datadep"jhu-csse/time_series_covid19_deaths_global.csv", DataFrame)
 
     @time df = JHUCSSEData.combine_country_level_timeseries(
         df_confirmed,
@@ -121,35 +121,39 @@ let
     )
     save_dataframe(
         df,
-        "datasets/jhu-csse-covid19",
+        "datasets/jhu-csse",
         "time_series_covid19_combined_vietnam",
     )
 end
 
-let
+function test_save_jhu_csse_covid_timeseries_US()
     df_confirmed =
-        CSV.read(datadep"jhu-csse-covid19/time_series_covid19_confirmed_US.csv", DataFrame)
+        CSV.read(datadep"jhu-csse/time_series_covid19_confirmed_US.csv", DataFrame)
     df_deaths =
-        CSV.read(datadep"jhu-csse-covid19/time_series_covid19_deaths_US.csv", DataFrame)
+        CSV.read(datadep"jhu-csse/time_series_covid19_deaths_US.csv", DataFrame)
 
     @time population = JHUCSSEData.get_us_county_population(df_deaths, "Alabama", "Autauga")
     @time df = JHUCSSEData.combine_us_county_level_timeseries(df_confirmed, df_deaths, "Alabama", "Autauga")
     @show population
     save_dataframe(
         df,
-        "datasets/jhu-csse-covid19",
+        "datasets/jhu-csse",
         "time_series_covid19_combined_us_autauga",
     )
 end
 
-df_movement_range = FacebookData.read_movement_range(
-    "datasets/facebook/movement-range-data-2021-10-09/movement-range-2021-10-09.txt"
-)
-df_movement_range_vn = FacebookData.region_average_movement_range(df_movement_range, "VNM")
-save_dataframe(df_movement_range_vn, "datasets/facebook", "facebook-movement-range-average-vnm")
+function test_save_fb_movement_range()
+    df_movement_range = FacebookData.read_movement_range(
+        "datasets/facebook/movement-range-data-2021-10-09/movement-range-2021-10-09.txt"
+    )
+    df_movement_range_vn = FacebookData.region_average_movement_range(df_movement_range, "VNM")
+    save_dataframe(df_movement_range_vn, "datasets/facebook", "facebook-movement-range-average-vnm")
+end
 
-df_social_connectedness = FacebookData.read_social_connectedness(
-    "datasets/facebook/social-connectedness-index/gadm1_nuts2_gadm1_nuts2_aug2020.tsv"
-)
-df_social_connectedness_vn = FacebookData.inter_province_social_connectedness(df_social_connectedness, "VNM")
-save_dataframe(df_social_connectedness_vn, "datasets/facebook", "facebook-social-connectedness-vnm")
+function test_save_fb_social_connectedness()
+    df_social_connectedness = FacebookData.read_social_connectedness(
+        "datasets/facebook/social-connectedness-index/gadm1_nuts2_gadm1_nuts2_aug2020.tsv"
+    )
+    df_social_connectedness_vn = FacebookData.inter_province_social_connectedness(df_social_connectedness, "VNM")
+    save_dataframe(df_social_connectedness_vn, "datasets/facebook", "facebook-social-connectedness-vnm")
+end

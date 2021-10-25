@@ -5,7 +5,7 @@ using Dates, DataDeps, DataFrames
 function __init__()
     register(
         DataDep(
-            "jhu-csse-covid19",
+            "jhu-csse",
             """
             Dataset: COVID-19 Data Repository by the Center for Systems Science and Engineering (CSSE) at Johns Hopkins University
             Email: jhusystems@gmail.com
