@@ -1,8 +1,9 @@
 module Datasets
 
 export TimeseriesDataset,
-    load_timeseries,
     train_test_split,
+    load_timeseries,
+    save_timeseries_csv,
     DEFAULT_VIETNAM_GADM1_POPULATION_DATASET,
     DEFAULT_VIETNAM_COVID_DATA_TIMESERIES,
     DEFAULT_VIETNAM_PROVINCES_CONFIRMED_TIMESERIES,
@@ -13,7 +14,7 @@ export TimeseriesDataset,
     DEFAULT_VIETNAM_PROVINCE_AVERAGE_MOVEMENT_RANGE,
     DEFAULT_VIETNAM_SOCIAL_PROXIMITY_TO_CASES_INDEX
 
-using Dates, DataFrames, Statistics
+using Dates, DataFrames, CSV, Statistics
 import Covid19ModelVN.FacebookData,
     Covid19ModelVN.VnExpressData, Covid19ModelVN.PopulationData, Covid19ModelVN.VnCdcData
 
@@ -175,6 +176,22 @@ function load_timeseries(
 )
     df = view_dates_range(df, date_col, first_date, last_date)
     return Array(df[!, Cols(data_cols)])
+end
+
+function save_timeseries_csv(df, fdir, fid; recreate = false)
+    fpath = joinpath(fdir, "$fid.csv")
+
+    # file exists and don't need to be updated
+    if isfile(fpath) && !recreate
+        return fpath
+    end
+    # create containing folder if not exists
+    if !isdir(fdir)
+        mkpath(fdir)
+    end
+
+    CSV.write(fpath, df)
+    return fpath
 end
 
 end

@@ -4,11 +4,13 @@ if isfile("Project.toml") && isfile("Manifest.toml")
     Pkg.activate(".")
 end
 
-using Dates, Plots, DataFrames, Covid19ModelVN.Datasets
+using Dates, Plots, DataDeps, DataFrames, CSV, Covid19ModelVN.Datasets
+
+import Covid19ModelVN.JHUCSSEData
 
 const DEFAULT_DATASETS_DIR = "datasets"
 
-function main()
+function test_load_datasets()
     DEFAULT_VIETNAM_GADM1_POPULATION_DATASET(DEFAULT_DATASETS_DIR)
     DEFAULT_VIETNAM_COVID_DATA_TIMESERIES(DEFAULT_DATASETS_DIR)
     DEFAULT_VIETNAM_PROVINCES_CONFIRMED_TIMESERIES(DEFAULT_DATASETS_DIR)
@@ -36,7 +38,7 @@ function main()
     return nothing
 end
 
-let
+function test_visualizations()
     train_range = Day(31)
     forecast_range = Day(28)
 
@@ -51,14 +53,8 @@ let
     covid_cols = [:dead_total, :confirmed_total]
     Datasets.moving_average!(df_covid, covid_cols, 7)
 
-    train_dataset, test_dataset = train_test_split(
-        df_covid,
-        covid_cols,
-        :date,
-        first_date,
-        split_date,
-        last_date,
-    )
+    train_dataset, test_dataset =
+        train_test_split(df_covid, covid_cols, :date, first_date, split_date, last_date)
     plt = plot(title = "covid cases", legend = :outertop)
     plot!(
         [train_dataset.data test_dataset.data]',
@@ -97,10 +93,50 @@ let
         first_date - lag,
         first_date - lag + train_range + forecast_range,
     )
-    vn_spc_data  = load_spc(Day(2))
+    vn_spc_data = load_spc(Day(2))
     plt = plot(title = "Social Proximity to Cases Index", legend = :outertop)
     plot!(vn_spc_data)
     display(plt)
 
     nothing
+end
+
+@time let
+    df_confirmed = CSV.read(
+        datadep"jhu-csse-covid19/time_series_covid19_confirmed_global.csv",
+        DataFrame,
+    )
+    df_recovered = CSV.read(
+        datadep"jhu-csse-covid19/time_series_covid19_recovered_global.csv",
+        DataFrame,
+    )
+    df_deaths =
+        CSV.read(datadep"jhu-csse-covid19/time_series_covid19_deaths_global.csv", DataFrame)
+
+    df = JHUCSSEData.combine_country_level_timeseries(
+        df_confirmed,
+        df_recovered,
+        df_deaths,
+        "Vietnam",
+    )
+    save_timeseries_csv(
+        df,
+        "datasets/jhu-csse-covid19",
+        "time_series_covid19_combined_vietnam",
+    )
+end
+
+@time let
+    df_confirmed =
+        CSV.read(datadep"jhu-csse-covid19/time_series_covid19_confirmed_US.csv", DataFrame)
+    df_deaths =
+        CSV.read(datadep"jhu-csse-covid19/time_series_covid19_deaths_US.csv", DataFrame)
+
+    @show JHUCSSEData.get_us_county_population(df_deaths, "Alabama", "Autauga")
+    df = JHUCSSEData.combine_us_county_level_timeseries(df_confirmed, df_deaths, "Alabama", "Autauga")
+    save_timeseries_csv(
+        df,
+        "datasets/jhu-csse-covid19",
+        "time_series_covid19_combined_us_autauga",
+    )
 end
