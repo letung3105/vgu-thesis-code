@@ -1,31 +1,104 @@
 module Helpers
 
-export Predictor,
+export TimeseriesDataset,
+    moving_average!,
+    train_test_split,
+    load_timeseries,
+    save_timeseries_csv,
+    Predictor,
     Loss,
     TrainCallback,
     TrainCallbackConfig,
     TrainSession,
+    mae,
     mape,
-    mse,
-    sse,
-    rmse,
-    rmsle,
-    train_model,
-    evaluate_model,
-    plot_forecasts,
-    lookup_saved_params
+    rmse
 
 using Dates,
-    Printf,
     Serialization,
     Statistics,
     Plots,
     DataFrames,
     ProgressMeter,
-    OrdinaryDiffEq,
-    DiffEqFlux,
-    Covid19ModelVN.Datasets,
-    Covid19ModelVN.Models
+    OrdinaryDiffEq
+
+"""
+This contains the minimum required information for a timeseriese dataset that is used by UDEs
+
+# Fields
+
+* `data::AbstractArray{<:Real}`: an array that holds the timeseries data
+* `tspan::Tuple{<:Real,<:Real}`: the first and last time coordinates of the timeseries data
+* `tsteps::Union{Real,AbstractVector{<:Real},StepRange,StepRangeLen}`: collocations points
+"""
+struct TimeseriesDataset
+    data::AbstractArray{<:Real}
+    tspan::Tuple{<:Real,<:Real}
+    tsteps::Union{Real,AbstractVector{<:Real},StepRange,StepRangeLen}
+end
+
+moving_average(xs, n::Int) =
+    [mean(@view xs[(i >= n ? i - n + 1 : 1):i]) for i = 1:length(xs)]
+
+moving_average!(df::DataFrame, cols, n::Int) =
+    transform!(df, names(df, Cols(cols)) .=> x -> moving_average(x, n), renamecols = false)
+
+view_dates_range(df::DataFrame, col, start_date::Date, end_date::Date) =
+    view(df, (df[!, col] .>= start_date) .& (df[!, col] .<= end_date), All())
+
+function train_test_split(
+    df::DataFrame,
+    data_cols,
+    date_col,
+    first_date::Date,
+    split_date::Date,
+    last_date::Date,
+)
+    df_train = view_dates_range(df, date_col, first_date, split_date)
+    df_test = view_dates_range(df, date_col, split_date + Day(1), last_date)
+
+    train_tspan = Float64.((0, Dates.value(split_date - first_date)))
+    test_tspan = Float64.((0, Dates.value(last_date - first_date)))
+
+    train_tsteps = train_tspan[1]:1:train_tspan[2]
+    test_tsteps = (train_tspan[2]+1):1:test_tspan[2]
+
+    train_data = Float64.(Array(df_train[!, data_cols])')
+    test_data = Float64.(Array(df_test[!, data_cols])')
+
+    train_dataset = TimeseriesDataset(train_data, train_tspan, train_tsteps)
+    test_dataset = TimeseriesDataset(test_data, test_tspan, test_tsteps)
+
+    return train_dataset, test_dataset
+end
+
+function load_timeseries(
+    df::DataFrame,
+    data_cols,
+    date_col,
+    first_date::Date,
+    last_date::Date,
+)
+    df = view_dates_range(df, date_col, first_date, last_date)
+    return Array(df[!, Cols(data_cols)])
+end
+
+function save_timeseries_csv(df, fdir, fid; recreate = false)
+    fpath = joinpath(fdir, "$fid.csv")
+
+    # file exists and don't need to be updated
+    if isfile(fpath) && !recreate
+        return fpath
+    end
+    # create containing folder if not exists
+    if !isdir(fdir)
+        mkpath(fdir)
+    end
+
+    CSV.write(fpath, df)
+    return fpath
+end
+
 
 """
 A struct that solves the underlying DiffEq problem and returns the solution when it is called
@@ -110,29 +183,10 @@ The function does not check if the inputs are valid and may produces erroneous o
 mape(ŷ, y) = 100 * mean(abs, (ŷ .- y) ./ y)
 
 """
-Calculate the sum squared error between 2 values. Note that the input arguments must be of the same size.
-The function does not check if the inputs are valid and may produces erroneous output.
-"""
-sse(ŷ, y) = sum(abs2, ŷ .- y)
-
-"""
-Calculate the mean squared error between 2 values. Note that the input arguments must be of the same size.
-The function does not check if the inputs are valid and may produces erroneous output.
-"""
-mse(ŷ, y) = mean(abs2, ŷ .- y)
-
-"""
 Calculate the root mean squared error between 2 values. Note that the input arguments must be of the same size.
 The function does not check if the inputs are valid and may produces erroneous output.
 """
 rmse(ŷ, y) = sqrt(mean(abs2, ŷ .- y))
-
-"""
-Calculate the root mean squared log error between 2 values. Note that the input arguments must be of the same size.
-The function does not check if the inputs are valid and may produces erroneous output.
-"""
-rmsle(ŷ, y) = sqrt(mean(abs2, log.(ŷ .+ 1) .- log.(y .+ 1)))
-
 
 """
 State of the callback struct
@@ -247,179 +301,10 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
     return false
 end
 
-"""
-Get default losses figure file path
-
-# Arguments
-
-* `fdir::AbstractString`: the root directory of the file
-* `uuid::AbstractString`: the file unique identifier
-"""
-get_losses_plot_fpath(fdir::AbstractString, uuid::AbstractString) =
-    joinpath(fdir, "$uuid.losses.png")
-
-"""
-Get default file path for saved parameters
-
-# Arguments
-
-* `fdir::AbstractString`: the root directory of the file
-* `uuid::AbstractString`: the file unique identifier
-"""
-get_params_save_fpath(fdir::AbstractString, uuid::AbstractString) =
-    joinpath(fdir, "$uuid.params.jls")
-
 struct TrainSession
     name::AbstractString
     optimizer::Any
     maxiters::Int
-    losses_plot_dir::AbstractString
-    params_save_dir::AbstractString
-end
-
-function train_model(
-    train_loss_fn::Loss,
-    test_loss_fn::Loss,
-    p0::AbstractVector{<:Real},
-    sessions::AbstractVector{TrainSession},
-)
-    params = p0
-    for sess in sessions
-        losses_plot_fpath = get_losses_plot_fpath(sess.losses_plot_dir, sess.name)
-        params_save_fpath = get_params_save_fpath(sess.params_save_dir, sess.name)
-        cb = TrainCallback(
-            sess.maxiters,
-            TrainCallbackConfig(
-                train_loss_fn,
-                losses_plot_fpath,
-                div(sess.maxiters, 20),
-                params_save_fpath,
-                div(sess.maxiters, 20),
-            ),
-        )
-
-        @info "Running $(sess.name)"
-        try
-            DiffEqFlux.sciml_train(
-                test_loss_fn,
-                params,
-                sess.optimizer,
-                maxiters = sess.maxiters,
-                cb = cb,
-            )
-        catch e
-            @error e
-            if isa(e, InterruptException)
-                rethrow(e)
-            end
-        end
-
-        params = cb.state.minimizer
-        Serialization.serialize(params_save_fpath, params)
-    end
-    return nothing
-end
-
-"""
-Get the file paths and uuids of all the saved parameters of an experiment
-
-# Arguments
-
-* `snapshots_dir::AbstractString`: the directory that contains the saved parameters
-* `exp_name::AbstractString`: the experiment name
-"""
-function lookup_saved_params(snapshots_dir::AbstractString, exp_name::AbstractString)
-    exp_dir = joinpath(snapshots_dir, exp_name)
-    params_files = filter(x -> endswith(x, ".jls"), readdir(exp_dir))
-    fpaths = map(f -> joinpath(snapshots_dir, exp_name, f), params_files)
-    uuids = map(f -> first(rsplit(f, ".", limit = 3)), params_files)
-    return fpaths, uuids
-end
-
-"""
-Plot the forecasted values produced by `predict_fn` against the ground truth data and calculated the error for each
-forecasted value using `metric_fn`.
-
-# Arguments
-
-* `predict_fn::Predictor`: a function that takes the model parameters and computes the ODE solver output
-* `metric_fn::Function`: a function that computes the error between two data arrays
-* `train_dataset::UDEDataset`: the data that was used to train the model
-* `test_dataset::UDEDataset`: ground truth data for the forecasted period
-* `minimizer`: the model's paramerters that will be used to produce the forecast
-* `forecast_ranges`: a range of day horizons that will be forecasted
-* `vars`: the model's states that will be compared
-* `cols`: the ground truth values that will be compared
-* `labels`: plot labels of each of the ground truth values
-"""
-function plot_forecasts(
-    predict_fn::Predictor,
-    metric_fn::Function,
-    train_dataset::TimeseriesDataset,
-    test_dataset::TimeseriesDataset,
-    minimizer::AbstractVector{<:Real},
-    forecast_ranges::AbstractVector{Int},
-    vars::Union{Int,AbstractVector{Int},OrdinalRange},
-    labels::AbstractArray{<:AbstractString},
-)
-    fit = predict_fn(minimizer, train_dataset.tspan, train_dataset.tsteps)
-    pred = predict_fn(minimizer, test_dataset.tspan, test_dataset.tsteps)
-
-    plts = []
-    for days in forecast_ranges, (col, (var, label)) in enumerate(zip(vars, labels))
-        data_fit = train_dataset.data[col, :]
-        data_new = test_dataset.data[col, :]
-
-        err = metric_fn(pred[var, 1:days], data_new[1:days])
-        title = @sprintf("%d-day loss = %.2f", days, err)
-        plt = plot(title = title, legend = :outertop, xrotation = 45)
-
-        scatter!([data_fit[:]; data_new[1:days]], label = label, fillcolor = nothing)
-        plot!([fit[var, :]; pred[var, 1:days]], label = "forecast $label", lw = :2)
-        vline!([train_dataset.tspan[2]], color = :black, ls = :dash, label = nothing)
-
-        push!(plts, plt)
-    end
-
-    nforecasts = length(forecast_ranges)
-    nvariables = length(vars)
-    return plot(
-        plts...,
-        layout = (nforecasts, nvariables),
-        size = (300 * nvariables, 300 * nforecasts),
-    )
-end
-
-function evaluate_model(
-    exp_name::AbstractString,
-    predict_fn::Predictor,
-    train_dataset::TimeseriesDataset,
-    test_dataset::TimeseriesDataset,
-    snapshots_dir::AbstractString,
-    eval_forecast_ranges::AbstractVector{Int},
-    eval_vars::Union{Int,AbstractVector{Int},OrdinalRange},
-    eval_labels::AbstractArray{<:AbstractString},
-)
-    fpaths_params, uuids = lookup_saved_params(snapshots_dir, exp_name)
-    for (fpath_params, uuid) in zip(fpaths_params, uuids)
-        fig_fpath = joinpath(snapshots_dir, exp_name, "$uuid.evaluate.forecasts.mape.png")
-        if !isfile(fig_fpath)
-            plt = plot_forecasts(
-                predict_fn,
-                mape,
-                train_dataset,
-                test_dataset,
-                Serialization.deserialize(fpath_params),
-                eval_forecast_ranges,
-                eval_vars,
-                eval_labels,
-            )
-            savefig(
-                plt,
-                joinpath(snapshots_dir, exp_name, "$uuid.evaluate.forecasts.mape.png"),
-            )
-        end
-    end
 end
 
 end

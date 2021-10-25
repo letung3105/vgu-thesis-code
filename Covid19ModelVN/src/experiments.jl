@@ -8,30 +8,43 @@ using Dates,
     Serialization,
     Plots,
     DiffEqFlux,
-    Covid19ModelVN.Models,
     Covid19ModelVN.Helpers,
-    Covid19ModelVN.Datasets
+    Covid19ModelVN.Datasets,
+    Covid19ModelVN.Models,
+    Covid19ModelVN.TrainEval
 
 const DEFAULT_DATASETS_DIR = "datasets"
 const DEFAULT_SNAPSHOTS_DIR = "snapshots"
+
+function get_model_callables(
+    model,
+    train_dataset::TimeseriesDataset,
+    test_dataset::TimeseriesDataset,
+    vars::Union{Int,AbstractVector{Int},OrdinalRange},
+)
+    predict_fn = Predictor(model.problem)
+    train_loss_fn = Loss(rmse, predict_fn, train_dataset, vars)
+    test_loss_fn = Loss(rmse, predict_fn, test_dataset, vars)
+    return predict_fn, train_loss_fn, test_loss_fn
+end
 
 function train_and_evaluate_experiment(
     exp_name::AbstractString,
     model,
     train_dataset::TimeseriesDataset,
     test_dataset::TimeseriesDataset,
+    sessions::AbstractVector{TrainSession},
     snapshots_dir::AbstractString,
     eval_forecast_ranges::AbstractVector{Int},
     eval_vars::Union{Int,AbstractVector{Int},OrdinalRange},
     eval_labels::AbstractArray{<:AbstractString},
 )
-    predict_fn = Predictor(model.problem)
-    train_loss_fn = Loss(rmse, predict_fn, train_dataset, eval_vars)
-    test_loss_fn = Loss(rmse, predict_fn, test_dataset, eval_vars)
+    predict_fn, train_loss_fn, test_loss_fn =
+        get_model_callables(model, train_dataset, test_dataset, eval_vars)
     p0 = get_model_initial_params(model)
 
-    @info train_loss_fn(p0)
-    @info test_loss_fn(p0)
+    @info "Initial training loss: $(train_loss_fn(p0))"
+    @info "Initial testing loss: $(test_loss_fn(p0))"
 
     # create containing folder if not exists
     exp_dir = joinpath(snapshots_dir, exp_name)
@@ -39,22 +52,15 @@ function train_and_evaluate_experiment(
         mkpath(exp_dir)
     end
 
-    timestamp = Dates.format(now(), "yyyymmddHHMMSS")
-    sessions = [
-        TrainSession("$timestamp.adam", ADAM(1e-2), 10000, exp_dir, exp_dir),
-        TrainSession("$timestamp.lbfgs", LBFGS(), 1000, exp_dir, exp_dir),
-    ]
+    @info "Start training '$exp_name'"
+    train_model(train_loss_fn, test_loss_fn, p0, sessions, exp_dir)
 
-    @info "Start training"
-    train_model(train_loss_fn, test_loss_fn, p0, sessions)
-
-    @info "Ploting evaluations"
+    @info "Ploting evaluations for '$exp_name'"
     evaluate_model(
-        exp_name,
         predict_fn,
         train_dataset,
         test_dataset,
-        snapshots_dir,
+        exp_dir,
         eval_forecast_ranges,
         eval_vars,
         eval_labels,
@@ -93,9 +99,9 @@ function setup_experiment_preset_vietnam(
 
     # ma7
     covid_timeseries_cols = [:infective, :recovered_total, :dead_total, :confirmed_total]
-    Datasets.moving_average!(df_covid_timeseries, covid_timeseries_cols, 7)
+    moving_average!(df_covid_timeseries, covid_timeseries_cols, 7)
     # separate dataframe into data arrays for train and test
-    train_dataset, test_dataset = Datasets.train_test_split(
+    train_dataset, test_dataset = train_test_split(
         df_covid_timeseries,
         covid_timeseries_cols,
         :date,
@@ -108,7 +114,7 @@ function setup_experiment_preset_vietnam(
     df_movement_range = DEFAULT_VIETNAM_AVERAGE_MOVEMENT_RANGE(datasets_dir)
     movement_range_cols =
         [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users]
-    Datasets.moving_average!(df_movement_range, movement_range_cols, 7)
+    moving_average!(df_movement_range, movement_range_cols, 7)
     # load timeseries data with the chosen temporal lag
     load_movement_range(lag) = load_timeseries(
         df_movement_range,
@@ -134,9 +140,6 @@ function setup_experiment_preset_vietnam(
         CovidModelSEIRDBaseline(u0, train_dataset.tspan)
     elseif exp_name == "fbmobility1.default.vietnam"
         movement_range_dataset = load_movement_range(Day(2))
-        CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
-    elseif exp_name == "fbmobility1.4daylag.vietnam"
-        movement_range_dataset = load_movement_range(Day(4))
         CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
     end
 
@@ -173,9 +176,9 @@ function setup_experiment_preset_vietnam_province(
 
         # ma7
         covid_timeseries_cols = [:dead_total, :confirmed_total]
-        Datasets.moving_average!(df_covid_timeseries, covid_timeseries_cols, 7)
+        moving_average!(df_covid_timeseries, covid_timeseries_cols, 7)
         # separate dataframe into data arrays for train and test
-        train_dataset, test_dataset = Datasets.train_test_split(
+        train_dataset, test_dataset = train_test_split(
             df_covid_timeseries,
             covid_timeseries_cols,
             :date,
@@ -199,7 +202,7 @@ function setup_experiment_preset_vietnam_province(
 
     function load_social_proximity_to_cases_index(province_name, first_date, lag)
         df_vn_spc = DEFAULT_VIETNAM_SOCIAL_PROXIMITY_TO_CASES_INDEX(datasets_dir)
-        Datasets.moving_average!(df_vn_spc, province_name, 7)
+        moving_average!(df_vn_spc, province_name, 7)
         return load_timeseries(
             df_vn_spc,
             province_name,
@@ -214,7 +217,7 @@ function setup_experiment_preset_vietnam_province(
             DEFAULT_VIETNAM_PROVINCE_AVERAGE_MOVEMENT_RANGE(datasets_dir, province_id)
         movement_range_cols =
             [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users]
-        Datasets.moving_average!(df_movement_range, movement_range_cols, 7)
+        moving_average!(df_movement_range, movement_range_cols, 7)
         return load_timeseries(
             df_movement_range,
             movement_range_cols,
@@ -280,9 +283,6 @@ end
 function main(
     # "baseline.default.vietnam",
     # "fbmobility1.default.vietnam",
-    # "fbmobility1.4daydelay.vietnam",
-    # "fbmobility1.ma7movementrange.default.vietnam",
-    # "fbmobility1.ma7movementrange.default.vietnam",
     vn_experiments = [],
     # "baseline.default.hcm",
     # "fbmobility1.default.hcm",
@@ -290,13 +290,21 @@ function main(
     vn_gadm1_experiments = [],
 )
     for exp_name in vn_experiments
+        timestamp = Dates.format(now(), "yyyymmddHHMMSS")
+        sessions = [
+            TrainSession("$timestamp.adam", ADAM(1e-2), 10),
+            TrainSession("$timestamp.lbfgs", LBFGS(), 10),
+        ]
+
         model, train_dataset, test_dataset =
             setup_experiment_preset_vietnam(exp_name, DEFAULT_DATASETS_DIR)
+
         train_and_evaluate_experiment(
             exp_name,
             model,
             train_dataset,
             test_dataset,
+            sessions,
             DEFAULT_SNAPSHOTS_DIR,
             [7, 14, 21, 28],
             3:6,
@@ -305,6 +313,12 @@ function main(
     end
 
     for exp_name in vn_gadm1_experiments
+        timestamp = Dates.format(now(), "yyyymmddHHMMSS")
+        sessions = [
+            TrainSession("$timestamp.adam", ADAM(1e-3), 10),
+            TrainSession("$timestamp.lbfgs", LBFGS(), 10),
+        ]
+
         model, train_dataset, test_dataset =
             setup_experiment_preset_vietnam_province(exp_name, DEFAULT_DATASETS_DIR)
         train_and_evaluate_experiment(
@@ -312,6 +326,7 @@ function main(
             model,
             train_dataset,
             test_dataset,
+            sessions,
             DEFAULT_SNAPSHOTS_DIR,
             [7, 14, 21, 28],
             5:6,
@@ -320,21 +335,20 @@ function main(
     end
 end
 
-# main([
-# "baseline.default.vietnam",
-# "fbmobility1.default.vietnam",
-# "fbmobility1.4daydelay.vietnam",
-# ], [
-# "baseline.default.hcm",
-# "fbmobility1.default.hcm",
-# "fbmobility2.default.hcm",
-# "baseline.default.binhduong",
-# "fbmobility1.default.binhduong",
-# "fbmobility2.default.binhduong",
-# "baseline.default.dongnai",
-# "fbmobility1.default.dongnai",
-# "fbmobility2.default.dongnai",
-# ])
+main([
+"baseline.default.vietnam",
+"fbmobility1.default.vietnam",
+], [
+"baseline.default.hcm",
+"fbmobility1.default.hcm",
+"fbmobility2.default.hcm",
+"baseline.default.binhduong",
+"fbmobility1.default.binhduong",
+"fbmobility2.default.binhduong",
+"baseline.default.dongnai",
+"fbmobility1.default.dongnai",
+"fbmobility2.default.dongnai",
+])
 
 # main([
 # "baseline.default.vietnam",
