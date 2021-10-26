@@ -31,7 +31,7 @@ at each area, and the social connectedness between the areas that are considered
 # Arguments
 
 + `df_population`: A table contains the following columns
-    + `GID::String` is the preferred unique ID at level 1
+    + `ID::String` is the preferred unique ID at level 1
     + `NAME_1::String` is the level one GADM region's official name in latin script
     + `VARNAME_1::String` for the level one GAME variant names, separated by pipes `|`
     + `AVGPOPULATION` for the level one GAME name of the region
@@ -48,7 +48,7 @@ function calculate_social_proximity_to_cases(
     df_social_connectedness,
 )
     # get the population row with the given location id
-    getloc(id) = subset(df_population, :GID_1 => x -> x .== parse(Int, id), view = true)
+    getloc(id) = subset(df_population, :ID_1 => x -> x .== parse(Int, id), view = true)
 
     df_spc = DataFrame()
     df_spc.date = df_covid_timeseries_confirmed.date
