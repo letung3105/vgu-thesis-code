@@ -46,6 +46,8 @@ function combine_country_level_timeseries(
     )
     # sum the values of all the regions within a country
     sum_reduce_cols(df) = combine(df, names(df, All()) .=> sum, renamecols = false)
+    stack_timeseries(df, value_name) =
+        stack(df, All(), variable_name = :date, value_name = value_name, view = true)
 
     df_confirmed = sum_reduce_cols(drop_cols(filter_country(df_confirmed)))
     df_recovered = sum_reduce_cols(drop_cols(filter_country(df_recovered)))
@@ -53,30 +55,12 @@ function combine_country_level_timeseries(
 
     # combine 3 separated dataframes into 1
     df_combined = innerjoin(
-        stack(
-            df_confirmed,
-            All(),
-            variable_name = :date,
-            value_name = :confirmed_total,
-            view = true,
-        ),
-        stack(
-            df_recovered,
-            All(),
-            variable_name = :date,
-            value_name = :recovered_total,
-            view = true,
-        ),
-        stack(
-            df_deaths,
-            All(),
-            variable_name = :date,
-            value_name = :deaths_total,
-            view = true,
-        ),
+        stack_timeseries(df_confirmed, :confirmed_total),
+        stack_timeseries(df_recovered, :recovered_total),
+        stack_timeseries(df_deaths, :deaths_total),
         on = :date,
     )
-    df_combined[!, :date] .= Date.(df_combined[!, :date], dateformat"mm/dd/yyyy")
+    df_combined[!, :date] .= Date.(df_combined[!, :date], dateformat"mm/dd/yyyy") .+ Year(2000)
     df_combined.infective =
         df_combined.confirmed_total .- df_combined.recovered_total .-
         df_combined.deaths_total
