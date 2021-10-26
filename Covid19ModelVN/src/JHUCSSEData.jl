@@ -77,6 +77,9 @@ function combine_country_level_timeseries(
         on = :date,
     )
     df_combined[!, :date] .= Date.(df_combined[!, :date], dateformat"mm/dd/yyyy")
+    df_combined.infective =
+        df_combined.confirmed_total .- df_combined.recovered_total .-
+        df_combined.deaths_total
 
     return df_combined
 end
