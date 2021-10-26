@@ -29,7 +29,12 @@ function __init__()
     return nothing
 end
 
-function combine_country_level_timeseries(df_confirmed, df_recovered, df_deaths, country_name)
+function combine_country_level_timeseries(
+    df_confirmed,
+    df_recovered,
+    df_deaths,
+    country_name,
+)
     # select rows associated with the country
     filter_country(df) =
         subset(df, "Country/Region" => x -> x .== country_name, view = true)
@@ -48,17 +53,40 @@ function combine_country_level_timeseries(df_confirmed, df_recovered, df_deaths,
 
     # combine 3 separated dataframes into 1
     df_combined = innerjoin(
-        stack(df_confirmed, All(), variable_name = :date, value_name = :confirmed_total),
-        stack(df_recovered, All(), variable_name = :date, value_name = :recovered_total),
-        stack(df_deaths, All(), variable_name = :date, value_name = :deaths_total),
-        on = :date
+        stack(
+            df_confirmed,
+            All(),
+            variable_name = :date,
+            value_name = :confirmed_total,
+            view = true,
+        ),
+        stack(
+            df_recovered,
+            All(),
+            variable_name = :date,
+            value_name = :recovered_total,
+            view = true,
+        ),
+        stack(
+            df_deaths,
+            All(),
+            variable_name = :date,
+            value_name = :deaths_total,
+            view = true,
+        ),
+        on = :date,
     )
     df_combined[!, :date] .= Date.(df_combined[!, :date], dateformat"mm/dd/yyyy")
 
     return df_combined
 end
 
-function combine_us_county_level_timeseries(df_confirmed, df_deaths, state_name, county_name)
+function combine_us_county_level_timeseries(
+    df_confirmed,
+    df_deaths,
+    state_name,
+    county_name,
+)
     # select rows associated with the country
     filter_county(df) = subset(
         df,
@@ -96,9 +124,21 @@ function combine_us_county_level_timeseries(df_confirmed, df_deaths, state_name,
 
     # combine 2 separated dataframes into 1
     df_combined = innerjoin(
-        stack(df_confirmed, All(), variable_name = :date, value_name = :confirmed_total),
-        stack(df_deaths, All(), variable_name = :date, value_name = :deaths_total),
-        on = :date
+        stack(
+            df_confirmed,
+            All(),
+            variable_name = :date,
+            value_name = :confirmed_total,
+            view = true,
+        ),
+        stack(
+            df_deaths,
+            All(),
+            variable_name = :date,
+            value_name = :deaths_total,
+            view = true,
+        ),
+        on = :date,
     )
     df_combined[!, :date] .= Date.(df_combined[!, :date], dateformat"mm/dd/yyyy")
 
