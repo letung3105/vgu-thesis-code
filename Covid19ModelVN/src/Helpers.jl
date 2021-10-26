@@ -84,18 +84,11 @@ function load_timeseries(
     return Array(df[!, Cols(data_cols)])
 end
 
-function save_dataframe(df, fdir, fid; recreate = false)
-    fpath = joinpath(fdir, "$fid.csv")
-
-    # file exists and don't need to be updated
-    if isfile(fpath) && !recreate
-        return fpath
-    end
+function save_dataframe(df, fpath)
     # create containing folder if not exists
-    if !isdir(fdir)
-        mkpath(fdir)
+    if !isdir(dirname(fpath))
+        mkpath(dirname(fpath))
     end
-
     CSV.write(fpath, df)
     return fpath
 end
