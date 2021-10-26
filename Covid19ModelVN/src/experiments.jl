@@ -207,8 +207,8 @@ function setup_experiment_preset_vietnam_province(exp_name)
 
     df_population = CSV.read(FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION, DataFrame)
     function get_province_population(province_name)
-        province = first(filter(x -> x.gadm1_name == province_name, df_population))
-        return province.avg_population
+        province = first(filter(x -> x.NAME_1 == province_name, df_population))
+        return province.AVGPOPULATION
     end
 
     function load_covid_data(fpath, population)
@@ -248,8 +248,10 @@ function setup_experiment_preset_vietnam_province(exp_name)
     end
 
     function load_social_proximity_to_cases_index(province_name, first_date, lag)
-        df_covid_timeseries_confirmed =
-            CSV.read(datadep"vnexpress/timeseries-vietnam-provinces-confirmed.csv")
+        df_covid_timeseries_confirmed = CSV.read(
+            datadep"vnexpress/timeseries-vietnam-provinces-confirmed.csv",
+            DataFrame,
+        )
         df_social_connectedness =
             CSV.read(FPATH_VIETNAM_INTER_PROVINCE_SOCIAL_CONNECTEDNESS, DataFrame)
         df_spc = FacebookData.calculate_social_proximity_to_cases(
@@ -257,7 +259,6 @@ function setup_experiment_preset_vietnam_province(exp_name)
             df_covid_timeseries_confirmed,
             df_social_connectedness,
         )
-        df_spc = CSV.read(FPATH_VIETNAME)
         moving_average!(df_spc, province_name, 7)
         return load_timeseries(
             df_spc,
@@ -339,7 +340,7 @@ function main(
     # "baseline.default.hcm",
     # "fbmobility1.default.hcm",
     # "fbmobility2.default.hcm",
-    vn_gadm1_experiments = [],
+    vn_province_experiments = [],
 )
     for exp_name ∈ vn_experiments
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
@@ -363,7 +364,7 @@ function main(
         )
     end
 
-    for exp_name ∈ vn_gadm1_experiments
+    for exp_name ∈ vn_province_experiments
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         sessions = [
             TrainSession("$timestamp.adam", ADAM(1e-3), 10),
