@@ -15,7 +15,6 @@ function __init__()
             [
                 "https://github.com/letung3105/vgu-thesis-datasets/raw/master/facebook/movement-range-data-2021-10-09.zip"
                 "https://github.com/letung3105/vgu-thesis-datasets/raw/master/facebook/gadm1_nuts2-gadm1_nuts2-fb-social-connectedness-index-october-2021.zip"
-                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/facebook/us-counties-us-counties-fb-social-connectedness-index-october-2021.zip"
             ],
             post_fetch_method = unpack,
         ),

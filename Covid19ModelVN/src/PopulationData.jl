@@ -12,9 +12,7 @@ function __init__()
             Website: https://gadm.org
             """,
             [
-                "https://biogeo.ucdavis.edu/data/gadm2.8/gpkg/USA_adm_gpkg.zip",
                 "https://biogeo.ucdavis.edu/data/gadm2.8/gpkg/VNM_adm_gpkg.zip",
-                "https://biogeo.ucdavis.edu/data/gadm2.8/gpkg/UMI_adm_gpkg.zip",
             ],
             post_fetch_method = unpack,
         ),
