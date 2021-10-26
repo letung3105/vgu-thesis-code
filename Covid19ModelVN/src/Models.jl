@@ -50,7 +50,7 @@ function CovidModelSEIRDBaseline(u0::AbstractArray{<:Real}, tspan::Tuple{<:Real,
         nothing
     end
     prob = ODEProblem(dudt!, u0, tspan)
-    return new(β_ann, prob)
+    return CovidModelSEIRDBaseline(β_ann, prob)
 end
 
 """
@@ -111,7 +111,7 @@ function CovidModelSEIRDFbMobility1(
         return nothing
     end
     prob = ODEProblem(dudt!, u0, tspan)
-    return new(β_ann, prob)
+    return CovidModelSEIRDFbMobility1(β_ann, prob)
 end
 
 """
@@ -176,7 +176,7 @@ function CovidModelSEIRDFbMobility2(
         return nothing
     end
     prob = ODEProblem(dudt!, u0, tspan)
-    return new(β_ann, prob)
+    return CovidModelSEIRDFbMobility2(β_ann, prob)
 end
 
 """
