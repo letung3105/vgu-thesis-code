@@ -12,7 +12,8 @@ export TimeseriesDataset,
     TrainSession,
     mae,
     mape,
-    rmse
+    rmse,
+    rmsle
 
 using Dates,
     Serialization, Statistics, CSV, Plots, DataFrames, ProgressMeter, OrdinaryDiffEq
@@ -161,6 +162,12 @@ Calculate the root mean squared error between 2 values. Note that the input argu
 The function does not check if the inputs are valid and may produces erroneous output.
 """
 rmse(ŷ, y) = sqrt(mean(abs2, ŷ .- y))
+
+"""
+Calculate the root mean squared log error between 2 values. Note that the input arguments must be of the same size.
+The function does not check if the inputs are valid and may produces erroneous output.
+"""
+rmsle(ŷ, y) = sqrt(mean(abs2, log.(ŷ .+ 1) .- log.(y .+ 1)))
 
 """
 State of the callback struct
