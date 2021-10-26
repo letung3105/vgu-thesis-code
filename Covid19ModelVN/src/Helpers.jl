@@ -1,6 +1,6 @@
 module Helpers
 
-export TimeseriesDataset,
+export UDEDataset,
     moving_average!,
     train_test_split,
     load_timeseries,
@@ -27,7 +27,7 @@ This contains the minimum required information for a timeseriese dataset that is
 * `tspan`: the first and last time coordinates of the timeseries data
 * `tsteps`: collocations points
 """
-struct TimeseriesDataset
+struct UDEDataset
     data::AbstractArray{<:Real}
     tspan::Tuple{<:Real,<:Real}
     tsteps::Union{Real,AbstractVector{<:Real},StepRange,StepRangeLen}
@@ -54,8 +54,8 @@ function train_test_split(df, data_cols, date_col, first_date, split_date, last_
     train_data = Float64.(Array(df_train[!, data_cols])')
     test_data = Float64.(Array(df_test[!, data_cols])')
 
-    train_dataset = TimeseriesDataset(train_data, train_tspan, train_tsteps)
-    test_dataset = TimeseriesDataset(test_data, test_tspan, test_tsteps)
+    train_dataset = UDEDataset(train_data, train_tspan, train_tsteps)
+    test_dataset = UDEDataset(test_data, test_tspan, test_tsteps)
 
     return train_dataset, test_dataset
 end
@@ -118,7 +118,7 @@ A callable struct that uses `metric_fn` to calculate the loss between the output
 struct Loss
     metric_fn::Function
     predict_fn::Predictor
-    dataset::TimeseriesDataset
+    dataset::UDEDataset
     vars::Union{Int,AbstractVector{Int},OrdinalRange}
 end
 
