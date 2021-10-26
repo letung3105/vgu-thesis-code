@@ -32,7 +32,7 @@ end
 
 function combine_vietnam_province_level_gadm_and_gso_population(df_gadm, df_population)
     # remove rows of repeated provinces
-    df_gadm = unique(df_gadm, :ID_1)
+    df_gadm = unique(df_gadm, :GID_1)
     # rename columns and transform data
     df_population = transform(
         df_population,
@@ -63,7 +63,7 @@ function combine_vietnam_province_level_gadm_and_gso_population(df_gadm, df_popu
 
     # get final table
     df = innerjoin(df_gadm, df_population, on = :VARNAME_1)
-    select!(df, [:ID_1, :NAME_1, :VARNAME_1, :AVGPOPULATION])
+    select!(df, [:GID_1, :NAME_1, :VARNAME_1, :AVGPOPULATION])
     return df
 end
 
