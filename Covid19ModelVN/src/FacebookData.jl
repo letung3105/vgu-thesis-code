@@ -22,86 +22,6 @@ function __init__()
     return nothing
 end
 
-"""
-Create a average country movement range by taking the mean of the data for
-all the regions within the country, then save the data to a CSV file.
-
-# Arguments
-
-* `source_fpath::AbstractString`: path to the file for Facebook global movement range data
-* `fdir::AbstractString`: directory where the new CSV will be saved
-* `fid::AbstractString`: identifier of the new CSV file
-* `country::AbstractString`: country code
-* `recreate::Bool`: true if not recreating the file when it already exists
-"""
-function save_country_average_movement_range(
-    source_fpath::AbstractString,
-    fdir::AbstractString,
-    fid::AbstractString,
-    country::AbstractString,
-    gadm1_id::Union{Nothing,Int} = nothing;
-    recreate::Bool = false,
-)
-    fpath = if isnothing(gadm1_id)
-        joinpath(fdir, "$country-$fid.csv")
-    else
-        joinpath(fdir, "$country$gadm1_id-$fid.csv")
-    end
-    # file exists and don't need to be updated
-    if isfile(fpath) && !recreate
-        return CSV.read(fpath, DataFrame)
-    end
-    # create containing folder if not exists
-    if !isdir(fdir)
-        mkpath(fdir)
-    end
-
-    data, header = readdlm(source_fpath, '\t', header = true)
-    df = identity.(DataFrame(data, vec(header)))
-    filter!(x -> x.country == "VNM", df)
-    if !isnothing(gadm1_id)
-        filter!(x -> startswith(x.polygon_id, "$country.$gadm1_id"), df)
-    end
-    transform!(df, :ds => x -> Date.(x), renamecols = false)
-
-    df_final = combine(
-        DataFrames.groupby(df, :ds),
-        :all_day_bing_tiles_visited_relative_change => mean,
-        :all_day_ratio_single_tile_users => mean,
-        renamecols = false,
-    )
-    # save csv
-    CSV.write(fpath, df_final)
-    return df_final
-end
-
-function save_intra_country_gadm1_nuts2_connectedness_index(
-    source_fpath::AbstractString,
-    fdir::AbstractString,
-    fid::AbstractString,
-    country::AbstractString;
-    recreate::Bool = false,
-)
-    fpath = joinpath(fdir, "$country-$fid.csv")
-    # file exists and don't need to be updated
-    if isfile(fpath) && !recreate
-        return CSV.read(fpath, DataFrame)
-    end
-    # create containing folder if not exists
-    if !isdir(fdir)
-        mkpath(fdir)
-    end
-
-    data, header = readdlm(source_fpath, '\t', header = true)
-    df = identity.(DataFrame(data, vec(header)))
-    # only get friendship between cities/provinces in the country
-    filter!(x -> startswith(x.user_loc, country) && startswith(x.fr_loc, country), df)
-
-    # save csv
-    CSV.write(fpath, df)
-    return df
-end
-
 # https://arxiv.org/pdf/2109.12094.pdf
 function calculate_social_proximity_to_cases_index(
     df_gadm1_population::DataFrame,
@@ -154,47 +74,10 @@ function calculate_social_proximity_to_cases_index(
     return df_spc_index
 end
 
-function save_social_proximity_to_cases_index(
-    gadm1_population_fpath::AbstractString,
-    gadm1_total_confirmed_cases_fpath::AbstractString,
-    gadm1_intra_connected_index_fpath::AbstractString,
-    fdir::AbstractString,
-    fid::AbstractString;
-    recreate::Bool = false,
-)
-    fpath = joinpath(fdir, "$fid.csv")
-    # file exists and don't need to be updated
-    if isfile(fpath) && !recreate
-        return CSV.read(fpath, DataFrame)
-    end
-    # create containing folder if not exists
-    if !isdir(fdir)
-        mkpath(fdir)
-    end
-
-    df_gadm1_population = CSV.read(gadm1_population_fpath, DataFrame)
-    df_gadm1_total_confirmed_cases = CSV.read(gadm1_total_confirmed_cases_fpath, DataFrame)
-    df_gadm1_intra_connected_index = CSV.read(gadm1_intra_connected_index_fpath, DataFrame)
-    df_social_proximity_to_cases = calculate_social_proximity_to_cases_index(
-        df_gadm1_population,
-        df_gadm1_total_confirmed_cases,
-        df_gadm1_intra_connected_index,
-    )
-
-    CSV.write(fpath, df_social_proximity_to_cases)
-    return df_social_proximity_to_cases
-end
-
 function read_movement_range(fpath)
     data, header = readdlm(fpath, '\t', header = true)
     df = identity.(DataFrame(data, vec(header)))
     df[!, :ds] .= Date.(df[!, :ds])
-    return df
-end
-
-function read_social_connectedness(fpath)
-    data, header = readdlm(fpath, '\t', header = true)
-    df = identity.(DataFrame(data, vec(header)))
     return df
 end
 
@@ -219,6 +102,12 @@ function region_average_movement_range(
         renamecols = false,
     )
     return df_movement_range_region_avg
+end
+
+function read_social_connectedness(fpath)
+    data, header = readdlm(fpath, '\t', header = true)
+    df = identity.(DataFrame(data, vec(header)))
+    return df
 end
 
 inter_province_social_connectedness(df_social_connectedness, country_code) = subset(
