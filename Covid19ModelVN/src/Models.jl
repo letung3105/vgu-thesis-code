@@ -3,7 +3,7 @@ module Models
 export get_model_initial_params,
     CovidModelSEIRDBaseline, CovidModelSEIRDFbMobility1, CovidModelSEIRDFbMobility2
 
-using OrdinaryDiffEq, DiffEqFlux, Covid19ModelVN.Datasets
+using OrdinaryDiffEq, DiffEqFlux
 
 """
 A struct for containing the SEIRD baseline model
