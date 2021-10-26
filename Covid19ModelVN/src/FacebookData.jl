@@ -23,55 +23,42 @@ function __init__()
 end
 
 # https://arxiv.org/pdf/2109.12094.pdf
-function calculate_social_proximity_to_cases_index(
-    df_gadm1_population::DataFrame,
-    df_gadm1_total_confirmed_cases::DataFrame,
-    df_gadm1_intra_connected_index::DataFrame,
+function calculate_social_proximity_to_cases(
+    df_population,
+    df_confirmed_total,
+    df_social_connectedness,
 )
-    df_incidence_rate = DataFrame()
-    df_incidence_rate.date = df_gadm1_total_confirmed_cases.date
-    # Go through each province, divide the time series data with that province
-    # total population, and multiply to result with 10000 to get the incidence rate
-    for name in df_gadm1_population.gadm1_name
-        population =
-            first(filter(:gadm1_name => x -> x == name, df_gadm1_population).avg_population)
-        if name in names(df_gadm1_total_confirmed_cases)
-            df_incidence_rate[!, name] =
-                df_gadm1_total_confirmed_cases[!, name] ./ population .* 10000
-        else
-            df_incidence_rate[!, name] .= 0
+    # get the population row with the given location id
+    getloc(id) = subset(df_population, :ID_1 => x -> x .== parse(Int, id), view = true)
+
+    df_spc = DataFrame()
+    df_spc.date = df_confirmed_total.date
+
+    # go through each dataframe that is grouped by the first location
+    for (key, df_group) ∈ pairs(groupby(df_social_connectedness, :user_loc))
+        # check if population data for the first location is available, skip if not
+        first_loc = getloc(key.user_loc[4:end])
+        first_loc = isempty(first_loc) ? continue : first(first_loc)
+
+        sum_sci = sum(df_group.scaled_sci)
+        df_spc[!, first_loc.NAME_1] .= 0
+        # go through each location that is connected with the first location
+        for row ∈ eachrow(df_group)
+            # check if population data for the second location is available, skip if not
+            second_loc = getloc(row.fr_loc[4:end])
+            second_loc = isempty(second_loc) ? continue : first(second_loc)
+            # only calculate SPC for location that has confirmed cases
+            if second_loc.NAME_1 ∈ names(df_confirmed_total)
+                df_spc[!, first_loc.NAME_1] .+=
+                    (
+                        df_confirmed_total[!, second_loc.NAME_1] ./
+                        second_loc.AVGPOPULATION .* 10000
+                    ) .* row.scaled_sci ./ sum_sci
+            end
         end
     end
 
-    df_spc_index = DataFrame()
-    df_spc_index.date = df_incidence_rate.date
-    # Go through the connectedness index of each region and calculate to weighted sum
-    # of the incidence rate. The weights are determined by the connectedness index between
-    # province A and province B divided by the sum of all the connectedness indinces of province A
-    for (key, df_region_sci) in pairs(groupby(df_gadm1_intra_connected_index, :user_loc))
-        region_sci_sum = sum(df_region_sci.scaled_sci)
-        region_name = first(
-            filter(
-                :gadm1_id => x -> x == parse(Int, key.user_loc[4:end]),
-                df_gadm1_population,
-            ).gadm1_name,
-        )
-
-        df_spc_index[!, region_name] .= 0
-        for connected_region in eachrow(df_region_sci)
-            connected_region_name = first(
-                filter(
-                    :gadm1_id => x -> x == parse(Int, connected_region.fr_loc[4:end]),
-                    df_gadm1_population,
-                ).gadm1_name,
-            )
-            df_spc_index[!, region_name] .+=
-                df_incidence_rate[!, connected_region_name] .*
-                connected_region.scaled_sci ./ region_sci_sum
-        end
-    end
-
-    return df_spc_index
+    return df_spc
 end
 
 function read_movement_range(fpath)
