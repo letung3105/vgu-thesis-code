@@ -27,7 +27,7 @@ get_params_save_fpath(fdir, uuid) = joinpath(fdir, "$uuid.params.jls")
 
 function train_model(train_loss_fn, test_loss_fn, p0, sessions, exp_dir)
     params = p0
-    for sess in sessions
+    for sess ∈ sessions
         losses_plot_fpath = get_losses_plot_fpath(exp_dir, sess.name)
         params_save_fpath = get_params_save_fpath(exp_dir, sess.name)
         cb = TrainCallback(
@@ -87,7 +87,7 @@ function calculate_forecasts_errors(
 )
     errors = [
         metric_fn(pred[var, 1:days], test_dataset.data[col, 1:days]) for
-        days in forecast_ranges, (col, var) in enumerate(vars)
+        days ∈ forecast_ranges, (col, var) ∈ enumerate(vars)
     ]
     return DataFrame(errors, vec(labels))
     CSV.write(csv_fpath, df)
@@ -119,7 +119,7 @@ function plot_forecasts(
     labels,
 )
     plts = []
-    for days in forecast_ranges, (col, (var, label)) in enumerate(zip(vars, labels))
+    for days ∈ forecast_ranges, (col, (var, label)) ∈ enumerate(zip(vars, labels))
         plt = plot(title = "$days-day forecast", legend = :outertop, xrotation = 45)
         scatter!(
             [train_dataset.data[col, :]; test_dataset.data[col, 1:days]],
@@ -150,7 +150,7 @@ function evaluate_model(
     eval_labels,
 )
     fpaths_params, uuids = lookup_saved_params(exp_dir)
-    for (fpath_params, uuid) in zip(fpaths_params, uuids)
+    for (fpath_params, uuid) ∈ zip(fpaths_params, uuids)
         fit, pred = try
             minimizer = Serialization.deserialize(fpath_params)
             fit = predict_fn(minimizer, train_dataset.tspan, train_dataset.tsteps)
@@ -164,7 +164,7 @@ function evaluate_model(
             continue
         end
 
-        for metric_fn in [rmse, mae, mape]
+        for metric_fn ∈ [rmse, mae, mape]
             csv_fpath = joinpath(exp_dir, "$uuid.evaluate.$metric_fn.csv")
             if !isfile(csv_fpath)
                 df = calculate_forecasts_errors(

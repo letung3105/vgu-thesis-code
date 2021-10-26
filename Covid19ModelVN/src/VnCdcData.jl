@@ -25,7 +25,7 @@ end
 function parse_json_date_value_pairs(data)
     dates = Vector{Date}()
     values = Vector{Int}()
-    for data_point in data
+    for data_point ∈ data
         push!(dates, Date(Dates.unix2datetime(data_point[1] // 1000)))
         push!(values, data_point[2])
     end
@@ -36,7 +36,7 @@ function read_timeseries_confirmed_and_deaths(fpath)
     data = JSON.parsefile(fpath)
     column_names = ["confirmed_community", "confirmed_quarantined", "deaths"]
     dfs = Vector{DataFrame}()
-    for (i, colname) in enumerate(column_names)
+    for (i, colname) ∈ enumerate(column_names)
         dates, cases = parse_json_date_value_pairs(data["report"][i]["data"])
         df = DataFrame(["date" => dates, colname => cases])
         push!(dfs, df)

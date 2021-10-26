@@ -282,7 +282,7 @@ function main(
     # "fbmobility2.default.hcm",
     vn_gadm1_experiments = [],
 )
-    for exp_name in vn_experiments
+    for exp_name ∈ vn_experiments
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         sessions = [
             TrainSession("$timestamp.adam", ADAM(1e-2), 10),
@@ -305,7 +305,7 @@ function main(
         )
     end
 
-    for exp_name in vn_gadm1_experiments
+    for exp_name ∈ vn_gadm1_experiments
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         sessions = [
             TrainSession("$timestamp.adam", ADAM(1e-3), 10),
