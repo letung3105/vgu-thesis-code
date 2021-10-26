@@ -2,9 +2,6 @@ module VnExpressData
 
 using Dates, DataFrames, CSV, HTTP
 
-hasmissing(df::DataFrame) =
-    any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
-
 function timeseries_vietnam(
     url = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_day";
     last_date = today() - Day(1),
@@ -36,6 +33,45 @@ function timeseries_vietnam(
     return df
 end
 
+function timeseries_provinces_confirmed(
+    url = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_location";
+    last_date = today() - Day(1),
+)
+    # request data
+    res = HTTP.get(url)
+    df = CSV.read(res.body, DataFrame)
+
+    clean_provinces_confirmed_cases_timeseries!(df)
+    # Filter date range
+    filter!(:date => d -> d >= d <= last_date, df)
+    # Replace missing with 0
+    df = coalesce.(df, 0)
+
+    @assert !hasmissing(df)
+    df[!, Not(:date)] .= Int.(df[!, Not(:date)])
+    return df
+end
+
+function timeseries_provinces_confirmed_total(
+    url = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_total";
+    last_date = today() - Day(1),
+)
+    # request data
+    res = HTTP.get(url)
+    df = CSV.read(res.body, DataFrame)
+
+    clean_provinces_confirmed_cases_timeseries!(df)
+    # Filter date range
+    filter!(:date => d -> d <= last_date, df)
+
+    @assert !hasmissing(df)
+    df[!, Not(:date)] .= Int.(df[!, Not(:date)])
+    return df
+end
+
+hasmissing(df::DataFrame) =
+    any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
+
 function rename_vnexpress_cities_provinces_names_to_gso!(df::DataFrame)
     rename!(
         df,
@@ -57,116 +93,6 @@ function clean_provinces_confirmed_cases_timeseries!(df::DataFrame)
         "Ngày" => (x -> Date.(x .* "/2021", dateformat"d/m/Y")) => :date,
         Not("Ngày"),
     )
-    return df
-end
-
-function timeseries_provinces_confirmed(
-    url = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_location";
-    last_date = today() - Day(1),
-)
-    # request data
-    res = HTTP.get(url)
-    df = CSV.read(res.body, DataFrame)
-
-    clean_provinces_confirmed_cases_timeseries!(df)
-    # Filter date range
-    filter!(:date => d -> d >= d <= last_date, df)
-    # Replace missing with 0
-    df = coalesce.(df, 0)
-
-    @assert !hasmissing(df)
-    df[!, Not(:date)] .= Int.(df[!, Not(:date)])
-    return df
-end
-
-function save_provinces_confirmed_cases_timeseries(
-    fdir::AbstractString,
-    fid::AbstractString,
-    first_date::Date,
-    last_date::Date;
-    url = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_location",
-    date_format = dateformat"yyyymmdd",
-    recreate = false,
-)
-    fpath = joinpath(
-        fdir,
-        "$(Dates.format(first_date, date_format))-$(Dates.format(last_date, date_format))-$fid.csv",
-    )
-    # file exists and don't need to be updated
-    if isfile(fpath) && !recreate
-        return CSV.read(fpath, DataFrame)
-    end
-    # create containing folder if not exists
-    if !isdir(fdir)
-        mkpath(fdir)
-    end
-
-    # request data
-    res = HTTP.get(url)
-    df = CSV.read(res.body, DataFrame)
-
-    clean_provinces_confirmed_cases_timeseries!(df)
-    # Filter date range
-    filter!(:date => d -> d >= first_date && d <= last_date, df)
-    # Replace missing with 0
-    df = coalesce.(df, 0)
-
-    @assert !hasmissing(df)
-    df[!, Not(:date)] = Int.(df[!, Not(:date)])
-    CSV.write(fpath, df)
-    return df
-end
-
-function timeseries_provinces_confirmed_total(
-    url = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_total";
-    last_date = today() - Day(1),
-)
-    # request data
-    res = HTTP.get(url)
-    df = CSV.read(res.body, DataFrame)
-
-    clean_provinces_confirmed_cases_timeseries!(df)
-    # Filter date range
-    filter!(:date => d -> d <= last_date, df)
-
-    @assert !hasmissing(df)
-    df[!, Not(:date)] .= Int.(df[!, Not(:date)])
-    return df
-end
-
-function save_provinces_total_confirmed_cases_timeseries(
-    fdir::AbstractString,
-    fid::AbstractString,
-    first_date::Date,
-    last_date::Date;
-    url = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_total",
-    date_format = dateformat"yyyymmdd",
-    recreate = false,
-)
-    fpath = joinpath(
-        fdir,
-        "$(Dates.format(first_date, date_format))-$(Dates.format(last_date, date_format))-$fid.csv",
-    )
-    # file exists and don't need to be updated
-    if isfile(fpath) && !recreate
-        return CSV.read(fpath, DataFrame)
-    end
-    # create containing folder if not exists
-    if !isdir(fdir)
-        mkpath(fdir)
-    end
-
-    # request data
-    res = HTTP.get(url)
-    df = CSV.read(res.body, DataFrame)
-
-    clean_provinces_confirmed_cases_timeseries!(df)
-    # Filter date range
-    filter!(:date => d -> d >= first_date && d <= last_date, df)
-
-    @assert !hasmissing(df)
-    df[!, Not(:date)] = Int.(df[!, Not(:date)])
-    CSV.write(fpath, df)
     return df
 end
 

@@ -2,8 +2,6 @@ module Datasets
 
 export DEFAULT_VIETNAM_GADM1_POPULATION_DATASET,
     DEFAULT_VIETNAM_COVID_DATA_TIMESERIES,
-    DEFAULT_VIETNAM_PROVINCES_CONFIRMED_TIMESERIES,
-    DEFAULT_VIETNAM_PROVINCES_TOTAL_CONFIRMED_TIMESERIES,
     DEFAULT_VIETNAM_AVERAGE_MOVEMENT_RANGE,
     DEFAULT_VIETNAM_INTRA_CONNECTEDNESS_INDEX,
     DEFAULT_VIETNAM_PROVINCE_CONFIRMED_AND_DEATHS_TIMESERIES,
@@ -61,24 +59,6 @@ DEFAULT_VIETNAM_COVID_DATA_TIMESERIES(datasets_dir; recreate = false) =
     VnExpressData.save_cases_timeseries(
         datasets_dir,
         "vietnam-covid-data-timeseries",
-        Date(2021, 4, 27),
-        Date(2021, 10, 13),
-        recreate = recreate,
-    )
-
-DEFAULT_VIETNAM_PROVINCES_CONFIRMED_TIMESERIES(datasets_dir; recreate = false) =
-    VnExpressData.save_provinces_confirmed_cases_timeseries(
-        datasets_dir,
-        "vietnam-provinces-confirmed-timeseries",
-        Date(2021, 4, 27),
-        Date(2021, 10, 13),
-        recreate = recreate,
-    )
-
-DEFAULT_VIETNAM_PROVINCES_TOTAL_CONFIRMED_TIMESERIES(datasets_dir; recreate = false) =
-    VnExpressData.save_provinces_total_confirmed_cases_timeseries(
-        datasets_dir,
-        "vietnam-provinces-total-confirmed-timeseries",
         Date(2021, 4, 27),
         Date(2021, 10, 13),
         recreate = recreate,
