@@ -55,8 +55,7 @@ function get_timeseries_vietnam_provinces_confirmed_total(
     return df
 end
 
-hasmissing(df) =
-    any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
+hasmissing(df) = any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
 
 function rename_vnexpress_cities_provinces_names_to_gso!(df)
     rename!(

@@ -15,22 +15,16 @@ export TimeseriesDataset,
     rmse
 
 using Dates,
-    Serialization,
-    Statistics,
-    CSV,
-    Plots,
-    DataFrames,
-    ProgressMeter,
-    OrdinaryDiffEq
+    Serialization, Statistics, CSV, Plots, DataFrames, ProgressMeter, OrdinaryDiffEq
 
 """
 This contains the minimum required information for a timeseriese dataset that is used by UDEs
 
 # Fields
 
-* `data::AbstractArray{<:Real}`: an array that holds the timeseries data
-* `tspan::Tuple{<:Real,<:Real}`: the first and last time coordinates of the timeseries data
-* `tsteps::Union{Real,AbstractVector{<:Real},StepRange,StepRangeLen}`: collocations points
+* `data`: an array that holds the timeseries data
+* `tspan`: the first and last time coordinates of the timeseries data
+* `tsteps`: collocations points
 """
 struct TimeseriesDataset
     data::AbstractArray{<:Real}
@@ -38,23 +32,15 @@ struct TimeseriesDataset
     tsteps::Union{Real,AbstractVector{<:Real},StepRange,StepRangeLen}
 end
 
-moving_average(xs, n::Int) =
-    [mean(@view xs[(i >= n ? i - n + 1 : 1):i]) for i = 1:length(xs)]
+moving_average(xs, n) = [mean(@view xs[(i >= n ? i - n + 1 : 1):i]) for i = 1:length(xs)]
 
-moving_average!(df::DataFrame, cols, n::Int) =
+moving_average!(df, cols, n) =
     transform!(df, names(df, Cols(cols)) .=> x -> moving_average(x, n), renamecols = false)
 
-view_dates_range(df::DataFrame, col, start_date::Date, end_date::Date) =
+view_dates_range(df, col, start_date, end_date) =
     view(df, (df[!, col] .>= start_date) .& (df[!, col] .<= end_date), All())
 
-function train_test_split(
-    df::DataFrame,
-    data_cols,
-    date_col,
-    first_date::Date,
-    split_date::Date,
-    last_date::Date,
-)
+function train_test_split(df, data_cols, date_col, first_date, split_date, last_date)
     df_train = view_dates_range(df, date_col, first_date, split_date)
     df_test = view_dates_range(df, date_col, split_date + Day(1), last_date)
 
@@ -73,13 +59,7 @@ function train_test_split(
     return train_dataset, test_dataset
 end
 
-function load_timeseries(
-    df::DataFrame,
-    data_cols,
-    date_col,
-    first_date::Date,
-    last_date::Date,
-)
+function load_timeseries(df, data_cols, date_col, first_date, last_date)
     df = view_dates_range(df, date_col, first_date, last_date)
     return Array(df[!, Cols(data_cols)])
 end
@@ -99,7 +79,7 @@ A struct that solves the underlying DiffEq problem and returns the solution when
 
 # Fields
 
-* `problem::ODEProblem`: the problem that will be solved
+* `problem`: the problem that will be solved
 * `solver`: the numerical solver that will be used to calculate the DiffEq solution
 """
 struct Predictor
@@ -107,7 +87,7 @@ struct Predictor
     solver::Any
 end
 
-Predictor(problem::ODEProblem) = Predictor(problem, Tsit5())
+Predictor(problem) = Predictor(problem, Tsit5())
 
 """
 Call an object of struct `CovidModelPredict` to solve the underlying DiffEq problem
@@ -129,10 +109,10 @@ A callable struct that uses `metric_fn` to calculate the loss between the output
 
 # Fields
 
-* `metric_fn::Function`: a function that computes the error between two data arrays
-* `predict_fn::Predictor`: the time span that the ODE solver will be run on
-* `dataset::TimeseriesDataset`: the dataset that contains the ground truth data
-* `vars::Union{Int, AbstractVector{Int}, OrdinalRange}`: indices of the states that will be used to calculate the loss
+* `metric_fn`: a function that computes the error between two data arrays
+* `predict_fn`: the time span that the ODE solver will be run on
+* `dataset`: the dataset that contains the ground truth data
+* `vars`: indices of the states that will be used to calculate the loss
 """
 struct Loss
     metric_fn::Function
@@ -187,12 +167,12 @@ State of the callback struct
 
 # Fields
 
-* `iters::Int`: number have iterations that have been run
-* `progress::Progress`: the progress meter that keeps track of the process
-* `train_losses::AbstractVector{<:Real}`: collected training losses at each interval
-* `test_losses::AbstractVector{<:Real}`: collected testing losses at each interval
-* `minimizer::AbstractVector{<:Real}`: current best set of parameters
-* `minimizer_loss::Real`: loss value of the current best set of parameters
+* `iters`: number have iterations that have been run
+* `progress`: the progress meter that keeps track of the process
+* `train_losses`: collected training losses at each interval
+* `test_losses`: collected testing losses at each interval
+* `minimizer`: current best set of parameters
+* `minimizer_loss`: loss value of the current best set of parameters
 """
 mutable struct TrainCallbackState
     iters::Int
@@ -203,7 +183,7 @@ mutable struct TrainCallbackState
     minimizer_loss::Real
 end
 
-TrainCallbackState(maxiters::Int) = TrainCallbackState(
+TrainCallbackState(maxiters) = TrainCallbackState(
     0,
     Progress(maxiters, showspeed = true),
     Float64[],
@@ -217,11 +197,11 @@ Configuration of the callback struct
 
 # Fields
 
-* `test_loss_fn::Union{Nothing, Loss}`: a callable for calculating the testing loss value
-* `losses_plot_fpath::Union{Nothing,AbstractString}`: file path to the saved losses figure
-* `losses_plot_interval::Int`: interval for collecting losses and plot the losses figure
-* `params_save_fpath::Union{Nothing,AbstractString}`: file path to the serialized current best set of parameters
-* `params_save_interval::Int`: interval for saving the current best set of parameters
+* `test_loss_fn`: a callable for calculating the testing loss value
+* `losses_plot_fpath`: file path to the saved losses figure
+* `losses_plot_interval`: interval for collecting losses and plot the losses figure
+* `params_save_fpath`: file path to the serialized current best set of parameters
+* `params_save_interval`: interval for saving the current best set of parameters
 """
 struct TrainCallbackConfig
     test_loss_fn::Union{Nothing,Loss}
@@ -247,10 +227,10 @@ Create a callback for `sciml_train`
 
 # Arguments
 
-* `maxiters::Int`: max number of iterations the optimizer will run
+* `maxiters`: max number of iterations the optimizer will run
 * `config`: callback configurations
 """
-TrainCallback(maxiters::Int, config::TrainCallbackConfig = TrainCallbackConfig()) =
+TrainCallback(maxiters, config = TrainCallbackConfig()) =
     TrainCallback(TrainCallbackState(maxiters), config)
 
 """
@@ -258,10 +238,10 @@ Call an object of type `TrainCallback`
 
 # Arguments
 
-* `params::AbstractVector{<:Real}`: the model's parameters
-* `train_loss::Real`: loss from the training step
+* `params`: the model's parameters
+* `train_loss`: loss from the training step
 """
-function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
+function (cb::TrainCallback)(params, train_loss)
     test_loss = if !isnothing(cb.config.test_loss_fn)
         cb.config.test_loss_fn(params)
     end

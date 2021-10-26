@@ -11,9 +11,7 @@ function __init__()
             Dataset: General Administrative Division Map
             Website: https://gadm.org
             """,
-            [
-                "https://biogeo.ucdavis.edu/data/gadm2.8/gpkg/VNM_adm_gpkg.zip",
-            ],
+            ["https://biogeo.ucdavis.edu/data/gadm2.8/gpkg/VNM_adm_gpkg.zip"],
             post_fetch_method = unpack,
         ),
     )
@@ -25,7 +23,7 @@ function __init__()
             Website: https://gso.gov.vn
             """,
             [
-                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/gso/vietnam-2020-average-population-by-province.csv"
+                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/gso/vietnam-2020-average-population-by-province.csv",
             ],
         ),
     )

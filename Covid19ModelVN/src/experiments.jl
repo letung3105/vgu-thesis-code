@@ -242,8 +242,7 @@ function setup_experiment_preset_vietnam_province(
 
     if exp_model_type == "baseline.default"
         _, population = get_province_id_and_population(province_name)
-        u0, train_dataset, test_dataset, _ =
-            load_covid_data(dataset_name, population)
+        u0, train_dataset, test_dataset, _ = load_covid_data(dataset_name, population)
         model = CovidModelSEIRDBaseline(u0, train_dataset.tspan)
         return model, train_dataset, test_dataset
 
@@ -251,8 +250,7 @@ function setup_experiment_preset_vietnam_province(
         province_id, population = get_province_id_and_population(province_name)
         u0, train_dataset, test_dataset, train_first_date =
             load_covid_data(dataset_name, population)
-        movement_range_dataset =
-            load_movement_range(province_id, train_first_date, Day(2))
+        movement_range_dataset = load_movement_range(province_id, train_first_date, Day(2))
         model = CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
         return model, train_dataset, test_dataset
 
@@ -260,13 +258,9 @@ function setup_experiment_preset_vietnam_province(
         province_id, population = get_province_id_and_population(province_name)
         u0, train_dataset, test_dataset, train_first_date =
             load_covid_data(dataset_name, population)
-        movement_range_dataset =
-            load_movement_range(province_id, train_first_date, Day(2))
-        scp_index = load_social_proximity_to_cases_index(
-            province_name,
-            train_first_date,
-            Day(2),
-        )
+        movement_range_dataset = load_movement_range(province_id, train_first_date, Day(2))
+        scp_index =
+            load_social_proximity_to_cases_index(province_name, train_first_date, Day(2))
         model = CovidModelSEIRDFbMobility2(
             u0,
             train_dataset.tspan,
@@ -334,20 +328,20 @@ function main(
     end
 end
 
-main([
-"baseline.default.vietnam",
-"fbmobility1.default.vietnam",
-], [
-"baseline.default.hcm",
-"fbmobility1.default.hcm",
-"fbmobility2.default.hcm",
-"baseline.default.binhduong",
-"fbmobility1.default.binhduong",
-"fbmobility2.default.binhduong",
-"baseline.default.dongnai",
-"fbmobility1.default.dongnai",
-"fbmobility2.default.dongnai",
-])
+main(
+    ["baseline.default.vietnam", "fbmobility1.default.vietnam"],
+    [
+        "baseline.default.hcm",
+        "fbmobility1.default.hcm",
+        "fbmobility2.default.hcm",
+        "baseline.default.binhduong",
+        "fbmobility1.default.binhduong",
+        "fbmobility2.default.binhduong",
+        "baseline.default.dongnai",
+        "fbmobility1.default.dongnai",
+        "fbmobility2.default.dongnai",
+    ],
+)
 
 # main([
 # "baseline.default.vietnam",

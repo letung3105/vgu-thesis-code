@@ -99,7 +99,8 @@ end
 
 inter_province_social_connectedness(df_social_connectedness, country_code) = subset(
     df_social_connectedness,
-    [:user_loc, :fr_loc] => ((x, y) -> startswith.(x, country_code) .& startswith.(y, country_code)),
+    [:user_loc, :fr_loc] =>
+        ((x, y) -> startswith.(x, country_code) .& startswith.(y, country_code)),
     view = true,
 )
 

@@ -3,37 +3,29 @@ module TrainEval
 export train_model,
     evaluate_model, calculate_forecasts_errors, plot_forecasts, lookup_saved_params
 
-using Serialization, Plots, DataFrames, CSV, OrdinaryDiffEq, DiffEqFlux, Covid19ModelVN.Helpers
+using Serialization, Plots, DataFrames, CSV, DiffEqFlux
 
 """
 Get default losses figure file path
 
 # Arguments
 
-* `fdir::AbstractString`: the root directory of the file
-* `uuid::AbstractString`: the file unique identifier
+* `fdir`: the root directory of the file
+* `uuid`: the file unique identifier
 """
-get_losses_plot_fpath(fdir::AbstractString, uuid::AbstractString) =
-    joinpath(fdir, "$uuid.losses.png")
+get_losses_plot_fpath(fdir, uuid) = joinpath(fdir, "$uuid.losses.png")
 
 """
 Get default file path for saved parameters
 
 # Arguments
 
-* `fdir::AbstractString`: the root directory of the file
-* `uuid::AbstractString`: the file unique identifier
+* `fdir`: the root directory of the file
+* `uuid`: the file unique identifier
 """
-get_params_save_fpath(fdir::AbstractString, uuid::AbstractString) =
-    joinpath(fdir, "$uuid.params.jls")
+get_params_save_fpath(fdir, uuid) = joinpath(fdir, "$uuid.params.jls")
 
-function train_model(
-    train_loss_fn::Loss,
-    test_loss_fn::Loss,
-    p0::AbstractVector{<:Real},
-    sessions::AbstractVector{TrainSession},
-    exp_dir::AbstractString,
-)
+function train_model(train_loss_fn, test_loss_fn, p0, sessions, exp_dir)
     params = p0
     for sess in sessions
         losses_plot_fpath = get_losses_plot_fpath(exp_dir, sess.name)
@@ -76,9 +68,9 @@ Get the file paths and uuids of all the saved parameters of an experiment
 
 # Arguments
 
-* `dir::AbstractString`: the directory that contains the saved parameters
+* `dir`: the directory that contains the saved parameters
 """
-function lookup_saved_params(dir::AbstractString)
+function lookup_saved_params(dir)
     params_files = filter(x -> endswith(x, ".jls"), readdir(dir))
     fpaths = map(f -> joinpath(dir, f), params_files)
     uuids = map(f -> first(rsplit(f, ".", limit = 3)), params_files)
@@ -86,12 +78,12 @@ function lookup_saved_params(dir::AbstractString)
 end
 
 function calculate_forecasts_errors(
-    metric_fn::Function,
-    pred::ODESolution,
-    test_dataset::TimeseriesDataset,
-    forecast_ranges::AbstractVector{Int},
-    vars::Union{Int,AbstractVector{Int},OrdinalRange},
-    labels::AbstractArray{<:AbstractString},
+    metric_fn,
+    pred,
+    test_dataset,
+    forecast_ranges,
+    vars,
+    labels,
 )
     errors = [
         metric_fn(pred[var, 1:days], test_dataset.data[col, 1:days]) for
@@ -107,10 +99,10 @@ forecasted value using `metric_fn`.
 
 # Arguments
 
-* `predict_fn::Predictor`: a function that takes the model parameters and computes the ODE solver output
-* `metric_fn::Function`: a function that computes the error between two data arrays
-* `train_dataset::UDEDataset`: the data that was used to train the model
-* `test_dataset::UDEDataset`: ground truth data for the forecasted period
+* `predict_fn`: a function that takes the model parameters and computes the ODE solver output
+* `metric_fn`: a function that computes the error between two data arrays
+* `train_dataset`: the data that was used to train the model
+* `test_dataset`: ground truth data for the forecasted period
 * `minimizer`: the model's paramerters that will be used to produce the forecast
 * `forecast_ranges`: a range of day horizons that will be forecasted
 * `vars`: the model's states that will be compared
@@ -118,13 +110,13 @@ forecasted value using `metric_fn`.
 * `labels`: plot labels of each of the ground truth values
 """
 function plot_forecasts(
-    fit::ODESolution,
-    pred::ODESolution,
-    train_dataset::TimeseriesDataset,
-    test_dataset::TimeseriesDataset,
-    forecast_ranges::AbstractVector{Int},
-    vars::Union{Int,AbstractVector{Int},OrdinalRange},
-    labels::AbstractArray{<:AbstractString},
+    fit,
+    pred,
+    train_dataset,
+    test_dataset,
+    forecast_ranges,
+    vars,
+    labels,
 )
     plts = []
     for days in forecast_ranges, (col, (var, label)) in enumerate(zip(vars, labels))
@@ -149,13 +141,13 @@ function plot_forecasts(
 end
 
 function evaluate_model(
-    predict_fn::Predictor,
-    train_dataset::TimeseriesDataset,
-    test_dataset::TimeseriesDataset,
-    exp_dir::AbstractString,
-    eval_forecast_ranges::AbstractVector{Int},
-    eval_vars::Union{Int,AbstractVector{Int},OrdinalRange},
-    eval_labels::AbstractArray{<:AbstractString},
+    predict_fn,
+    train_dataset,
+    test_dataset,
+    exp_dir,
+    eval_forecast_ranges,
+    eval_vars,
+    eval_labels,
 )
     fpaths_params, uuids = lookup_saved_params(exp_dir)
     for (fpath_params, uuid) in zip(fpaths_params, uuids)
