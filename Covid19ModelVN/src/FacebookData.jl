@@ -22,14 +22,33 @@ function __init__()
     return nothing
 end
 
-# https://arxiv.org/pdf/2109.12094.pdf
+"""
+Calculate the Social Proximity to Cases [1] index based on the population at each area, the number of confirmed cases on each day,
+at each area, and the social connectedness between the areas that are considered.
+
+1. T. Kuchler, D. Russel, and J. Stroebel, “The Geographic Spread of COVID-19 Correlates with the Structure of Social Networks as Measured by Facebook,” National Bureau of Economic Research, Working Paper 26990, Apr. 2020. doi: 10.3386/w26990.
+
+# Arguments
+
++ `df_population`: A table contains the following columns
+    + `GID::String` is the preferred unique ID at level 1
+    + `NAME_1::String` is the level one GADM region's official name in latin script
+    + `VARNAME_1::String` for the level one GAME variant names, separated by pipes `|`
+    + `AVGPOPULATION` for the level one GAME name of the region
++ `df_covid_timeseries_confirmed`: A table contains a column for each province in a country, and each row
+contains a timestamp `date` and the number of confirmed cases recorded at `date` for each province.
++ `df_social_connectedness`: A table contains the following columns
+    + `user_loc`: the id (ex: "VNM1") of the first province
+    + `fr_loc`: the id of the second province
+    + `scaled_sci`: the scaled Social Connedtedness Index between two provinces
+"""
 function calculate_social_proximity_to_cases(
     df_population,
     df_covid_timeseries_confirmed,
     df_social_connectedness,
 )
     # get the population row with the given location id
-    getloc(id) = subset(df_population, :ID_1 => x -> x .== parse(Int, id), view = true)
+    getloc(id) = subset(df_population, :GID_1 => x -> x .== parse(Int, id), view = true)
 
     df_spc = DataFrame()
     df_spc.date = df_covid_timeseries_confirmed.date
@@ -61,6 +80,12 @@ function calculate_social_proximity_to_cases(
     return df_spc
 end
 
+"""
+Read the Movement Range Maps dataset from Facebook
+
+# Arguments
++ `fpath`: path the tab-delimited file contains the movement range data
+"""
 function read_movement_range(fpath)
     data, header = readdlm(fpath, '\t', header = true)
     df = identity.(DataFrame(data, vec(header)))
@@ -68,17 +93,39 @@ function read_movement_range(fpath)
     return df
 end
 
+"""
+Calculate the average movement range of a region by taking the mean of the movement
+ranges of all of its subregions.
+
+# Arguments
++ `df_movement_range`: A table contains the movement range data with the same structure
+as given by Facebook
++ `country_code`: ISO 3166-1 alpha-3 code of the country
++ `subdivision_id`: the "FIPS" code for US regions or "GADM" code for other countries
+"""
 function region_average_movement_range(
     df_movement_range,
     country_code,
     subdivision_id = nothing,
 )
+    parse_fips(x) = parse(Int, x)
+    parse_gadm(x) = parse(Int, split(x, ".")[2])
+    parse_subdivision(x, source) =
+        if source == "FIPS"
+            parse_fips(x)
+        elseif source == "GADM"
+            parse_gadm(x)
+        else
+            @warn "No matching subdivision source"
+        end
+
     df_movement_range_region =
         subset(df_movement_range, :country => x -> x .== country_code, view = true)
     if !isnothing(subdivision_id)
         df_movement_range_region = subset(
             df_movement_range_region,
-            :polygon_id => x -> startswith.(x, "$country_code.$subdivision_id"),
+            [:polygon_id :polygon_source] =>
+                (x, y) -> subdivision_id .== parse_subdivision.(x, y),
             view = true,
         )
     end
@@ -91,6 +138,17 @@ function region_average_movement_range(
     return df_movement_range_region_avg
 end
 
+"""
+Save a subset of the movement range maps dataset for a specific region to CSV files.
+
+# Arguments
+
++ `fpath_outputs`: Paths to the output files
++ `country_codes`: List of ISO-3166 codes of the countries whose average movement range while be calculated
++ `subdivision_ids`: List of GADM or FIPS codes of the subdivion of the countries in `country_codes`
++ `fpath_movement_range`: Path to the movement range dataset
++ `recreate`: Whether to ovewrite an existing file
+"""
 function save_region_average_movement_range(
     fpath_outputs,
     country_codes,
@@ -106,6 +164,7 @@ function save_region_average_movement_range(
 
     for (fpath, country_code, subdivision_id) ∈
         zip(fpath_outputs, country_codes, subdivision_ids)
+
         if isfile(fpath) && !recreate
             return fpath
         end
@@ -121,12 +180,27 @@ function save_region_average_movement_range(
     return nothing
 end
 
+"""
+Read the Social Connectedness Index dataset from Facebook
+
+# Arguments
++ `fpath`: path the tab-delimited file contains the social connectedness data
+"""
 function read_social_connectedness(fpath)
     data, header = readdlm(fpath, '\t', header = true)
     df = identity.(DataFrame(data, vec(header)))
     return df
 end
 
+"""
+Get the social connectedness between regions within a country
+
+# Argument
+
++ `df_social_connectedness`: A table with the same structure as the social connectedness index
+dataset from by Facebook
++ `country_code`: The ISO-3166 country code
+"""
 inter_province_social_connectedness(df_social_connectedness, country_code) = subset(
     df_social_connectedness,
     [:user_loc, :fr_loc] =>
@@ -134,6 +208,16 @@ inter_province_social_connectedness(df_social_connectedness, country_code) = sub
     view = true,
 )
 
+"""
+Save a subset of the social connectedness index dataset for specific countries to CSV files.
+
+# Arguments
+
++ `fpath_outputs`: Paths to the output files
++ `country_codes`: List of ISO-3166 codes of the countries whose average movement range while be calculated
++ `fpath_social_connectedness`: Path to the social connectness dataset
++ `recreate`: Whether to ovewrite an existing file
+"""
 function save_inter_province_social_connectedness(
     fpath_outputs,
     country_codes;
