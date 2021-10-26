@@ -1,6 +1,6 @@
 module FacebookData
 
-using CSV, DataDeps, Dates, DataFrames, DelimitedFiles, Statistics
+using DataDeps, Dates, DataFrames, DelimitedFiles, Statistics, Covid19ModelVN.Helpers
 
 function __init__()
     register(
@@ -91,6 +91,36 @@ function region_average_movement_range(
     return df_movement_range_region_avg
 end
 
+function save_region_average_movement_range(
+    fpath_outputs,
+    country_codes,
+    subdivision_ids;
+    fpath_movement_range = datadep"facebook/movement-range-2021-10-09.txt",
+    recreate = false,
+)
+    if all(isfile, fpath_outputs) && !recreate
+        return nothing
+    end
+
+    df_movement_range = FacebookData.read_movement_range(fpath_movement_range)
+
+    for (fpath, country_code, subdivision_id) ∈
+        zip(fpath_outputs, country_codes, subdivision_ids)
+        if isfile(fpath) && !recreate
+            return fpath
+        end
+
+        df_region_movement_range = FacebookData.region_average_movement_range(
+            df_movement_range,
+            country_code,
+            subdivision_id,
+        )
+        save_dataframe(df_region_movement_range, fpath)
+    end
+
+    return nothing
+end
+
 function read_social_connectedness(fpath)
     data, header = readdlm(fpath, '\t', header = true)
     df = identity.(DataFrame(data, vec(header)))
@@ -103,5 +133,30 @@ inter_province_social_connectedness(df_social_connectedness, country_code) = sub
         ((x, y) -> startswith.(x, country_code) .& startswith.(y, country_code)),
     view = true,
 )
+
+function save_inter_province_social_connectedness(
+    fpath_outputs,
+    country_codes;
+    fpath_social_connectedness = datadep"facebook/gadm1_nuts2_gadm1_nuts2.tsv",
+    recreate = false,
+)
+    if all(isfile, fpath_outputs) && !recreate
+        return nothing
+    end
+
+    df_social_connectedness = read_social_connectedness(fpath_social_connectedness)
+
+    for (fpath, country_code) ∈ zip(fpath_outputs, country_codes)
+        if isfile(fpath) && !recreate
+            return fpath
+        end
+
+        df_country_social_connectedness =
+            inter_province_social_connectedness(df_social_connectedness, country_code)
+        save_dataframe(df_country_social_connectedness, fpath)
+    end
+
+    return nothing
+end
 
 end # module FacebookData

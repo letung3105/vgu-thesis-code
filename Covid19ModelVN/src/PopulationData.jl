@@ -1,7 +1,7 @@
 module PopulationData
 
-using DataDeps, DataFrames
-import GeoDataFrames, CSV
+using CSV, DataDeps, DataFrames, Covid19ModelVN.Helpers
+import GeoDataFrames
 
 function __init__()
     register(
@@ -65,6 +65,27 @@ function combine_vietnam_province_level_gadm_and_gso_population(df_gadm, df_popu
     df = innerjoin(df_gadm, df_population, on = :VARNAME_1)
     select!(df, [:ID_1, :NAME_1, :VARNAME_1, :AVGPOPULATION])
     return df
+end
+
+function save_vietnam_province_level_gadm_and_gso_population(
+    fpath_output;
+    fpath_gadm = datadep"gadm2.8/VNM_adm.gpkg",
+    fpath_population = datadep"gso/vietnam-2020-average-population-by-province.csv",
+    recreate = false,
+)
+    if isfile(fpath_output) && !recreate
+        return nothing
+    end
+
+    df_gadm = GeoDataFrames.read(fpath_gadm, 1)
+    df_population = CSV.read(fpath_population, DataFrame)
+
+    df_combined = combine_vietnam_province_level_gadm_and_gso_population(
+        df_gadm,
+        df_population,
+    )
+    save_dataframe(df_combined, fpath_output)
+    return nothing
 end
 
 end # module PopulationData

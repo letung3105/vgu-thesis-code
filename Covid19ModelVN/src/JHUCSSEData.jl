@@ -1,6 +1,6 @@
 module JHUCSSEData
 
-using Dates, DataDeps, DataFrames
+using CSV, Dates, DataDeps, DataFrames, Covid19ModelVN.Helpers
 
 function __init__()
     register(
@@ -79,6 +79,71 @@ function combine_country_level_timeseries(
     df_combined[!, :date] .= Date.(df_combined[!, :date], dateformat"mm/dd/yyyy")
 
     return df_combined
+end
+
+function save_country_level_timeseries(
+    fpath_outputs,
+    country_names;
+    fpath_confirmed = datadep"jhu-csse/time_series_covid19_confirmed_global.csv",
+    fpath_recovered = datadep"jhu-csse/time_series_covid19_recovered_global.csv",
+    fpath_deaths = datadep"jhu-csse/time_series_covid19_deaths_global.csv",
+    recreate = false,
+)
+    if all(isfile, fpath_outputs) && !recreate
+        return nothing
+    end
+
+    df_confirmed = CSV.read(fpath_confirmed, DataFrame)
+    df_recovered = CSV.read(fpath_recovered, DataFrame)
+    df_deaths = CSV.read(fpath_deaths, DataFrame)
+
+    for (fpath, country_name) ∈ zip(fpath_outputs, country_names)
+        if isfile(fpath) && !recreate
+            continue
+        end
+
+        df_combined = combine_country_level_timeseries(
+            df_confirmed,
+            df_recovered,
+            df_deaths,
+            country_name,
+        )
+        save_dataframe(df_combined, fpath)
+    end
+
+    return nothing
+end
+
+function save_us_county_level_timeseries(
+    fpath_outputs,
+    state_names,
+    county_names;
+    fpath_confirmed = datadep"jhu-csse/time_series_covid19_confirmed_US.csv",
+    fpath_deaths = datadep"jhu-csse/time_series_covid19_deaths_US.csv",
+    recreate = false,
+)
+    if all(isfile, fpath_outputs) && !recreate
+        return nothing
+    end
+
+    df_confirmed = CSV.read(fpath_confirmed, DataFrame)
+    df_deaths = CSV.read(fpath_deaths, DataFrame)
+
+    for (fpath, state_name, county_name) ∈ zip(fpath_outputs, state_names, county_names)
+        if isfile(fpath) && !recreate
+            continue
+        end
+
+        df_combined = combine_us_county_level_timeseries(
+            df_confirmed,
+            df_deaths,
+            state_name,
+            county_name,
+        )
+        save_dataframe(df_combined, fpath)
+    end
+
+    return nothing
 end
 
 function combine_us_county_level_timeseries(
