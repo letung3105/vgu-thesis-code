@@ -26,7 +26,7 @@ Construct the default SEIRD baseline model
 * `u0`: the system initial conditions
 * `tspan`: the time span in which the system is considered
 """
-function CovidModelSEIRDBaseline(u0, tspan)
+function CovidModelSEIRDBaseline(u0::AbstractArray{<:Real}, tspan::Tuple{<:Real,<:Real})
     # small neural network and can be trained faster on CPU
     β_ann =
         FastChain(FastDense(2, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
@@ -79,9 +79,13 @@ Construct the default SEIRD model with Facebook movement range data
 
 * `u0`: the system initial conditions
 * `tspan`: the time span in which the system is considered
-* `movement_range_dataset`: the matrix for the Facebook movement range timeseries data
+* `movement_range_data`: the matrix for the Facebook movement range timeseries data
 """
-function CovidModelSEIRDFbMobility1(u0, tspan, movement_range_dataset)
+function CovidModelSEIRDFbMobility1(
+    u0::AbstractArray{<:Real},
+    tspan::Tuple{<:Real,<:Real},
+    movement_range_data,
+)
     # small neural network and can be trained faster on CPU
     β_ann =
         FastChain(FastDense(4, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
@@ -92,7 +96,7 @@ function CovidModelSEIRDFbMobility1(u0, tspan, movement_range_dataset)
             γ, λ = abs.(@view(p[1:2]))
 
             # daily mobility
-            mobility = movement_range_dataset[Int(floor(t + 1)), :]
+            mobility = movement_range_data[Int(floor(t + 1)), :]
             # infection rate depends on time, susceptible, and infected
             β = first(β_ann([S / N; I / N; mobility...], @view p[3:end]))
 
@@ -137,9 +141,14 @@ and social connectedness
 
 * `u0`: the system initial conditions
 * `tspan`: the time span in which the system is considered
-* `movement_range_dataset`: the matrix for the Facebook movement range timeseries data
+* `movement_range_data`: the matrix for the Facebook movement range timeseries data
 """
-function CovidModelSEIRDFbMobility2(u0, tspan, movement_range_dataset, spc_dataset)
+function CovidModelSEIRDFbMobility2(
+    u0::AbstractArray{<:Real},
+    tspan::Tuple{<:Real,<:Real},
+    movement_range_data,
+    spc_data,
+)
     # small neural network and can be trained faster on CPU
     β_ann =
         FastChain(FastDense(5, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
@@ -151,8 +160,8 @@ function CovidModelSEIRDFbMobility2(u0, tspan, movement_range_dataset, spc_datas
 
             # daily mobility
             time_idx = Int(floor(t + 1))
-            mobility = movement_range_dataset[time_idx, :]
-            spc = spc_dataset[time_idx]
+            mobility = movement_range_data[time_idx, :]
+            spc = spc_data[time_idx]
             # infection rate depends on time, susceptible, and infected
             β = first(β_ann([S / N; I / N; spc; mobility...], @view p[3:end]))
 

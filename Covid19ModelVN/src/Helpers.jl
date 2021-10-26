@@ -87,7 +87,7 @@ struct Predictor
     solver::Any
 end
 
-Predictor(problem) = Predictor(problem, Tsit5())
+Predictor(problem::ODEProblem) = Predictor(problem, Tsit5())
 
 """
 Call an object of struct `CovidModelPredict` to solve the underlying DiffEq problem
@@ -183,7 +183,7 @@ mutable struct TrainCallbackState
     minimizer_loss::Real
 end
 
-TrainCallbackState(maxiters) = TrainCallbackState(
+TrainCallbackState(maxiters::Int) = TrainCallbackState(
     0,
     Progress(maxiters, showspeed = true),
     Float64[],
@@ -230,7 +230,7 @@ Create a callback for `sciml_train`
 * `maxiters`: max number of iterations the optimizer will run
 * `config`: callback configurations
 """
-TrainCallback(maxiters, config = TrainCallbackConfig()) =
+TrainCallback(maxiters::Int, config::TrainCallbackConfig = TrainCallbackConfig()) =
     TrainCallback(TrainCallbackState(maxiters), config)
 
 """
