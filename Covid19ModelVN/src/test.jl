@@ -8,7 +8,7 @@ using Dates,
     Plots, DataDeps, DataFrames, CSV, Covid19ModelVN.Datasets, Covid19ModelVN.Helpers
 
 import Covid19ModelVN.JHUCSSEData,
-    Covid19ModelVN.FacebookData, Covid19ModelVN.PopulationData, Covid19ModelVN.VnExpressData
+    Covid19ModelVN.FacebookData, Covid19ModelVN.PopulationData, Covid19ModelVN.VnExpressData, Covid19ModelVN.VnCdcData
 
 const DEFAULT_DATASETS_DIR = "datasets"
 
@@ -49,7 +49,7 @@ function test_visualizations()
     split_date = first_date + train_range
     last_date = split_date + forecast_range
 
-    covid_cols = [:dead_total, :confirmed_total]
+    covid_cols = [:deaths_total, :confirmed_total]
     moving_average!(df_covid, covid_cols, 7)
 
     train_dataset, test_dataset =
@@ -57,7 +57,7 @@ function test_visualizations()
     plt = plot(title = "covid cases", legend = :outertop)
     plot!(
         [train_dataset.data test_dataset.data]',
-        labels = ["dead total" "confirmed total"],
+        labels = ["deaths total" "confirmed total"],
     )
     display(plt)
 
@@ -160,9 +160,30 @@ function test_save_fb_social_connectedness()
     )
 end
 
-datadep"facebook"
-datadep"jhu-csse"
+function test_read_vnexpress_covid_timeseries_vietnam_provinces()
+    df1 = CSV.read(datadep"vnexpress/timeseries-vietnam-provinces-confirmed.csv", DataFrame)
+    df2 = CSV.read(datadep"vnexpress/timeseries-vietnam-provinces-confirmed-total.csv", DataFrame)
 
-df1 = VnExpressData.timeseries_vietnam()
-df2 = VnExpressData.timeseries_provinces_confirmed()
-df2 = VnExpressData.timeseries_provinces_confirmed_total()
+    @show df1
+    @show df2
+
+    return nothing
+end
+
+
+function test_parse_vncdc_covid_timeseries_vietnam_provinces()
+    df1 = VnCdcData.parse_timeseries_confirmed_and_deaths(datadep"vncdc/HoChiMinh.json")
+    df2 = VnCdcData.parse_timeseries_confirmed_and_deaths(datadep"vncdc/BinhDuong.json")
+    df3 = VnCdcData.parse_timeseries_confirmed_and_deaths(datadep"vncdc/DongNai.json")
+    df4 = VnCdcData.parse_timeseries_confirmed_and_deaths(datadep"vncdc/LongAn.json")
+
+    @show df1
+    @show df2
+    @show df3
+    @show df4
+
+    return nothing
+end
+
+test_read_vnexpress_covid_timeseries_vietnam_provinces()
+test_parse_vncdc_covid_timeseries_vietnam_provinces()

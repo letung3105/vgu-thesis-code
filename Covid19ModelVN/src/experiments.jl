@@ -98,7 +98,7 @@ function setup_experiment_preset_vietnam(
     @info "First date: $first_date"
 
     # ma7
-    covid_timeseries_cols = [:infective, :recovered_total, :dead_total, :confirmed_total]
+    covid_timeseries_cols = [:infective, :recovered_total, :deaths_total, :confirmed_total]
     moving_average!(df_covid_timeseries, covid_timeseries_cols, 7)
     # separate dataframe into data arrays for train and test
     train_dataset, test_dataset = train_test_split(
@@ -175,7 +175,7 @@ function setup_experiment_preset_vietnam_province(
         @info "First date: $first_date"
 
         # ma7
-        covid_timeseries_cols = [:dead_total, :confirmed_total]
+        covid_timeseries_cols = [:deaths_total, :confirmed_total]
         moving_average!(df_covid_timeseries, covid_timeseries_cols, 7)
         # separate dataframe into data arrays for train and test
         train_dataset, test_dataset = train_test_split(
@@ -308,7 +308,7 @@ function main(
             DEFAULT_SNAPSHOTS_DIR,
             [7, 14, 21, 28],
             3:6,
-            ["infective" "recovered" "dead" "total confirmed"],
+            ["infective" "recovered" "deaths" "total confirmed"],
         )
     end
 
@@ -330,7 +330,7 @@ function main(
             DEFAULT_SNAPSHOTS_DIR,
             [7, 14, 21, 28],
             5:6,
-            ["dead" "total confirmed"],
+            ["deaths" "total confirmed"],
         )
     end
 end

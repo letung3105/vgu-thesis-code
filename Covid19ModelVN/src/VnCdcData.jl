@@ -1,7 +1,26 @@
 module VnCdcData
 
-using DataFrames, Dates
+using DataDeps, DataFrames, Dates
 import JSON
+
+function __init__()
+    register(
+        DataDep(
+            "vncdc",
+            """
+            Dataset: VnCDC Covid-19 Dashboard API Data
+            Website: https://ncov.vncdc.gov.vn
+            """,
+            [
+                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vncdc/HoChiMinh.json"
+                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vncdc/BinhDuong.json"
+                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vncdc/DongNai.json"
+                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vncdc/LongAn.json"
+            ],
+        ),
+    )
+    return nothing
+end
 
 function parse_json_date_value_pairs(data)
     dates = Vector{Date}()
@@ -13,14 +32,12 @@ function parse_json_date_value_pairs(data)
     return dates, values
 end
 
-function parse_json_cases_and_deaths(fpath)
+function parse_timeseries_confirmed_and_deaths(fpath)
     data = JSON.parsefile(fpath)
-    data = data["report"]
-
-    column_names = ["confirmed_community", "confirmed_quarantined", "dead"]
+    column_names = ["confirmed_community", "confirmed_quarantined", "deaths"]
     dfs = Vector{DataFrame}()
     for (i, colname) in enumerate(column_names)
-        dates, cases = parse_json_date_value_pairs(data[i]["data"])
+        dates, cases = parse_json_date_value_pairs(data["report"][i]["data"])
         df = DataFrame(["date" => dates, colname => cases])
         push!(dfs, df)
     end
@@ -30,7 +47,11 @@ function parse_json_cases_and_deaths(fpath)
         df,
         [:confirmed_community, :confirmed_quarantined] => ((x, y) -> x .+ y) => :confirmed,
     )
-    transform!(df, :dead => cumsum => :dead_total, :confirmed => cumsum => :confirmed_total)
+    transform!(
+        df,
+        :deaths => cumsum => :deaths_total,
+        :confirmed => cumsum => :confirmed_total,
+    )
 
     return df
 end
