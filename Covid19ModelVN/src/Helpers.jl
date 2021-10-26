@@ -33,17 +33,58 @@ struct UDEDataset
     tsteps::Union{Real,AbstractVector{<:Real},StepRange,StepRangeLen}
 end
 
+"""
+Calculate the moving average of the given list of numbers
+
+# Arguments
+
++ `xs`: The list of number
++ `n`: Subset size to average over
+"""
 moving_average(xs, n) = [mean(@view xs[(i >= n ? i - n + 1 : 1):i]) for i = 1:length(xs)]
 
+"""
+Calculate the moving average of all the `cols` in `df`
+
+# Arguments
+
++ `df`: A `DataFrame`
++ `cols`: Column names for calculating the moving average
++ `n`: Subset size to average over
+"""
 moving_average!(df, cols, n) =
     transform!(df, names(df, Cols(cols)) .=> x -> moving_average(x, n), renamecols = false)
 
-view_dates_range(df, col, start_date, end_date) =
-    view(df, (df[!, col] .>= start_date) .& (df[!, col] .<= end_date), All())
+"""
+Filter the dataframe `df` by `col` such that its values remain between `start_date` and `end_date`
 
+# Arguments
+
++ `df`: An arbitrary dataframe
++ `col`: The key column used for filtering
++ `first`: The starting (smallest) value allowed
++ `last`: The ending (largest) value allowed
+"""
+bound(df, col, first, last) =
+    subset(df, (df[!, col] .>= first) .& (df[!, col] .<= last), view = true)
+
+"""
+Create two `UDEDataset`s from the given dataframe, the first dataset contains data point whose `date_col`
+value is in the range [first_date, split_date], and the second dataset contains data point whose `date_col`
+value is in the range (split_date, last_date]
+
+# Arguments
+
++ `df`: The dataframe
++ `data_cols`: The names of the columns whose data will be used for creating an array
++ `date_col`: The name of the column that contains the date of the data point
++ `first_date`: First date to take
++ `split_date`: Date where to dataframe is splitted in two
++ `last_date`: Last date to take
+"""
 function train_test_split(df, data_cols, date_col, first_date, split_date, last_date)
-    df_train = view_dates_range(df, date_col, first_date, split_date)
-    df_test = view_dates_range(df, date_col, split_date + Day(1), last_date)
+    df_train = bound(df, date_col, first_date, split_date)
+    df_test = bound(df, date_col, split_date + Day(1), last_date)
 
     train_tspan = Float64.((0, Dates.value(split_date - first_date)))
     test_tspan = Float64.((0, Dates.value(last_date - first_date)))
@@ -60,11 +101,31 @@ function train_test_split(df, data_cols, date_col, first_date, split_date, last_
     return train_dataset, test_dataset
 end
 
+"""
+Load from the time series in the dataframe the data from `data_cols` columns, limiting
+the data point `date_col` between [`first_date`, `last_date`].
+
+# Arguments
+
++ `df`: The dataframe
++ `data_cols`: The names of the columns whose data will be used for creating an array
++ `date_col`: The name of the column that contains the date of the data point
++ `first_date`: First date to take
++ `last_date`: Last date to take
+"""
 function load_timeseries(df, data_cols, date_col, first_date, last_date)
-    df = view_dates_range(df, date_col, first_date, last_date)
+    df = bound(df, date_col, first_date, last_date)
     return Array(df[!, Cols(data_cols)])
 end
 
+"""
+Save a dataframe as a CSV file
+
+# Arguments
+
++ `df`: The dataframe to save
++ `fpath`: The path to save the file
+"""
 function save_dataframe(df, fpath)
     # create containing folder if not exists
     if !isdir(dirname(fpath))
@@ -88,6 +149,13 @@ struct Predictor
     solver::Any
 end
 
+"""
+Construct a new `Predictor` with the solver set to the default value `Tsit5`
+
+# Argument
+
++ `problem`: The `ODEProblem` that will be solved by the predictor object
+"""
 Predictor(problem::ODEProblem) = Predictor(problem, Tsit5())
 
 """
@@ -190,6 +258,14 @@ mutable struct TrainCallbackState
     minimizer_loss::Real
 end
 
+"""
+Construct a new `TrainCallbackState` with the progress bar set to `maxiters`
+and other fields set to their default values
+
+# Arguments
+
++ `maxiters`: Maximum number of iterrations that the optimizer will run
+"""
 TrainCallbackState(maxiters::Int) = TrainCallbackState(
     0,
     Progress(maxiters, showspeed = true),
@@ -218,6 +294,9 @@ struct TrainCallbackConfig
     params_save_interval::Int
 end
 
+"""
+Contruct a default `TrainCallbackConfig`
+"""
 TrainCallbackConfig() =
     TrainCallbackConfig(nothing, nothing, typemax(Int), nothing, typemax(Int))
 
@@ -282,6 +361,15 @@ function (cb::TrainCallback)(params, train_loss)
     return false
 end
 
+"""
+Specifications for a model tranining session
+
+# Arguments
+
++ `name`: Session name
++ `optimizer`: The optimizer that will run in the session
++ `maxiters`: Maximum number of iterations to run the optimizer
+"""
 struct TrainSession
     name::AbstractString
     optimizer::Any
