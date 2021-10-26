@@ -3,7 +3,7 @@ module TrainEval
 export train_model,
     evaluate_model, calculate_forecasts_errors, plot_forecasts, lookup_saved_params
 
-using Serialization, Plots, DataFrames, CSV, DiffEqFlux
+using Serialization, Plots, DataFrames, CSV, DiffEqFlux, Covid19ModelVN.Helpers
 
 """
 Get default losses figure file path
