@@ -387,6 +387,8 @@ function main(
     end
 end
 
+cachedata(recreate = true)
+
 main(
     ["baseline.default.vietnam", "fbmobility1.default.vietnam"],
     [

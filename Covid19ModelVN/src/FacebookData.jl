@@ -124,7 +124,7 @@ function region_average_movement_range(
     if !isnothing(subdivision_id)
         df_movement_range_region = subset(
             df_movement_range_region,
-            [:polygon_id :polygon_source] =>
+            [:polygon_id, :polygon_source] =>
                 (x, y) -> subdivision_id .== parse_subdivision.(x, y),
             view = true,
         )
