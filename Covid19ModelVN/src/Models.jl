@@ -84,7 +84,7 @@ Construct the default SEIRD model with Facebook movement range data
 function CovidModelSEIRDFbMobility1(
     u0::AbstractArray{<:Real},
     tspan::Tuple{<:Real,<:Real},
-    movement_range_data,
+    movement_range_data::AbstractArray{<:Real},
 )
     # small neural network and can be trained faster on CPU
     β_ann =
@@ -146,8 +146,8 @@ and social connectedness
 function CovidModelSEIRDFbMobility2(
     u0::AbstractArray{<:Real},
     tspan::Tuple{<:Real,<:Real},
-    movement_range_data,
-    spc_data,
+    movement_range_data::AbstractArray{<:Real},
+    spc_data::AbstractArray{<:Real},
 )
     # small neural network and can be trained faster on CPU
     β_ann =
