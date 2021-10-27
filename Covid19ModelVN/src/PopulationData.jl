@@ -77,7 +77,7 @@ function save_vietnam_province_level_gadm_and_gso_population(
         return nothing
     end
 
-    @info "Generateing '$fpath"
+    @info "Generating '$fpath_output"
 
     df_gadm = GeoDataFrames.read(fpath_gadm, 1)
     df_population = CSV.read(fpath_population, DataFrame)

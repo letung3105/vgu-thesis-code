@@ -91,7 +91,7 @@ function save_country_level_timeseries(
             continue
         end
 
-        @info "Generateing '$fpath"
+        @info "Generating '$fpath"
         df_combined = combine_country_level_timeseries(
             df_confirmed,
             df_recovered,
@@ -124,7 +124,7 @@ function save_us_county_level_timeseries(
             continue
         end
 
-        @info "Generateing '$fpath"
+        @info "Generating '$fpath"
         df_combined = combine_us_county_level_timeseries(
             df_confirmed,
             df_deaths,
