@@ -29,13 +29,13 @@ function CovidModelSEIRDBaseline(u0::AbstractArray{<:Real}, tspan::Tuple{<:Real,
     β_ann =
         FastChain(FastDense(2, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
     # system dynamics
-    dudt! = function (du, u, p, t; α = 0.025)
+    dudt! = function (du, u, p, t)
         @inbounds begin
             S, E, I, _, _, _, N = u
-            γ, λ = abs.(@view(p[1:2]))
+            γ, λ, α = abs.(@view(p[1:3]))
 
             # infection rate depends on time, susceptible, and infected
-            β = first(β_ann([S / N; I / N], @view p[3:end]))
+            β = first(β_ann([S / N; I / N], @view p[4:end]))
 
             du[1] = -β * S * I / N
             du[2] = β * S * I / N - γ * E
@@ -55,7 +55,7 @@ end
 Get the initial set of parameters of the baselien SEIRD model with Facebook movement range
 """
 get_model_initial_params(model::CovidModelSEIRDBaseline) =
-    [1 / 2; 1 / 4; initial_params(model.β_ann)]
+    [1 / 2; 1 / 4; 0.025; initial_params(model.β_ann)]
 
 """
 A struct for containing the SEIRD model with Facebook movement range
@@ -88,15 +88,15 @@ function CovidModelSEIRDFbMobility1(
     β_ann =
         FastChain(FastDense(4, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
     # system dynamics
-    function dudt!(du, u, p, t; α = 0.025)
+    function dudt!(du, u, p, t)
         @inbounds begin
             S, E, I, _, _, _, N = u
-            γ, λ = abs.(@view(p[1:2]))
+            γ, λ, α = abs.(@view(p[1:3]))
 
             # daily mobility
             mobility = movement_range_data[Int(floor(t + 1)), :]
             # infection rate depends on time, susceptible, and infected
-            β = first(β_ann([S / N; I / N; mobility...], @view p[3:end]))
+            β = first(β_ann([S / N; I / N; mobility...], @view p[4:end]))
 
             du[1] = -β * S * I / N
             du[2] = β * S * I / N - γ * E
@@ -116,7 +116,7 @@ end
 Get the initial set of parameters of the SEIRD model with Facebook movement range
 """
 get_model_initial_params(model::CovidModelSEIRDFbMobility1) =
-    [1 / 2; 1 / 4; initial_params(model.β_ann)]
+    [1 / 2; 1 / 4; 0.025; initial_params(model.β_ann)]
 
 """
 A struct for containing the SEIRD model with Facebook movement range
@@ -151,17 +151,17 @@ function CovidModelSEIRDFbMobility2(
     β_ann =
         FastChain(FastDense(5, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
     # system dynamics
-    function dudt!(du, u, p, t; α = 0.025)
+    function dudt!(du, u, p, t)
         @inbounds begin
             S, E, I, _, _, _, N = u
-            γ, λ = abs.(@view(p[1:2]))
+            γ, λ, α = abs.(@view(p[1:3]))
 
             # daily mobility
             time_idx = Int(floor(t + 1))
             mobility = movement_range_data[time_idx, :]
             spc = spc_data[time_idx]
             # infection rate depends on time, susceptible, and infected
-            β = first(β_ann([S / N; I / N; spc; mobility...], @view p[3:end]))
+            β = first(β_ann([S / N; I / N; spc; mobility...], @view p[4:end]))
 
             du[1] = -β * S * I / N
             du[2] = β * S * I / N - γ * E
@@ -181,4 +181,4 @@ end
 Get the initial set of parameters of the SEIRD model with Facebook movement range
 """
 get_model_initial_params(model::CovidModelSEIRDFbMobility2) =
-    [1 / 2; 1 / 4; initial_params(model.β_ann)]
+    [1 / 2; 1 / 4; 0.025; initial_params(model.β_ann)]
