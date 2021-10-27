@@ -28,13 +28,13 @@ function get_timeseries_vietnam_combined(
     res = HTTP.get(url)
     df = CSV.read(res.body, DataFrame)
     select!(
-		df,
-		"day_full" => (x -> Date.(x, dateformat"Y/m/d")) => :date,
-		"total_active" => :infective,
-		"total_cases" => :confirmed_total,
-		"total_deaths" => :deaths_total,
-		"total_recovered_12" => :recovered_total,
-	)
+        df,
+        "day_full" => (x -> Date.(x, dateformat"Y/m/d")) => :date,
+        "total_active" => :infective,
+        "total_cases" => :confirmed_total,
+        "total_deaths" => :deaths_total,
+        "total_recovered_12" => :recovered_total,
+    )
     # Filter date range
     subset!(df, :date => d -> d .<= last_date)
 
