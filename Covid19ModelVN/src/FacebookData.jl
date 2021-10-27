@@ -169,6 +169,7 @@ function save_region_average_movement_range(
             return fpath
         end
 
+        @info "Generateing '$fpath"
         df_region_movement_range = FacebookData.region_average_movement_range(
             df_movement_range,
             country_code,
@@ -235,6 +236,7 @@ function save_inter_province_social_connectedness(
             return fpath
         end
 
+        @info "Generateing '$fpath"
         df_country_social_connectedness =
             inter_province_social_connectedness(df_social_connectedness, country_code)
         save_dataframe(df_country_social_connectedness, fpath)
