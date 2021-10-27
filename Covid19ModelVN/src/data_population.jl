@@ -1,6 +1,6 @@
 module PopulationData
 
-using CSV, DataDeps, DataFrames, Covid19ModelVN.Helpers
+using CSV, DataDeps, DataFrames, Covid19ModelVN
 import GeoDataFrames
 
 function __init__()

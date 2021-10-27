@@ -1,5 +1,3 @@
-module Models
-
 export get_model_initial_params,
     CovidModelSEIRDBaseline, CovidModelSEIRDFbMobility1, CovidModelSEIRDFbMobility2
 
@@ -184,5 +182,3 @@ Get the initial set of parameters of the SEIRD model with Facebook movement rang
 """
 get_model_initial_params(model::CovidModelSEIRDFbMobility2) =
     [1 / 2; 1 / 4; initial_params(model.β_ann)]
-
-end

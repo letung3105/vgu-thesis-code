@@ -9,9 +9,7 @@ using CSV,
     DataDeps,
     DataFrames,
     DiffEqFlux,
-    Covid19ModelVN.Helpers,
-    Covid19ModelVN.Models,
-    Covid19ModelVN.TrainEval
+    Covid19ModelVN
 
 import Covid19ModelVN.JHUCSSEData,
     Covid19ModelVN.FacebookData,
@@ -142,7 +140,7 @@ function setup_experiment_preset_vietnam(exp_name)
     # load covid cases data
     df_covid_timeseries = CSV.read(FPATH_VIETNAM_COVID_TIMESERIES, DataFrame)
     # after 4th August, the recovered count is not updated
-    Helpers.bound!(df_covid_timeseries, :date, Date(2021, 4, 26), Date(2021, 8, 4))
+    bound!(df_covid_timeseries, :date, Date(2021, 4, 26), Date(2021, 8, 4))
     transform!(df_covid_timeseries,
         :infective => x -> x .- df_covid_timeseries[1, :infective],
         :recovered_total => x -> x .- df_covid_timeseries[1, :recovered_total],

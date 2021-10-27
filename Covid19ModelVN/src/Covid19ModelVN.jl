@@ -1,19 +1,27 @@
 module Covid19ModelVN
 
-include("Helpers.jl")
+include("helpers.jl")
+include("models.jl")
+include("train_eval.jl")
 
-include("PopulationData.jl")
+module FacebookData
+    include("data_facebook.jl")
+end
 
-include("JHUCSSEData.jl")
+module JHUCSSEData
+    include("data_jhu_csse.jl")
+end
 
-include("VnExpressData.jl")
+module PopulationData
+    include("data_population.jl")
+end
 
-include("VnCdcData.jl")
+module VnExpressData
+    include("data_vnexpress.jl")
+end
 
-include("FacebookData.jl")
-
-include("Models.jl")
-
-include("TrainEval.jl")
+module VnCdcData
+    include("data_vncdc.jl")
+end
 
 end

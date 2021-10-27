@@ -1,6 +1,6 @@
 module FacebookData
 
-using DataDeps, Dates, DataFrames, DelimitedFiles, Statistics, Covid19ModelVN.Helpers
+using DataDeps, Dates, DataFrames, DelimitedFiles, Statistics, Covid19ModelVN
 
 function __init__()
     register(

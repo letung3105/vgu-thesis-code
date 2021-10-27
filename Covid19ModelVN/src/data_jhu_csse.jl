@@ -1,6 +1,6 @@
 module JHUCSSEData
 
-using CSV, Dates, DataDeps, DataFrames, Covid19ModelVN.Helpers
+using CSV, Dates, DataDeps, DataFrames, Covid19ModelVN
 
 function __init__()
     register(
