@@ -56,7 +56,7 @@ moving_average!(df, cols, n) =
     transform!(df, names(df, Cols(cols)) .=> x -> moving_average(x, n), renamecols = false)
 
 """
-Filter the dataframe `df` by `col` such that its values remain between `start_date` and `end_date`
+Select a subset of the dataframe `df` such that values in `col` remain between `start_date` and `end_date`
 
 # Arguments
 
@@ -67,6 +67,19 @@ Filter the dataframe `df` by `col` such that its values remain between `start_da
 """
 bound(df, col, first, last) =
     subset(df, col => x -> (x .>= first) .& (x .<= last), view = true)
+
+"""
+Filter the dataframe `df` such that values in `col` remain between `start_date` and `end_date`
+
+# Arguments
+
++ `df`: An arbitrary dataframe
++ `col`: The key column used for filtering
++ `first`: The starting (smallest) value allowed
++ `last`: The ending (largest) value allowed
+"""
+bound!(df, col, first, last) =
+    subset!(df, col => x -> (x .>= first) .& (x .<= last))
 
 """
 Create two `UDEDataset`s from the given dataframe, the first dataset contains data point whose `date_col`
