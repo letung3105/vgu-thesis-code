@@ -11,12 +11,36 @@ function __init__()
             Website: https://vnexpress.net
             """,
             [
-                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vnexpress/timeseries-vietnam-provinces-confirmed.csv"
-                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vnexpress/timeseries-vietnam-provinces-confirmed-total.csv"
+                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vnexpress/timeseries-vietnam-combined.csv",
+                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vnexpress/timeseries-vietnam-provinces-confirmed.csv",
+                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vnexpress/timeseries-vietnam-provinces-confirmed-total.csv",
             ],
         ),
     )
     return nothing
+end
+
+function get_timeseries_vietnam_combined(
+    url = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_day";
+    last_date = today() - Day(1),
+)
+    # request data
+    res = HTTP.get(url)
+    df = CSV.read(res.body, DataFrame)
+    select!(
+		df,
+		"day_full" => (x -> Date.(x, dateformat"Y/m/d")) => :date,
+		"total_active" => :infective,
+		"total_cases" => :confirmed_total,
+		"total_deaths" => :deaths_total,
+		"total_recovered_12" => :recovered_total,
+	)
+    # Filter date range
+    subset!(df, :date => d -> d .<= last_date)
+
+    @assert !hasmissing(df)
+    df[!, Not(:date)] .= Int.(df[!, Not(:date)])
+    return df
 end
 
 function get_timeseries_vietnam_provinces_confirmed(
@@ -29,7 +53,7 @@ function get_timeseries_vietnam_provinces_confirmed(
 
     clean_provinces_confirmed_cases_timeseries!(df)
     # Filter date range
-    filter!(:date => d -> d >= d <= last_date, df)
+    subset!(df, :date => d -> d .<= last_date)
     # Replace missing with 0
     df = coalesce.(df, 0)
 
@@ -48,7 +72,7 @@ function get_timeseries_vietnam_provinces_confirmed_total(
 
     clean_provinces_confirmed_cases_timeseries!(df)
     # Filter date range
-    filter!(:date => d -> d <= last_date, df)
+    subset!(df, :date => d -> d .<= last_date)
 
     @assert !hasmissing(df)
     df[!, Not(:date)] .= Int.(df[!, Not(:date)])
