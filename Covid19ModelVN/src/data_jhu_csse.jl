@@ -1,5 +1,3 @@
-module JHUCSSEData
-
 using CSV, Dates, DataDeps, DataFrames, Covid19ModelVN
 
 function __init__()
@@ -200,5 +198,3 @@ function get_us_county_population(df_deaths, state_name, county_name)
     df_deaths = dropmissing(df_deaths, "Admin2", view = true)
     return first(filter_county(df_deaths).Population)
 end
-
-end # module JHUCSSEData

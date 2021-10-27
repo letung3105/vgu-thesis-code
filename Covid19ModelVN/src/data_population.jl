@@ -1,5 +1,3 @@
-module PopulationData
-
 using CSV, DataDeps, DataFrames, Covid19ModelVN
 import GeoDataFrames
 
@@ -86,5 +84,3 @@ function save_vietnam_province_level_gadm_and_gso_population(
     save_dataframe(df_combined, fpath_output)
     return nothing
 end
-
-end # module PopulationData

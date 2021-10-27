@@ -115,67 +115,6 @@ function (l::Loss)(params)
 end
 
 """
-A callable struct that is used for handling callback for `sciml_train`
-"""
-mutable struct TrainCallback
-    state::TrainCallbackState
-    config::TrainCallbackConfig
-end
-
-"""
-Create a callback for `sciml_train`
-
-# Arguments
-
-* `maxiters`: max number of iterations the optimizer will run
-* `config`: callback configurations
-"""
-TrainCallback(maxiters::Int, config::TrainCallbackConfig = TrainCallbackConfig()) =
-    TrainCallback(TrainCallbackState(maxiters), config)
-
-"""
-Call an object of type `TrainCallback`
-
-# Arguments
-
-* `params`: the model's parameters
-* `train_loss`: loss from the training step
-"""
-function (cb::TrainCallback)(params, train_loss)
-    test_loss = if !isnothing(cb.config.test_loss_fn)
-        cb.config.test_loss_fn(params)
-    end
-
-    if train_loss < cb.state.minimizer_loss
-        cb.state.minimizer_loss = train_loss
-        cb.state.minimizer = params
-    end
-
-    cb.state.iters += 1
-    if cb.state.iters % cb.config.losses_plot_interval == 0 &&
-       !isnothing(cb.config.losses_plot_fpath)
-        append!(cb.state.train_losses, train_loss)
-        append!(cb.state.test_losses, test_loss)
-        plt = plot(
-            [cb.state.train_losses, cb.state.test_losses],
-            labels = ["train loss" "test loss"],
-            legend = :outerright,
-        )
-        savefig(plt, cb.config.losses_plot_fpath)
-    end
-    if cb.state.iters % cb.config.params_save_interval == 0 &&
-       !isnothing(cb.config.params_save_fpath)
-        Serialization.serialize(cb.config.params_save_fpath, cb.state.minimizer)
-    end
-
-    next!(
-        cb.state.progress,
-        showvalues = [:train_loss => train_loss, :test_loss => test_loss],
-    )
-    return false
-end
-
-"""
 State of the callback struct
 
 # Fields
@@ -237,6 +176,68 @@ Contruct a default `TrainCallbackConfig`
 """
 TrainCallbackConfig() =
     TrainCallbackConfig(nothing, nothing, typemax(Int), nothing, typemax(Int))
+
+"""
+A callable struct that is used for handling callback for `sciml_train`
+"""
+mutable struct TrainCallback
+    state::TrainCallbackState
+    config::TrainCallbackConfig
+end
+
+"""
+Create a callback for `sciml_train`
+
+# Arguments
+
+* `maxiters`: max number of iterations the optimizer will run
+* `config`: callback configurations
+"""
+TrainCallback(maxiters::Int, config::TrainCallbackConfig = TrainCallbackConfig()) =
+    TrainCallback(TrainCallbackState(maxiters), config)
+
+"""
+Call an object of type `TrainCallback`
+
+# Arguments
+
+* `params`: the model's parameters
+* `train_loss`: loss from the training step
+"""
+function (cb::TrainCallback)(params, train_loss)
+    test_loss = if !isnothing(cb.config.test_loss_fn)
+        cb.config.test_loss_fn(params)
+    end
+
+    if train_loss < cb.state.minimizer_loss
+        cb.state.minimizer_loss = train_loss
+        cb.state.minimizer = params
+    end
+
+    cb.state.iters += 1
+    if cb.state.iters % cb.config.losses_plot_interval == 0 &&
+       !isnothing(cb.config.losses_plot_fpath)
+        append!(cb.state.train_losses, train_loss)
+        append!(cb.state.test_losses, test_loss)
+        plt = plot(
+            [cb.state.train_losses, cb.state.test_losses],
+            labels = ["train loss" "test loss"],
+            legend = :outerright,
+        )
+        savefig(plt, cb.config.losses_plot_fpath)
+    end
+    if cb.state.iters % cb.config.params_save_interval == 0 &&
+       !isnothing(cb.config.params_save_fpath)
+        Serialization.serialize(cb.config.params_save_fpath, cb.state.minimizer)
+    end
+
+    next!(
+        cb.state.progress,
+        showvalues = [:train_loss => train_loss, :test_loss => test_loss],
+    )
+    return false
+end
+
 
 function train_model(train_loss_fn, test_loss_fn, p0, sessions, exp_dir)
     params = p0

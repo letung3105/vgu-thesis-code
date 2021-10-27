@@ -1,5 +1,3 @@
-module VnExpressData
-
 using Dates, DataDeps, DataFrames, CSV, HTTP
 
 function __init__()
@@ -103,6 +101,4 @@ function clean_provinces_confirmed_cases_timeseries!(df)
         Not("Ngày"),
     )
     return df
-end
-
 end

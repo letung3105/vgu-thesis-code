@@ -1,5 +1,3 @@
-module FacebookData
-
 using DataDeps, Dates, DataFrames, DelimitedFiles, Statistics, Covid19ModelVN
 
 function __init__()
@@ -244,5 +242,3 @@ function save_inter_province_social_connectedness(
 
     return nothing
 end
-
-end # module FacebookData
