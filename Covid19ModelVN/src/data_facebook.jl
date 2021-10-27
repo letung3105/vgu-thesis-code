@@ -11,8 +11,9 @@ function __init__()
             + https://dataforgood.facebook.com/dfg/tools/social-connectedness-index
             """,
             [
-                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/facebook/movement-range-data-2021-10-09.zip"
-                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/facebook/gadm1_nuts2-gadm1_nuts2-fb-social-connectedness-index-october-2021.zip"
+                "https://github.com/letung3105/coviddata/raw/master/facebook/movement-range-data-2021-10-09.zip"
+                "https://github.com/letung3105/coviddata/raw/master/facebook/gadm1_nuts2-gadm1_nuts2-fb-social-connectedness-index-october-2021.zip"
+                "https://github.com/letung3105/coviddata/raw/master/facebook/us-counties-us-counties-fb-social-connectedness-index-october-2021.zip"
             ],
             post_fetch_method = unpack,
         ),
@@ -46,7 +47,8 @@ function calculate_social_proximity_to_cases(
     df_social_connectedness::DataFrame,
 )
     # get the population row with the given location id
-    getloc(id) = subset(df_population, :ID_1 => x -> x .== parse(Int, id), view = true)
+    getloc(id::String) =
+        subset(df_population, :ID_1 => x -> x .== parse(Int, id), view = true)
 
     df_spc = DataFrame()
     df_spc.date = df_covid_timeseries_confirmed.date
@@ -84,7 +86,7 @@ Read the Movement Range Maps dataset from Facebook
 # Arguments
 + `fpath`: path the tab-delimited file contains the movement range data
 """
-function read_movement_range(fpath::AbstractString)
+function read_movement_range(fpath::String)
     data, header = readdlm(fpath, '\t', header = true)
     df = identity.(DataFrame(data, vec(header)))
     df[!, :ds] .= Date.(df[!, :ds])
@@ -103,12 +105,12 @@ as given by Facebook
 """
 function region_average_movement_range(
     df_movement_range::DataFrame,
-    country_code::AbstractString,
+    country_code::String,
     subdivision_id::Union{Nothing,Int} = nothing,
 )
-    parse_fips(x) = parse(Int, x)
-    parse_gadm(x) = parse(Int, split(x, ".")[2])
-    parse_subdivision(x, source) =
+    parse_fips(x::String) = parse(Int, x)
+    parse_gadm(x::String) = parse(Int, split(x, ".")[2])
+    parse_subdivision(x::String, source::String) =
         if source == "FIPS"
             parse_fips(x)
         elseif source == "GADM"
@@ -148,10 +150,10 @@ Save a subset of the movement range maps dataset for a specific region to CSV fi
 + `recreate`: Whether to ovewrite an existing file
 """
 function save_region_average_movement_range(
-    fpath_outputs::AbstractVector{<:AbstractString},
-    country_codes::AbstractVector{<:AbstractString},
-    subdivision_ids::AbstractVector{Union{Nothing,Int}};
-    fpath_movement_range::AbstractString = datadep"facebook/movement-range-2021-10-09.txt",
+    fpath_outputs::Vector{<:String},
+    country_codes::Vector{<:String},
+    subdivision_ids::Vector{Union{Nothing,Int}};
+    fpath_movement_range::String = datadep"facebook/movement-range-2021-10-09.txt",
     recreate::Bool = false,
 )
     if all(isfile, fpath_outputs) && !recreate
@@ -185,7 +187,7 @@ Read the Social Connectedness Index dataset from Facebook
 # Arguments
 + `fpath`: path the tab-delimited file contains the social connectedness data
 """
-function read_social_connectedness(fpath::AbstractString)
+function read_social_connectedness(fpath::String)
     data, header = readdlm(fpath, '\t', header = true)
     df = identity.(DataFrame(data, vec(header)))
     return df
@@ -202,7 +204,7 @@ dataset from by Facebook
 """
 inter_province_social_connectedness(
     df_social_connectedness::DataFrame,
-    country_code::AbstractString,
+    country_code::String,
 ) = subset(
     df_social_connectedness,
     [:user_loc, :fr_loc] =>
@@ -221,9 +223,9 @@ Save a subset of the social connectedness index dataset for specific countries t
 + `recreate`: Whether to ovewrite an existing file
 """
 function save_inter_province_social_connectedness(
-    fpath_outputs::AbstractVector{<:AbstractString},
-    country_codes::AbstractVector{<:AbstractString};
-    fpath_social_connectedness::AbstractString = datadep"facebook/gadm1_nuts2_gadm1_nuts2.tsv",
+    fpath_outputs::Vector{<:String},
+    country_codes::Vector{<:String};
+    fpath_social_connectedness::String = datadep"facebook/gadm1_nuts2_gadm1_nuts2.tsv",
     recreate::Bool = false,
 )
     if all(isfile, fpath_outputs) && !recreate

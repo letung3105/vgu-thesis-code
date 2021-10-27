@@ -21,14 +21,17 @@ function __init__()
             Website: https://gso.gov.vn
             """,
             [
-                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/gso/vietnam-2020-average-population-by-province.csv",
+                "https://github.com/letung3105/coviddata/raw/master/gso/vietnam-2020-average-population-by-province.csv",
             ],
         ),
     )
     return nothing
 end
 
-function combine_vietnam_province_level_gadm_and_gso_population(df_gadm::DataFrame, df_population::DataFrame)
+function combine_vietnam_province_level_gadm_and_gso_population(
+    df_gadm::DataFrame,
+    df_population::DataFrame,
+)
     # remove rows of repeated provinces
     df_gadm = unique(df_gadm, :ID_1)
     # rename columns and transform data
@@ -43,10 +46,10 @@ function combine_vietnam_province_level_gadm_and_gso_population(df_gadm::DataFra
     )
 
     # remove all spaces in names and make them lowercase
-    standardize(s) = lowercase(filter(c -> !isspace(c), s))
+    standardize(s::String) = lowercase(filter(c -> !isspace(c), s))
     # x is the same as y if the standardized version of y contains the
     # standardized version of x
-    issame(x, y) = contains(standardize(y), standardize(x))
+    issame(x::String, y::String) = contains(standardize(y), standardize(x))
 
     # rename the province so it matches data from GADM
     replace!(df_population.VARNAME_1, "Dak Nong" => "Dac Nong")
@@ -66,9 +69,9 @@ function combine_vietnam_province_level_gadm_and_gso_population(df_gadm::DataFra
 end
 
 function save_vietnam_province_level_gadm_and_gso_population(
-    fpath_output::AbstractString;
-    fpath_gadm::AbstractString = datadep"gadm2.8/VNM_adm.gpkg",
-    fpath_population::AbstractString = datadep"gso/vietnam-2020-average-population-by-province.csv",
+    fpath_output::String;
+    fpath_gadm::String = datadep"gadm2.8/VNM_adm.gpkg",
+    fpath_population::String = datadep"gso/vietnam-2020-average-population-by-province.csv",
     recreate::Bool = false,
 )
     if isfile(fpath_output) && !recreate

@@ -10,10 +10,10 @@ function __init__()
             Website: https://ncov.vncdc.gov.vn
             """,
             [
-                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vncdc/HoChiMinh.json"
-                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vncdc/BinhDuong.json"
-                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vncdc/DongNai.json"
-                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vncdc/LongAn.json"
+                "https://github.com/letung3105/coviddata/raw/master/vncdc/HoChiMinh.json"
+                "https://github.com/letung3105/coviddata/raw/master/vncdc/BinhDuong.json"
+                "https://github.com/letung3105/coviddata/raw/master/vncdc/DongNai.json"
+                "https://github.com/letung3105/coviddata/raw/master/vncdc/LongAn.json"
             ],
         ),
     )
@@ -30,7 +30,7 @@ function parse_json_date_value_pairs(data::Any)
     return dates, values
 end
 
-function read_timeseries_confirmed_and_deaths(fpath::AbstractString)
+function read_timeseries_confirmed_and_deaths(fpath::String)
     data = JSON.parsefile(fpath)
     column_names = ["confirmed_community", "confirmed_quarantined", "deaths"]
     dfs = Vector{DataFrame}()

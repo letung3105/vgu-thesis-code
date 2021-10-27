@@ -9,9 +9,9 @@ function __init__()
             Website: https://vnexpress.net
             """,
             [
-                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vnexpress/timeseries-vietnam-combined.csv",
-                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vnexpress/timeseries-vietnam-provinces-confirmed.csv",
-                "https://github.com/letung3105/vgu-thesis-datasets/raw/master/vnexpress/timeseries-vietnam-provinces-confirmed-total.csv",
+                "https://github.com/letung3105/coviddata/raw/master/vnexpress/timeseries-vietnam-combined.csv",
+                "https://github.com/letung3105/coviddata/raw/master/vnexpress/timeseries-vietnam-provinces-confirmed.csv",
+                "https://github.com/letung3105/coviddata/raw/master/vnexpress/timeseries-vietnam-provinces-confirmed-total.csv",
             ],
         ),
     )
@@ -19,7 +19,7 @@ function __init__()
 end
 
 function get_timeseries_vietnam_combined(
-    url::AbstractString = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_day";
+    url::String = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_day";
     last_date::Date = today() - Day(1),
 )
     # request data
@@ -42,7 +42,7 @@ function get_timeseries_vietnam_combined(
 end
 
 function get_timeseries_vietnam_provinces_confirmed(
-    url::AbstractString = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_location";
+    url::String = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_location";
     last_date::Date = today() - Day(1),
 )
     # request data
@@ -61,7 +61,7 @@ function get_timeseries_vietnam_provinces_confirmed(
 end
 
 function get_timeseries_vietnam_provinces_confirmed_total(
-    url::AbstractString = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_total";
+    url::String = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_total";
     last_date::Date = today() - Day(1),
 )
     # request data
@@ -77,7 +77,8 @@ function get_timeseries_vietnam_provinces_confirmed_total(
     return df
 end
 
-hasmissing(df::DataFrame) = any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
+hasmissing(df::DataFrame) =
+    any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
 
 function rename_vnexpress_cities_provinces_names_to_gso!(df::DataFrame)
     rename!(

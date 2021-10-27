@@ -33,7 +33,7 @@ Specifications for a model tranining session
 + `maxiters`: Maximum number of iterations to run the optimizer
 """
 struct TrainSession
-    name::AbstractString
+    name::String
     optimizer::Any
     maxiters::Int
 end
@@ -70,9 +70,9 @@ Call an object of struct `CovidModelPredict` to solve the underlying DiffEq prob
 * `saveat`: the collocation coordinates
 """
 function (p::Predictor)(
-    params::AbstractVector{<:Real},
+    params::Vector{<:Real},
     tspan::Tuple{<:Real,<:Real},
-    saveat::Union{Real,AbstractVector{<:Real},StepRange,StepRangeLen},
+    saveat::Union{Real,Vector{<:Real},StepRange,StepRangeLen},
 )
     problem = remake(p.problem, p = params, tspan = tspan)
     return solve(problem, p.solver, saveat = saveat)
@@ -93,7 +93,7 @@ struct Loss
     metric_fn::Function
     predict_fn::Predictor
     dataset::UDEDataset
-    vars::Union{Int,AbstractVector{Int},OrdinalRange}
+    vars::Union{Int,Vector{Int},OrdinalRange}
 end
 
 """
@@ -103,7 +103,7 @@ Call an object of the `Loss` struct on a set of parameters to get the loss scala
 
 * `params`: the set of parameters of the model
 """
-function (l::Loss)(params::AbstractVector{<:Real})
+function (l::Loss)(params::Vector{<:Real})
     sol = l.predict_fn(params, l.dataset.tspan, l.dataset.tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
@@ -134,9 +134,9 @@ State of the callback struct
 mutable struct TrainCallbackState
     iters::Int
     progress::Progress
-    train_losses::AbstractVector{<:Real}
-    test_losses::AbstractVector{<:Real}
-    minimizer::AbstractVector{<:Real}
+    train_losses::Vector{<:Real}
+    test_losses::Vector{<:Real}
+    minimizer::Vector{<:Real}
     minimizer_loss::Real
 end
 
@@ -170,9 +170,9 @@ Configuration of the callback struct
 """
 struct TrainCallbackConfig
     test_loss_fn::Union{Nothing,Loss}
-    losses_plot_fpath::Union{Nothing,AbstractString}
+    losses_plot_fpath::Union{Nothing,String}
     losses_plot_interval::Int
-    params_save_fpath::Union{Nothing,AbstractString}
+    params_save_fpath::Union{Nothing,String}
     params_save_interval::Int
 end
 
@@ -209,7 +209,7 @@ Call an object of type `TrainCallback`
 * `params`: the model's parameters
 * `train_loss`: loss from the training step
 """
-function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
+function (cb::TrainCallback)(params::Vector{<:Real}, train_loss::Real)
     test_loss = if !isnothing(cb.config.test_loss_fn)
         cb.config.test_loss_fn(params)
     end
@@ -247,9 +247,9 @@ end
 function train_model(
     train_loss_fn::Loss,
     test_loss_fn::Loss,
-    params::AbstractVector{<:Real},
-    sessions::AbstractVector{TrainSession},
-    snapshots_dir::AbstractString,
+    params::Vector{<:Real},
+    sessions::Vector{TrainSession},
+    snapshots_dir::String,
 )
     for sess ∈ sessions
         losses_plot_fpath = get_losses_plot_fpath(snapshots_dir, sess.name)
@@ -288,10 +288,10 @@ function train_model(
 end
 
 struct EvalConfig
-    metric_fns::AbstractVector{Function}
-    forecast_ranges::AbstractVector{Int}
-    vars::Union{Int,AbstractVector{Int},OrdinalRange}
-    labels::AbstractVector{<:AbstractString}
+    metric_fns::Vector{Function}
+    forecast_ranges::Vector{Int}
+    vars::Union{Int,Vector{Int},OrdinalRange}
+    labels::Vector{<:String}
 end
 
 function evaluate_model(
@@ -299,7 +299,7 @@ function evaluate_model(
     train_dataset::UDEDataset,
     test_dataset::UDEDataset,
     config::EvalConfig,
-    snapshots_dir::AbstractString,
+    snapshots_dir::String,
 )
     fpaths_params, uuids = lookup_saved_params(snapshots_dir)
     for (fpath_params, uuid) ∈ zip(fpaths_params, uuids)

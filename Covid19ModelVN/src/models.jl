@@ -24,12 +24,12 @@ Construct the default SEIRD baseline model
 * `u0`: the system initial conditions
 * `tspan`: the time span in which the system is considered
 """
-function CovidModelSEIRDBaseline(u0::AbstractVector{<:Real}, tspan::Tuple{<:Real,<:Real})
+function CovidModelSEIRDBaseline(u0::Vector{<:Real}, tspan::Tuple{<:Real,<:Real})
     # small neural network and can be trained faster on CPU
     β_ann =
         FastChain(FastDense(2, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
     # system dynamics
-    dudt! = function (du, u, p, t)
+    function dudt!(du::Vector{<:Real}, u::Vector{<:Real}, p::Vector{<:Real}, t::Real)
         @inbounds begin
             S, E, I, _, _, _, N = u
             γ, λ, α = abs.(@view(p[1:3]))
@@ -80,15 +80,15 @@ Construct the default SEIRD model with Facebook movement range data
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 """
 function CovidModelSEIRDFbMobility1(
-    u0::AbstractVector{<:Real},
+    u0::Vector{<:Real},
     tspan::Tuple{<:Real,<:Real},
-    movement_range_data::AbstractArray{<:Real},
+    movement_range_data::Matrix{<:Real},
 )
     # small neural network and can be trained faster on CPU
     β_ann =
         FastChain(FastDense(4, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
     # system dynamics
-    function dudt!(du, u, p, t)
+    function dudt!(du::Vector{<:Real}, u::Vector{<:Real}, p::Vector{<:Real}, t::Real)
         @inbounds begin
             S, E, I, _, _, _, N = u
             γ, λ, α = abs.(@view(p[1:3]))
@@ -142,16 +142,16 @@ and social connectedness
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 """
 function CovidModelSEIRDFbMobility2(
-    u0::AbstractVector{<:Real},
+    u0::Vector{<:Real},
     tspan::Tuple{<:Real,<:Real},
-    movement_range_data::AbstractArray{<:Real},
-    spc_data::AbstractArray{<:Real},
+    movement_range_data::Matrix{<:Real},
+    spc_data::Matrix{<:Real},
 )
     # small neural network and can be trained faster on CPU
     β_ann =
         FastChain(FastDense(5, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
     # system dynamics
-    function dudt!(du, u, p, t)
+    function dudt!(du::Vector{<:Real}, u::Vector{<:Real}, p::Vector{<:Real}, t::Real)
         @inbounds begin
             S, E, I, _, _, _, N = u
             γ, λ, α = abs.(@view(p[1:3]))
