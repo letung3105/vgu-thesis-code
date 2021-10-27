@@ -41,7 +41,14 @@ value is in the range (split_date, last_date]
 + `split_date`: Date where to dataframe is splitted in two
 + `last_date`: Last date to take
 """
-function train_test_split(df, data_cols, date_col, first_date, split_date, last_date)
+function train_test_split(
+    df::DataFrame,
+    data_cols::AbstractArray{Union{AbstractString,Symbol}},
+    date_col::Union{AbstractString,Symbol},
+    first_date::Date,
+    split_date::Date,
+    last_date::Date,
+)
     df_train = bound(df, date_col, first_date, split_date)
     df_test = bound(df, date_col, split_date + Day(1), last_date)
 
@@ -72,7 +79,13 @@ the data point `date_col` between [`first_date`, `last_date`].
 + `first_date`: First date to take
 + `last_date`: Last date to take
 """
-function load_timeseries(df, data_cols, date_col, first_date, last_date)
+function load_timeseries(
+    df::DataFrame,
+    data_cols::AbstractArray{Union{AbstractString,Symbol}},
+    date_col::Union{AbstractString,Symbol},
+    first_date::Date,
+    last_date::Date,
+)
     df = bound(df, date_col, first_date, last_date)
     return Array(df[!, Cols(data_cols)])
 end
@@ -85,7 +98,7 @@ Save a dataframe as a CSV file
 + `df`: The dataframe to save
 + `fpath`: The path to save the file
 """
-function save_dataframe(df, fpath)
+function save_dataframe(df::DataFrame, fpath::AbstractString)
     # create containing folder if not exists
     if !isdir(dirname(fpath))
         mkpath(dirname(fpath))
@@ -101,7 +114,7 @@ Get the file paths and uuids of all the saved parameters of an experiment
 
 * `dir`: the directory that contains the saved parameters
 """
-function lookup_saved_params(dir)
+function lookup_saved_params(dir::AbstractString)
     params_files = filter(x -> endswith(x, ".jls"), readdir(dir))
     fpaths = map(f -> joinpath(dir, f), params_files)
     uuids = map(f -> first(rsplit(f, ".", limit = 3)), params_files)
@@ -116,7 +129,8 @@ Get default losses figure file path
 * `fdir`: the root directory of the file
 * `uuid`: the file unique identifier
 """
-get_losses_plot_fpath(fdir, uuid) = joinpath(fdir, "$uuid.losses.png")
+get_losses_plot_fpath(fdir::AbstractString, uuid::AbstractString) =
+    joinpath(fdir, "$uuid.losses.png")
 
 """
 Get default file path for saved parameters
@@ -126,7 +140,8 @@ Get default file path for saved parameters
 * `fdir`: the root directory of the file
 * `uuid`: the file unique identifier
 """
-get_params_save_fpath(fdir, uuid) = joinpath(fdir, "$uuid.params.jls")
+get_params_save_fpath(fdir::AbstractString, uuid::AbstractString) =
+    joinpath(fdir, "$uuid.params.jls")
 
 """
 Select a subset of the dataframe `df` such that values in `col` remain between `start_date` and `end_date`
@@ -138,7 +153,7 @@ Select a subset of the dataframe `df` such that values in `col` remain between `
 + `first`: The starting (smallest) value allowed
 + `last`: The ending (largest) value allowed
 """
-bound(df, col, first, last) =
+bound(df::DataFrame, col::Union{AbstractString,Symbol}, first::Any, last::Any) =
     subset(df, col => x -> (x .>= first) .& (x .<= last), view = true)
 
 """
@@ -151,7 +166,8 @@ Filter the dataframe `df` such that values in `col` remain between `start_date` 
 + `first`: The starting (smallest) value allowed
 + `last`: The ending (largest) value allowed
 """
-bound!(df, col, first, last) = subset!(df, col => x -> (x .>= first) .& (x .<= last))
+bound!(df::DataFrame, col::Union{AbstractString,Symbol}, first::Any, last::Any) =
+    subset!(df, col => x -> (x .>= first) .& (x .<= last))
 
 
 """
@@ -162,7 +178,8 @@ Calculate the moving average of the given list of numbers
 + `xs`: The list of number
 + `n`: Subset size to average over
 """
-moving_average(xs, n) = [mean(@view xs[(i >= n ? i - n + 1 : 1):i]) for i = 1:length(xs)]
+moving_average(xs::AbstractVector{<:Real}, n::Int) =
+    [mean(@view xs[(i >= n ? i - n + 1 : 1):i]) for i = 1:length(xs)]
 
 """
 Calculate the moving average of all the `cols` in `df`
@@ -173,5 +190,5 @@ Calculate the moving average of all the `cols` in `df`
 + `cols`: Column names for calculating the moving average
 + `n`: Subset size to average over
 """
-moving_average!(df, cols, n) =
+moving_average!(df::DataFrame, cols::AbstractVector{Union{AbstractString,Symbol}}, n::Int) =
     transform!(df, names(df, Cols(cols)) .=> x -> moving_average(x, n), renamecols = false)

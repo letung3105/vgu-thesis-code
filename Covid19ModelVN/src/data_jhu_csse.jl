@@ -27,14 +27,14 @@ function __init__()
     return nothing
 end
 
-stack_timeseries(df, value_name) =
+stack_timeseries(df::DataFrame, value_name::Union{AbstractString,Symbol}) =
     stack(df, All(), variable_name = :date, value_name = value_name, view = true)
 
 function combine_country_level_timeseries(
-    df_confirmed,
-    df_recovered,
-    df_deaths,
-    country_name,
+    df_confirmed::DataFrame,
+    df_recovered::DataFrame,
+    df_deaths::DataFrame,
+    country_name::AbstractString,
 )
     # select rows associated with the country
     filter_country(df) =
@@ -69,12 +69,12 @@ function combine_country_level_timeseries(
 end
 
 function save_country_level_timeseries(
-    fpath_outputs,
-    country_names;
-    fpath_confirmed = datadep"jhu-csse/time_series_covid19_confirmed_global.csv",
-    fpath_recovered = datadep"jhu-csse/time_series_covid19_recovered_global.csv",
-    fpath_deaths = datadep"jhu-csse/time_series_covid19_deaths_global.csv",
-    recreate = false,
+    fpath_outputs::AbstractVector{<:AbstractString},
+    country_names::AbstractVector{<:AbstractString};
+    fpath_confirmed::AbstractString = datadep"jhu-csse/time_series_covid19_confirmed_global.csv",
+    fpath_recovered::AbstractString = datadep"jhu-csse/time_series_covid19_recovered_global.csv",
+    fpath_deaths::AbstractString = datadep"jhu-csse/time_series_covid19_deaths_global.csv",
+    recreate::Bool = false,
 )
     if all(isfile, fpath_outputs) && !recreate
         return nothing
@@ -103,9 +103,9 @@ function save_country_level_timeseries(
 end
 
 function save_us_county_level_timeseries(
-    fpath_outputs,
-    state_names,
-    county_names;
+    fpath_outputs::AbstractVector{<:AbstractString},
+    state_names::AbstractVector{<:AbstractString},
+    county_names::AbstractVector{<:AbstractString};
     fpath_confirmed = datadep"jhu-csse/time_series_covid19_confirmed_US.csv",
     fpath_deaths = datadep"jhu-csse/time_series_covid19_deaths_US.csv",
     recreate = false,
@@ -136,10 +136,10 @@ function save_us_county_level_timeseries(
 end
 
 function combine_us_county_level_timeseries(
-    df_confirmed,
-    df_deaths,
-    state_name,
-    county_name,
+    df_confirmed::DataFrame,
+    df_deaths::DataFrame,
+    state_name::AbstractString,
+    county_name::AbstractString,
 )
     # select rows associated with the country
     filter_county(df) = subset(
@@ -187,7 +187,11 @@ function combine_us_county_level_timeseries(
     return df_combined
 end
 
-function get_us_county_population(df_deaths, state_name, county_name)
+function get_us_county_population(
+    df_deaths::DataFrame,
+    state_name::AbstractString,
+    county_name::AbstractString,
+)
     # select rows associated with the country
     filter_county(df) = subset(
         df,

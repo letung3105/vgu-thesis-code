@@ -4,12 +4,7 @@ if isfile("Project.toml") && isfile("Manifest.toml")
     Pkg.activate(".")
 end
 
-using CSV,
-    Dates,
-    DataDeps,
-    DataFrames,
-    DiffEqFlux,
-    Covid19ModelVN
+using CSV, Dates, DataDeps, DataFrames, DiffEqFlux, Covid19ModelVN
 
 import Covid19ModelVN.JHUCSSEData,
     Covid19ModelVN.FacebookData,
@@ -44,7 +39,7 @@ const FPATH_DONG_NAI_AVERAGE_MOVEMENT_RANGE =
 const FPATH_LONG_AN_AVERAGE_MOVEMENT_RANGE =
     joinpath(CACHE_DIR, "movement-range-long-an.csv")
 
-function cachedata(; recreate = false)
+function cachedata(; recreate::Bool = false)
     PopulationData.save_vietnam_province_level_gadm_and_gso_population(
         FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION,
         recreate = recreate,
@@ -73,50 +68,31 @@ function cachedata(; recreate = false)
     )
 end
 
-function get_model_callables(model, train_dataset, test_dataset, vars)
+function train_and_evaluate_experiment(
+    model::Any,
+    train_dataset::UDEDataset,
+    test_dataset::UDEDataset,
+    train_sessions::AbstractVector{<:TrainSession},
+    eval_config::EvalConfig,
+    snapshots_dir::AbstractString,
+)
     predict_fn = Predictor(model.problem)
     train_loss_fn = Loss(rmsle, predict_fn, train_dataset, vars)
     test_loss_fn = Loss(rmsle, predict_fn, test_dataset, vars)
-    return predict_fn, train_loss_fn, test_loss_fn
-end
-
-function train_and_evaluate_experiment(
-    exp_name,
-    model,
-    train_dataset,
-    test_dataset,
-    sessions,
-    snapshots_dir,
-    eval_forecast_ranges,
-    eval_vars,
-    eval_labels,
-)
-    predict_fn, train_loss_fn, test_loss_fn =
-        get_model_callables(model, train_dataset, test_dataset, eval_vars)
     p0 = get_model_initial_params(model)
 
     @info "Initial training loss: $(train_loss_fn(p0))"
     @info "Initial testing loss: $(test_loss_fn(p0))"
 
-    # create containing folder if not exists
-    exp_dir = joinpath(snapshots_dir, exp_name)
-    if !isdir(exp_dir)
-        mkpath(exp_dir)
+    if !isdir(snapshots_dir)
+        mkpath(snapshots_dir)
     end
 
-    @info "Start training '$exp_name'"
-    train_model(train_loss_fn, test_loss_fn, p0, sessions, exp_dir)
+    @info "Start training"
+    train_model(train_loss_fn, test_loss_fn, p0, train_sessions, snapshots_dir)
 
-    @info "Ploting evaluations for '$exp_name'"
-    evaluate_model(
-        predict_fn,
-        train_dataset,
-        test_dataset,
-        exp_dir,
-        eval_forecast_ranges,
-        eval_vars,
-        eval_labels,
-    )
+    @info "Ploting evaluations for"
+    evaluate_model(predict_fn, train_dataset, test_dataset, eval_config, snapshots_dir)
 
     return nothing
 end
@@ -131,7 +107,7 @@ Setup different experiement scenarios for Vietnam country-wide data
 * `fb_movement_range_fpath`: paths to the Facebook movement range data file
 * `recreate=false`: true if we want to create a new file when one already exists
 """
-function setup_experiment_preset_vietnam(exp_name)
+function setup_experiment_preset_vietnam(exp_name::AbstractString)
     # train for 1 month
     train_range = Day(31)
     # forecast upto 4-week
@@ -141,12 +117,13 @@ function setup_experiment_preset_vietnam(exp_name)
     df_covid_timeseries = CSV.read(FPATH_VIETNAM_COVID_TIMESERIES, DataFrame)
     # after 4th August, the recovered count is not updated
     bound!(df_covid_timeseries, :date, Date(2021, 4, 26), Date(2021, 8, 4))
-    transform!(df_covid_timeseries,
+    transform!(
+        df_covid_timeseries,
         :infective => x -> x .- df_covid_timeseries[1, :infective],
         :recovered_total => x -> x .- df_covid_timeseries[1, :recovered_total],
         :deaths_total => x -> x .- df_covid_timeseries[1, :deaths_total],
         :confirmed_total => x -> x .- df_covid_timeseries[1, :confirmed_total],
-        renamecols = false
+        renamecols = false,
     )
     df_covid_timeseries500 =
         subset(df_covid_timeseries, :confirmed_total => x -> x .>= 500, view = true)
@@ -207,7 +184,7 @@ function setup_experiment_preset_vietnam(exp_name)
     return model, train_dataset, test_dataset
 end
 
-function setup_experiment_preset_vietnam_province(exp_name)
+function setup_experiment_preset_vietnam_province(exp_name::AbstractString)
     # train for 1 month
     train_range = Day(31)
     # forecast upto 4-week
@@ -356,18 +333,22 @@ function main(
             TrainSession("$timestamp.adam", ADAM(1e-2), 10),
             TrainSession("$timestamp.lbfgs", LBFGS(), 10),
         ]
+        eval_config = EvalConfig(
+            [mae, map, rmse],
+            [7, 14, 21, 28],
+            3:6,
+            ["infective", "recovered", "deaths", "total confirmed"],
+        )
 
         model, train_dataset, test_dataset = setup_experiment_preset_vietnam(exp_name)
+        snapshots_dir = joinpath(SNAPSHOTS_DIR, exp_name)
         train_and_evaluate_experiment(
-            exp_name,
             model,
             train_dataset,
             test_dataset,
             sessions,
-            SNAPSHOTS_DIR,
-            [7, 14, 21, 28],
-            3:6,
-            ["infective" "recovered" "deaths" "total confirmed"],
+            eval_config,
+            snapshots_dir,
         )
     end
 
@@ -377,24 +358,24 @@ function main(
             TrainSession("$timestamp.adam", ADAM(1e-3), 10),
             TrainSession("$timestamp.lbfgs", LBFGS(), 10),
         ]
+        eval_config =
+            EvalConfig([mae, map, rmse], [7, 14, 21, 28], 5:6, ["deaths" "total confirmed"])
 
         model, train_dataset, test_dataset =
             setup_experiment_preset_vietnam_province(exp_name)
+        snapshots_dir = joinpath(SNAPSHOTS_DIR, exp_name)
         train_and_evaluate_experiment(
-            exp_name,
             model,
             train_dataset,
             test_dataset,
             sessions,
-            SNAPSHOTS_DIR,
-            [7, 14, 21, 28],
-            5:6,
-            ["deaths" "total confirmed"],
+            eval_config,
+            snapshots_dir,
         )
     end
 end
 
-cachedata()
+# cachedata()
 
 main(
     ["baseline.default.vietnam", "fbmobility1.default.vietnam"],

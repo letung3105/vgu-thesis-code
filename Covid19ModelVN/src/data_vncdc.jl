@@ -20,7 +20,7 @@ function __init__()
     return nothing
 end
 
-function parse_json_date_value_pairs(data)
+function parse_json_date_value_pairs(data::Any)
     dates = Vector{Date}()
     values = Vector{Int}()
     for data_point ∈ data
@@ -30,7 +30,7 @@ function parse_json_date_value_pairs(data)
     return dates, values
 end
 
-function read_timeseries_confirmed_and_deaths(fpath)
+function read_timeseries_confirmed_and_deaths(fpath::AbstractString)
     data = JSON.parsefile(fpath)
     column_names = ["confirmed_community", "confirmed_quarantined", "deaths"]
     dfs = Vector{DataFrame}()

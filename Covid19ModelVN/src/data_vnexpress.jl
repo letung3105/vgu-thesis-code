@@ -19,8 +19,8 @@ function __init__()
 end
 
 function get_timeseries_vietnam_combined(
-    url = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_day";
-    last_date = today() - Day(1),
+    url::AbstractString = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_day";
+    last_date::Date = today() - Day(1),
 )
     # request data
     res = HTTP.get(url)
@@ -42,8 +42,8 @@ function get_timeseries_vietnam_combined(
 end
 
 function get_timeseries_vietnam_provinces_confirmed(
-    url = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_location";
-    last_date = today() - Day(1),
+    url::AbstractString = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_location";
+    last_date::Date = today() - Day(1),
 )
     # request data
     res = HTTP.get(url)
@@ -61,8 +61,8 @@ function get_timeseries_vietnam_provinces_confirmed(
 end
 
 function get_timeseries_vietnam_provinces_confirmed_total(
-    url = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_total";
-    last_date = today() - Day(1),
+    url::AbstractString = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_total";
+    last_date::Date = today() - Day(1),
 )
     # request data
     res = HTTP.get(url)
@@ -77,9 +77,9 @@ function get_timeseries_vietnam_provinces_confirmed_total(
     return df
 end
 
-hasmissing(df) = any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
+hasmissing(df::DataFrame) = any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
 
-function rename_vnexpress_cities_provinces_names_to_gso!(df)
+function rename_vnexpress_cities_provinces_names_to_gso!(df::DataFrame)
     rename!(
         df,
         "TP HCM" => "Hồ Chí Minh city",
@@ -89,7 +89,7 @@ function rename_vnexpress_cities_provinces_names_to_gso!(df)
     return df
 end
 
-function clean_provinces_confirmed_cases_timeseries!(df)
+function clean_provinces_confirmed_cases_timeseries!(df::DataFrame)
     # removes extra rows and columns
     delete!(df, 1)
     select!(df, 1:63)

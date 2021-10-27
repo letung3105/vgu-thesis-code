@@ -1,4 +1,5 @@
 export TrainSession,
+    EvalConfig,
     Predictor,
     Loss,
     TrainCallback,
@@ -68,7 +69,11 @@ Call an object of struct `CovidModelPredict` to solve the underlying DiffEq prob
 * `tspan`: the time span of the problem
 * `saveat`: the collocation coordinates
 """
-function (p::Predictor)(params, tspan, saveat)
+function (p::Predictor)(
+    params::AbstractVector{<:Real},
+    tspan::Tuple{<:Real,<:Real},
+    saveat::Union{Real,AbstractVector{<:Real},StepRange,StepRangeLen},
+)
     problem = remake(p.problem, p = params, tspan = tspan)
     return solve(problem, p.solver, saveat = saveat)
 end
@@ -98,7 +103,7 @@ Call an object of the `Loss` struct on a set of parameters to get the loss scala
 
 * `params`: the set of parameters of the model
 """
-function (l::Loss)(params)
+function (l::Loss)(params::AbstractVector{<:Real})
     sol = l.predict_fn(params, l.dataset.tspan, l.dataset.tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
@@ -204,7 +209,7 @@ Call an object of type `TrainCallback`
 * `params`: the model's parameters
 * `train_loss`: loss from the training step
 """
-function (cb::TrainCallback)(params, train_loss)
+function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
     test_loss = if !isnothing(cb.config.test_loss_fn)
         cb.config.test_loss_fn(params)
     end
@@ -239,11 +244,16 @@ function (cb::TrainCallback)(params, train_loss)
 end
 
 
-function train_model(train_loss_fn, test_loss_fn, p0, sessions, exp_dir)
-    params = p0
+function train_model(
+    train_loss_fn::Loss,
+    test_loss_fn::Loss,
+    params::AbstractVector{<:Real},
+    sessions::AbstractVector{TrainSession},
+    snapshots_dir::AbstractString,
+)
     for sess ∈ sessions
-        losses_plot_fpath = get_losses_plot_fpath(exp_dir, sess.name)
-        params_save_fpath = get_params_save_fpath(exp_dir, sess.name)
+        losses_plot_fpath = get_losses_plot_fpath(snapshots_dir, sess.name)
+        params_save_fpath = get_params_save_fpath(snapshots_dir, sess.name)
         cb = TrainCallback(
             sess.maxiters,
             TrainCallbackConfig(
@@ -277,16 +287,21 @@ function train_model(train_loss_fn, test_loss_fn, p0, sessions, exp_dir)
     return nothing
 end
 
+struct EvalConfig
+    metric_fns::AbstractVector{Function}
+    forecast_ranges::AbstractVector{Int}
+    vars::Union{Int,AbstractVector{Int},OrdinalRange}
+    labels::AbstractVector{<:AbstractString}
+end
+
 function evaluate_model(
-    predict_fn,
-    train_dataset,
-    test_dataset,
-    exp_dir,
-    eval_forecast_ranges,
-    eval_vars,
-    eval_labels,
+    predict_fn::Predictor,
+    train_dataset::UDEDataset,
+    test_dataset::UDEDataset,
+    config::EvalConfig,
+    snapshots_dir::AbstractString,
 )
-    fpaths_params, uuids = lookup_saved_params(exp_dir)
+    fpaths_params, uuids = lookup_saved_params(snapshots_dir)
     for (fpath_params, uuid) ∈ zip(fpaths_params, uuids)
         fit, pred = try
             minimizer = Serialization.deserialize(fpath_params)
@@ -301,51 +316,41 @@ function evaluate_model(
             continue
         end
 
-        for metric_fn ∈ [rmse, mae, mape]
-            csv_fpath = joinpath(exp_dir, "$uuid.evaluate.$metric_fn.csv")
-            if !isfile(csv_fpath)
-                df = calculate_forecasts_errors(
-                    metric_fn,
-                    pred,
-                    test_dataset,
-                    eval_forecast_ranges,
-                    eval_vars,
-                    eval_labels,
-                )
-                CSV.write(csv_fpath, df)
-            end
+        csv_fpath = joinpath(snapshots_dir, "$uuid.evaluate.csv")
+        if !isfile(csv_fpath)
+            df = calculate_forecasts_errors(pred, test_dataset, config)
+            CSV.write(csv_fpath, df)
         end
 
-        fig_fpath = joinpath(exp_dir, "$uuid.evaluate.png")
+        fig_fpath = joinpath(snapshots_dir, "$uuid.evaluate.png")
         if !isfile(fig_fpath)
-            plt = plot_forecasts(
-                fit,
-                pred,
-                train_dataset,
-                test_dataset,
-                eval_forecast_ranges,
-                eval_vars,
-                eval_labels,
-            )
+            plt = plot_forecasts(fit, pred, train_dataset, test_dataset, config)
             savefig(plt, fig_fpath)
         end
     end
 end
 
+"""
+Calculate the forecast error based on the model prediction and the ground truth data
+for that day
+
+# Arguments
+
+* `pred`: prediction made by the model
+* `test_dataset`: ground truth data for the forecasted period
+* `config`: configuration for evaluation
+"""
 function calculate_forecasts_errors(
-    metric_fn,
-    pred,
-    test_dataset,
-    forecast_ranges,
-    vars,
-    labels,
+    pred::ODESolution,
+    test_dataset::UDEDataset,
+    config::EvalConfig,
 )
+    metric_fn = config.metric_fns[1]
     errors = [
         metric_fn(pred[var, 1:days], test_dataset.data[col, 1:days]) for
-        days ∈ forecast_ranges, (col, var) ∈ enumerate(vars)
+        days ∈ config.forecast_ranges, (col, var) ∈ enumerate(config.vars)
     ]
-    return DataFrame(errors, vec(labels))
-    CSV.write(csv_fpath, df)
+    return DataFrame(errors, vec(config.labels))
 end
 
 """
@@ -354,27 +359,23 @@ forecasted value using `metric_fn`.
 
 # Arguments
 
-* `predict_fn`: a function that takes the model parameters and computes the ODE solver output
-* `metric_fn`: a function that computes the error between two data arrays
+* `fit`: the solution returned by the model on the fit data
+* `pred`: prediction made by the model
 * `train_dataset`: the data that was used to train the model
 * `test_dataset`: ground truth data for the forecasted period
-* `minimizer`: the model's paramerters that will be used to produce the forecast
-* `forecast_ranges`: a range of day horizons that will be forecasted
-* `vars`: the model's states that will be compared
-* `cols`: the ground truth values that will be compared
-* `labels`: plot labels of each of the ground truth values
+* `config`: configuration for evaluation
 """
 function plot_forecasts(
-    fit,
-    pred,
-    train_dataset,
-    test_dataset,
-    forecast_ranges,
-    vars,
-    labels,
+    fit::ODESolution,
+    pred::ODESolution,
+    train_dataset::UDEDataset,
+    test_dataset::UDEDataset,
+    config::EvalConfig,
 )
     plts = []
-    for days ∈ forecast_ranges, (col, (var, label)) ∈ enumerate(zip(vars, labels))
+    for days ∈ config.forecast_ranges,
+        (col, (var, label)) ∈ enumerate(zip(config.vars, config.labels))
+
         plt = plot(title = "$days-day forecast", legend = :outertop, xrotation = 45)
         scatter!(
             [train_dataset.data[col, :]; test_dataset.data[col, 1:days]],
@@ -386,8 +387,8 @@ function plot_forecasts(
         push!(plts, plt)
     end
 
-    nforecasts = length(forecast_ranges)
-    nvariables = length(vars)
+    nforecasts = length(config.forecast_ranges)
+    nvariables = length(config.vars)
     return plot(
         plts...,
         layout = (nforecasts, nvariables),

@@ -28,7 +28,7 @@ function __init__()
     return nothing
 end
 
-function combine_vietnam_province_level_gadm_and_gso_population(df_gadm, df_population)
+function combine_vietnam_province_level_gadm_and_gso_population(df_gadm::DataFrame, df_population::DataFrame)
     # remove rows of repeated provinces
     df_gadm = unique(df_gadm, :ID_1)
     # rename columns and transform data
@@ -66,10 +66,10 @@ function combine_vietnam_province_level_gadm_and_gso_population(df_gadm, df_popu
 end
 
 function save_vietnam_province_level_gadm_and_gso_population(
-    fpath_output;
-    fpath_gadm = datadep"gadm2.8/VNM_adm.gpkg",
-    fpath_population = datadep"gso/vietnam-2020-average-population-by-province.csv",
-    recreate = false,
+    fpath_output::AbstractString;
+    fpath_gadm::AbstractString = datadep"gadm2.8/VNM_adm.gpkg",
+    fpath_population::AbstractString = datadep"gso/vietnam-2020-average-population-by-province.csv",
+    recreate::Bool = false,
 )
     if isfile(fpath_output) && !recreate
         return nothing

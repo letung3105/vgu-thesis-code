@@ -24,7 +24,7 @@ Construct the default SEIRD baseline model
 * `u0`: the system initial conditions
 * `tspan`: the time span in which the system is considered
 """
-function CovidModelSEIRDBaseline(u0::AbstractArray{<:Real}, tspan::Tuple{<:Real,<:Real})
+function CovidModelSEIRDBaseline(u0::AbstractVector{<:Real}, tspan::Tuple{<:Real,<:Real})
     # small neural network and can be trained faster on CPU
     β_ann =
         FastChain(FastDense(2, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
@@ -80,7 +80,7 @@ Construct the default SEIRD model with Facebook movement range data
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 """
 function CovidModelSEIRDFbMobility1(
-    u0::AbstractArray{<:Real},
+    u0::AbstractVector{<:Real},
     tspan::Tuple{<:Real,<:Real},
     movement_range_data::AbstractArray{<:Real},
 )
@@ -142,7 +142,7 @@ and social connectedness
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 """
 function CovidModelSEIRDFbMobility2(
-    u0::AbstractArray{<:Real},
+    u0::AbstractVector{<:Real},
     tspan::Tuple{<:Real,<:Real},
     movement_range_data::AbstractArray{<:Real},
     spc_data::AbstractArray{<:Real},
