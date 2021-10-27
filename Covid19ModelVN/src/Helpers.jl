@@ -66,7 +66,7 @@ Filter the dataframe `df` by `col` such that its values remain between `start_da
 + `last`: The ending (largest) value allowed
 """
 bound(df, col, first, last) =
-    subset(df, (df[!, col] .>= first) .& (df[!, col] .<= last), view = true)
+    subset(df, col => x -> (x .>= first) .& (x .<= last), view = true)
 
 """
 Create two `UDEDataset`s from the given dataframe, the first dataset contains data point whose `date_col`
