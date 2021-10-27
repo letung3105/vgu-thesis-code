@@ -141,10 +141,20 @@ function setup_experiment_preset_vietnam(exp_name)
 
     # load covid cases data
     df_covid_timeseries = CSV.read(FPATH_VIETNAM_COVID_TIMESERIES, DataFrame)
-    subset!(df_covid_timeseries, :date => x -> x .>= Date(2021, 4, 27))
+    # after 4th August, the recovered count is not updated
+    Helpers.bound!(df_covid_timeseries, :date, Date(2021, 4, 26), Date(2021, 8, 4))
+    transform!(df_covid_timeseries,
+        :infective => x -> x .- df_covid_timeseries[1, :infective],
+        :recovered_total => x -> x .- df_covid_timeseries[1, :recovered_total],
+        :deaths_total => x -> x .- df_covid_timeseries[1, :deaths_total],
+        :confirmed_total => x -> x .- df_covid_timeseries[1, :confirmed_total],
+        renamecols = false
+    )
+    df_covid_timeseries500 =
+        subset(df_covid_timeseries, :confirmed_total => x -> x .>= 500, view = true)
 
     # first date that total number of confirmed cases passed 500
-    first_date = first(filter(x -> x.confirmed_total >= 500, df_covid_timeseries)).date
+    first_date = first(df_covid_timeseries500.date)
     split_date = first_date + train_range
     last_date = first_date + train_range + forecast_range
 
@@ -206,16 +216,16 @@ function setup_experiment_preset_vietnam_province(exp_name)
     forecast_range = Day(28)
 
     df_population = CSV.read(FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION, DataFrame)
-    function get_province_population(province_name)
-        province = first(filter(x -> x.NAME_1 == province_name, df_population))
-        return province.AVGPOPULATION
-    end
+    get_province_population(province_name) =
+        first(filter(x -> x.NAME_1 == province_name, df_population).AVGPOPULATION)
 
     function load_covid_data(fpath, population)
         # load covid cases data
         df_covid_timeseries = VnCdcData.read_timeseries_confirmed_and_deaths(fpath)
+        df_covid_timeseries500 =
+            subset(df_covid_timeseries, :confirmed_total => x -> x .>= 500, view = true)
         # first date that total number of confirmed cases passed 500
-        first_date = first(filter(x -> x.confirmed_total >= 500, df_covid_timeseries)).date
+        first_date = first(df_covid_timeseries500.date)
         split_date = first_date + train_range
         last_date = first_date + train_range + forecast_range
 
@@ -319,13 +329,13 @@ function setup_experiment_preset_vietnam_province(exp_name)
             load_covid_data(fpath_covid_timeseries, population)
         movement_range_dataset =
             load_movement_range(fpath_movement_range, train_first_date, Day(2))
-        scp_index =
+        spc_index =
             load_social_proximity_to_cases_index(province_name, train_first_date, Day(2))
         model = CovidModelSEIRDFbMobility2(
             u0,
             train_dataset.tspan,
             movement_range_dataset,
-            scp_index,
+            spc_index,
         )
         return model, train_dataset, test_dataset
     end
@@ -350,7 +360,6 @@ function main(
         ]
 
         model, train_dataset, test_dataset = setup_experiment_preset_vietnam(exp_name)
-
         train_and_evaluate_experiment(
             exp_name,
             model,
@@ -387,7 +396,7 @@ function main(
     end
 end
 
-cachedata(recreate = true)
+cachedata()
 
 main(
     ["baseline.default.vietnam", "fbmobility1.default.vietnam"],
@@ -406,7 +415,3 @@ main(
         "fbmobility2.default.longan",
     ],
 )
-
-# main([
-# "baseline.default.vietnam",
-# ])
