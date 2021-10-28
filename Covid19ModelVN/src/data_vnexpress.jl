@@ -19,7 +19,7 @@ function __init__()
 end
 
 function get_timeseries_vietnam_combined(
-    url::String = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_day";
+    url::AbstractString = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_day";
     last_date::Date = today() - Day(1),
 )
     # request data
@@ -42,7 +42,7 @@ function get_timeseries_vietnam_combined(
 end
 
 function get_timeseries_vietnam_provinces_confirmed(
-    url::String = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_location";
+    url::AbstractString = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_location";
     last_date::Date = today() - Day(1),
 )
     # request data
@@ -61,7 +61,7 @@ function get_timeseries_vietnam_provinces_confirmed(
 end
 
 function get_timeseries_vietnam_provinces_confirmed_total(
-    url::String = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_total";
+    url::AbstractString = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_total";
     last_date::Date = today() - Day(1),
 )
     # request data
@@ -77,10 +77,10 @@ function get_timeseries_vietnam_provinces_confirmed_total(
     return df
 end
 
-hasmissing(df::DataFrame) =
+hasmissing(df::AbstractDataFrame) =
     any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
 
-function rename_vnexpress_cities_provinces_names_to_gso!(df::DataFrame)
+function rename_vnexpress_cities_provinces_names_to_gso!(df::AbstractDataFrame)
     rename!(
         df,
         "TP HCM" => "Hồ Chí Minh city",
@@ -90,7 +90,7 @@ function rename_vnexpress_cities_provinces_names_to_gso!(df::DataFrame)
     return df
 end
 
-function clean_provinces_confirmed_cases_timeseries!(df::DataFrame)
+function clean_provinces_confirmed_cases_timeseries!(df::AbstractDataFrame)
     # removes extra rows and columns
     delete!(df, 1)
     select!(df, 1:63)

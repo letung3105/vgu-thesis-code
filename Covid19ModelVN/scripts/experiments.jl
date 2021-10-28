@@ -72,11 +72,11 @@ function train_and_evaluate_experiment(
     model::AbstractCovidModel,
     train_dataset::UDEDataset,
     test_dataset::UDEDataset,
-    train_sessions::Vector{TrainSession},
+    train_sessions::AbstractVector{TrainSession},
     eval_config::EvalConfig,
-    snapshots_dir::String,
+    snapshots_dir::AbstractString,
 )
-    predict_fn = Predictor(model.problem)
+    predict_fn = Predictor(model)
     train_loss_fn = Loss(rmsle, predict_fn, train_dataset, eval_config.vars)
     test_loss_fn = Loss(rmsle, predict_fn, test_dataset, eval_config.vars)
     p0 = get_model_initial_params(model)
@@ -107,7 +107,7 @@ Setup different experiement scenarios for Vietnam country-wide data
 * `fb_movement_range_fpath`: paths to the Facebook movement range data file
 * `recreate=false`: true if we want to create a new file when one already exists
 """
-function setup_experiment_preset_vietnam(exp_name::String)
+function setup_experiment_preset_vietnam(exp_name::AbstractString)
     # train for 1 month
     train_range = Day(31)
     # forecast upto 4-week
@@ -184,17 +184,17 @@ function setup_experiment_preset_vietnam(exp_name::String)
     return model, train_dataset, test_dataset
 end
 
-function setup_experiment_preset_vietnam_province(exp_name::String)
+function setup_experiment_preset_vietnam_province(exp_name::AbstractString)
     # train for 1 month
     train_range = Day(31)
     # forecast upto 4-week
     forecast_range = Day(28)
 
     df_population = CSV.read(FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION, DataFrame)
-    get_province_population(province_name::String) =
+    get_province_population(province_name::AbstractString) =
         first(filter(x -> x.NAME_1 == province_name, df_population).AVGPOPULATION)
 
-    function load_covid_data(fpath::String, population::Real)
+    function load_covid_data(fpath::AbstractString, population::Real)
         # load covid cases data
         df_covid_timeseries = VnCdcData.read_timeseries_confirmed_and_deaths(fpath)
         df_covid_timeseries500 =
@@ -233,7 +233,7 @@ function setup_experiment_preset_vietnam_province(exp_name::String)
     end
 
     function load_social_proximity_to_cases_index(
-        province_name::String,
+        province_name::AbstractString,
         first_date::Date,
         lag::Day,
     )
@@ -258,7 +258,7 @@ function setup_experiment_preset_vietnam_province(exp_name::String)
         )
     end
 
-    function load_movement_range(fpath::String, first_date::Date, lag::Day)
+    function load_movement_range(fpath::AbstractString, first_date::Date, lag::Day)
         df_movement_range = CSV.read(fpath, DataFrame)
         movement_range_cols =
             [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users]
@@ -325,11 +325,11 @@ end
 function main(
     # "baseline.default.vietnam",
     # "fbmobility1.default.vietnam",
-    vn_experiments::Vector{String} = [],
+    vn_experiments::AbstractVector{<:AbstractString} = [],
     # "baseline.default.hcm",
     # "fbmobility1.default.hcm",
     # "fbmobility2.default.hcm",
-    vn_province_experiments::Vector{String} = [],
+    vn_province_experiments::AbstractVector{<:AbstractString} = [],
 )
     for exp_name ∈ vn_experiments
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")

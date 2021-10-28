@@ -42,12 +42,12 @@ contains a timestamp `date` and the number of confirmed cases recorded at `date`
     + `scaled_sci`: the scaled Social Connedtedness Index between two provinces
 """
 function calculate_social_proximity_to_cases(
-    df_population::DataFrame,
-    df_covid_timeseries_confirmed::DataFrame,
-    df_social_connectedness::DataFrame,
+    df_population::AbstractDataFrame,
+    df_covid_timeseries_confirmed::AbstractDataFrame,
+    df_social_connectedness::AbstractDataFrame,
 )
     # get the population row with the given location id
-    getloc(id::String) =
+    getloc(id::AbstractString) =
         subset(df_population, :ID_1 => x -> x .== parse(Int, id), view = true)
 
     df_spc = DataFrame()
@@ -86,7 +86,7 @@ Read the Movement Range Maps dataset from Facebook
 # Arguments
 + `fpath`: path the tab-delimited file contains the movement range data
 """
-function read_movement_range(fpath::String)
+function read_movement_range(fpath::AbstractString)
     data, header = readdlm(fpath, '\t', header = true)
     df = identity.(DataFrame(data, vec(header)))
     df[!, :ds] .= Date.(df[!, :ds])
@@ -104,13 +104,13 @@ as given by Facebook
 + `subdivision_id`: the "FIPS" code for US regions or "GADM" code for other countries
 """
 function region_average_movement_range(
-    df_movement_range::DataFrame,
-    country_code::String,
-    subdivision_id::Union{Nothing,Int} = nothing,
+    df_movement_range::AbstractDataFrame,
+    country_code::AbstractString,
+    subdivision_id::Union{Nothing,<:Integer} = nothing,
 )
-    parse_fips(x::String) = parse(Int, x)
-    parse_gadm(x::String) = parse(Int, split(x, ".")[2])
-    parse_subdivision(x::String, source::String) =
+    parse_fips(x::AbstractString) = parse(Int, x)
+    parse_gadm(x::AbstractString) = parse(Int, split(x, ".")[2])
+    parse_subdivision(x::AbstractString, source::AbstractString) =
         if source == "FIPS"
             parse_fips(x)
         elseif source == "GADM"
@@ -150,10 +150,10 @@ Save a subset of the movement range maps dataset for a specific region to CSV fi
 + `recreate`: Whether to ovewrite an existing file
 """
 function save_region_average_movement_range(
-    fpath_outputs::Vector{<:String},
-    country_codes::Vector{<:String},
-    subdivision_ids::Vector{Union{Nothing,Int}};
-    fpath_movement_range::String = datadep"facebook/movement-range-2021-10-09.txt",
+    fpath_outputs::AbstractVector{<:AbstractString},
+    country_codes::AbstractVector{<:AbstractString},
+    subdivision_ids::AbstractVector{<:Union{Nothing,<:Integer}};
+    fpath_movement_range::AbstractString = datadep"facebook/movement-range-2021-10-09.txt",
     recreate::Bool = false,
 )
     if all(isfile, fpath_outputs) && !recreate
@@ -187,7 +187,7 @@ Read the Social Connectedness Index dataset from Facebook
 # Arguments
 + `fpath`: path the tab-delimited file contains the social connectedness data
 """
-function read_social_connectedness(fpath::String)
+function read_social_connectedness(fpath::AbstractString)
     data, header = readdlm(fpath, '\t', header = true)
     df = identity.(DataFrame(data, vec(header)))
     return df
@@ -203,8 +203,8 @@ dataset from by Facebook
 + `country_code`: The ISO-3166 country code
 """
 inter_province_social_connectedness(
-    df_social_connectedness::DataFrame,
-    country_code::String,
+    df_social_connectedness::AbstractDataFrame,
+    country_code::AbstractString,
 ) = subset(
     df_social_connectedness,
     [:user_loc, :fr_loc] =>
@@ -223,9 +223,9 @@ Save a subset of the social connectedness index dataset for specific countries t
 + `recreate`: Whether to ovewrite an existing file
 """
 function save_inter_province_social_connectedness(
-    fpath_outputs::Vector{<:String},
-    country_codes::Vector{<:String};
-    fpath_social_connectedness::String = datadep"facebook/gadm1_nuts2_gadm1_nuts2.tsv",
+    fpath_outputs::AbstractVector{<:AbstractString},
+    country_codes::AbstractVector{<:AbstractString};
+    fpath_social_connectedness::AbstractString = datadep"facebook/gadm1_nuts2_gadm1_nuts2.tsv",
     recreate::Bool = false,
 )
     if all(isfile, fpath_outputs) && !recreate

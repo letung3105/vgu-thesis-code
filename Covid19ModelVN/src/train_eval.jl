@@ -61,6 +61,15 @@ Construct a new `Predictor` with the solver set to the default value `Tsit5`
 Predictor(problem::ODEProblem) = Predictor(problem, Tsit5())
 
 """
+Construct a new default `Predictor` using the problem defined by the given model
+
+# Argument
+
++ `model`: a model containing a problem that can be solved
+"""
+Predictor(model::AbstractCovidModel) = Predictor(model.problem)
+
+"""
 Call an object of struct `CovidModelPredict` to solve the underlying DiffEq problem
 
 # Arguments
@@ -70,9 +79,9 @@ Call an object of struct `CovidModelPredict` to solve the underlying DiffEq prob
 * `saveat`: the collocation coordinates
 """
 function (p::Predictor)(
-    params::Vector{<:Real},
+    params::AbstractVector{<:Real},
     tspan::Tuple{<:Real,<:Real},
-    saveat::Union{Real,Vector{<:Real},StepRange,StepRangeLen},
+    saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen},
 )
     problem = remake(p.problem, p = params, tspan = tspan)
     return solve(problem, p.solver, saveat = saveat)
@@ -103,7 +112,7 @@ Call an object of the `Loss` struct on a set of parameters to get the loss scala
 
 * `params`: the set of parameters of the model
 """
-function (l::Loss)(params::Vector{<:Real})
+function (l::Loss)(params::AbstractVector{<:Real})
     sol = l.predict_fn(params, l.dataset.tspan, l.dataset.tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
@@ -134,10 +143,10 @@ State of the callback struct
 mutable struct TrainCallbackState
     iters::Int
     progress::Progress
-    train_losses::Vector{<:Real}
-    test_losses::Vector{<:Real}
-    minimizer::Vector{<:Real}
-    minimizer_loss::Real
+    train_losses::Vector{Float64}
+    test_losses::Vector{Float64}
+    minimizer::Vector{Float64}
+    minimizer_loss::Float64
 end
 
 """
@@ -148,7 +157,7 @@ and other fields set to their default values
 
 + `maxiters`: Maximum number of iterrations that the optimizer will run
 """
-TrainCallbackState(maxiters::Int) = TrainCallbackState(
+TrainCallbackState(maxiters::Integer) = TrainCallbackState(
     0,
     Progress(maxiters, showspeed = true),
     Float64[],
@@ -198,7 +207,7 @@ Create a callback for `sciml_train`
 * `maxiters`: max number of iterations the optimizer will run
 * `config`: callback configurations
 """
-TrainCallback(maxiters::Int, config::TrainCallbackConfig = TrainCallbackConfig()) =
+TrainCallback(maxiters::Integer, config::TrainCallbackConfig = TrainCallbackConfig()) =
     TrainCallback(TrainCallbackState(maxiters), config)
 
 """
@@ -209,7 +218,7 @@ Call an object of type `TrainCallback`
 * `params`: the model's parameters
 * `train_loss`: loss from the training step
 """
-function (cb::TrainCallback)(params::Vector{<:Real}, train_loss::Real)
+function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
     test_loss = if !isnothing(cb.config.test_loss_fn)
         cb.config.test_loss_fn(params)
     end
@@ -247,9 +256,9 @@ end
 function train_model(
     train_loss_fn::Loss,
     test_loss_fn::Loss,
-    params::Vector{<:Real},
-    sessions::Vector{TrainSession},
-    snapshots_dir::String,
+    params::AbstractVector{<:Real},
+    sessions::AbstractVector{TrainSession},
+    snapshots_dir::AbstractString,
 )
     for sess ∈ sessions
         losses_plot_fpath = get_losses_plot_fpath(snapshots_dir, sess.name)
@@ -291,7 +300,7 @@ struct EvalConfig
     metric_fns::Vector{Function}
     forecast_ranges::Vector{Int}
     vars::Union{Int,Vector{Int},OrdinalRange}
-    labels::Vector{<:String}
+    labels::Vector{String}
 end
 
 function evaluate_model(
@@ -299,7 +308,7 @@ function evaluate_model(
     train_dataset::UDEDataset,
     test_dataset::UDEDataset,
     config::EvalConfig,
-    snapshots_dir::String,
+    snapshots_dir::AbstractString,
 )
     fpaths_params, uuids = lookup_saved_params(snapshots_dir)
     for (fpath_params, uuid) ∈ zip(fpaths_params, uuids)
@@ -400,22 +409,23 @@ end
 Calculate the mean absolute error between 2 values. Note that the input arguments must be of the same size.
 The function does not check if the inputs are valid and may produces erroneous output.
 """
-mae(ŷ, y) = mean(abs, (ŷ .- y))
+mae(ŷ::AbstractArray{<:Real}, y::AbstractArray{<:Real}) = mean(abs, (ŷ .- y))
 
 """
 Calculate the mean absolute percentge error between 2 values. Note that the input arguments must be of the same size.
 The function does not check if the inputs are valid and may produces erroneous output.
 """
-mape(ŷ, y) = 100 * mean(abs, (ŷ .- y) ./ y)
+mape(ŷ::AbstractArray{<:Real}, y::AbstractArray{<:Real}) = 100 * mean(abs, (ŷ .- y) ./ y)
 
 """
 Calculate the root mean squared error between 2 values. Note that the input arguments must be of the same size.
 The function does not check if the inputs are valid and may produces erroneous output.
 """
-rmse(ŷ, y) = sqrt(mean(abs2, ŷ .- y))
+rmse(ŷ::AbstractArray{<:Real}, y::AbstractArray{<:Real}) = sqrt(mean(abs2, ŷ .- y))
 
 """
 Calculate the root mean squared log error between 2 values. Note that the input arguments must be of the same size.
 The function does not check if the inputs are valid and may produces erroneous output.
 """
-rmsle(ŷ, y) = sqrt(mean(abs2, log.(ŷ .+ 1) .- log.(y .+ 1)))
+rmsle(ŷ::AbstractArray{<:Real}, y::AbstractArray{<:Real}) =
+    sqrt(mean(abs2, log.(ŷ .+ 1) .- log.(y .+ 1)))

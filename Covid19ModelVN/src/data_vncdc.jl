@@ -30,7 +30,7 @@ function parse_json_date_value_pairs(data::Any)
     return dates, values
 end
 
-function read_timeseries_confirmed_and_deaths(fpath::String)
+function read_timeseries_confirmed_and_deaths(fpath::AbstractString)
     data = JSON.parsefile(fpath)
     column_names = ["confirmed_community", "confirmed_quarantined", "deaths"]
     dfs = Vector{DataFrame}()

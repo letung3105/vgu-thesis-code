@@ -29,8 +29,8 @@ function __init__()
 end
 
 function combine_vietnam_province_level_gadm_and_gso_population(
-    df_gadm::DataFrame,
-    df_population::DataFrame,
+    df_gadm::AbstractDataFrame,
+    df_population::AbstractDataFrame,
 )
     # remove rows of repeated provinces
     df_gadm = unique(df_gadm, :ID_1)
@@ -46,10 +46,10 @@ function combine_vietnam_province_level_gadm_and_gso_population(
     )
 
     # remove all spaces in names and make them lowercase
-    standardize(s::String) = lowercase(filter(c -> !isspace(c), s))
+    standardize(s::AbstractString) = lowercase(filter(c -> !isspace(c), s))
     # x is the same as y if the standardized version of y contains the
     # standardized version of x
-    issame(x::String, y::String) = contains(standardize(y), standardize(x))
+    issame(x::AbstractString, y::AbstractString) = contains(standardize(y), standardize(x))
 
     # rename the province so it matches data from GADM
     replace!(df_population.VARNAME_1, "Dak Nong" => "Dac Nong")
@@ -69,9 +69,9 @@ function combine_vietnam_province_level_gadm_and_gso_population(
 end
 
 function save_vietnam_province_level_gadm_and_gso_population(
-    fpath_output::String;
-    fpath_gadm::String = datadep"gadm2.8/VNM_adm.gpkg",
-    fpath_population::String = datadep"gso/vietnam-2020-average-population-by-province.csv",
+    fpath_output::AbstractString;
+    fpath_gadm::AbstractString = datadep"gadm2.8/VNM_adm.gpkg",
+    fpath_population::AbstractString = datadep"gso/vietnam-2020-average-population-by-province.csv",
     recreate::Bool = false,
 )
     if isfile(fpath_output) && !recreate
