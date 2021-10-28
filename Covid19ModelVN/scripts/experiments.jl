@@ -322,19 +322,14 @@ function setup_experiment_preset_vietnam_province(exp_name::AbstractString)
     return nothing
 end
 
-function main(
-    # "baseline.default.vietnam",
-    # "fbmobility1.default.vietnam",
-    vn_experiments::AbstractVector{<:AbstractString} = [],
-    # "baseline.default.hcm",
-    # "fbmobility1.default.hcm",
-    # "fbmobility2.default.hcm",
-    vn_province_experiments::AbstractVector{<:AbstractString} = [],
+function main(;
+    experiments_vn::AbstractVector{<:AbstractString} = String[],
+    experiments_vn_province::AbstractVector{<:AbstractString} = String[],
 )
-    for exp_name ∈ vn_experiments
+    for exp_name ∈ experiments_vn
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         sessions = [
-            TrainSession("$timestamp.adam", ADAM(1e-2), 10),
+            TrainSession("$timestamp.adam", ADAM(1e-3), 10),
             TrainSession("$timestamp.lbfgs", LBFGS(), 10),
         ]
         eval_config = EvalConfig(
@@ -356,7 +351,7 @@ function main(
         )
     end
 
-    for exp_name ∈ vn_province_experiments
+    for exp_name ∈ experiments_vn_province
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         sessions = [
             TrainSession("$timestamp.adam", ADAM(1e-3), 10),
@@ -386,8 +381,8 @@ end
 cachedata()
 
 main(
-    ["baseline.default.vietnam", "fbmobility1.default.vietnam"],
-    [
+    experiments_vn = ["baseline.default.vietnam", "fbmobility1.default.vietnam"],
+    experiments_vn_province = [
         "baseline.default.hcm",
         "fbmobility1.default.hcm",
         "fbmobility2.default.hcm",
