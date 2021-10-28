@@ -46,19 +46,11 @@ A struct that solves the underlying DiffEq problem and returns the solution when
 * `problem`: the problem that will be solved
 * `solver`: the numerical solver that will be used to calculate the DiffEq solution
 """
-struct Predictor{S}
+struct Predictor{S,A}
     problem::ODEProblem
     solver::S
+    sensealg::A
 end
-
-"""
-Construct a new `Predictor` with the solver set to the default value `Tsit5`
-
-# Argument
-
-+ `problem`: The `ODEProblem` that will be solved by the predictor object
-"""
-Predictor(problem::ODEProblem) = Predictor(problem, Tsit5())
 
 """
 Construct a new default `Predictor` using the problem defined by the given model
@@ -67,7 +59,8 @@ Construct a new default `Predictor` using the problem defined by the given model
 
 + `model`: a model containing a problem that can be solved
 """
-Predictor(model::AbstractCovidModel) = Predictor(model.problem)
+Predictor(model::AbstractCovidModel) =
+    Predictor(model.problem, Tsit5(), InterpolatingAdjoint(autojacvec = ReverseDiffVJP()))
 
 """
 Call an object of struct `CovidModelPredict` to solve the underlying DiffEq problem
@@ -84,7 +77,7 @@ function (p::Predictor)(
     saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen},
 )
     problem = remake(p.problem, p = params, tspan = tspan)
-    return solve(problem, p.solver, saveat = saveat)
+    return solve(problem, p.solver, saveat = saveat, sensealg = p.sensealg)
 end
 
 """
@@ -386,12 +379,20 @@ function calculate_forecasts_errors(
     test_dataset::UDEDataset,
     config::EvalConfig,
 )
-    metric_fn = config.metric_fns[1]
-    errors = [
-        metric_fn(pred[var, 1:days], test_dataset.data[col, 1:days]) for
-        days ∈ config.forecast_ranges, (col, var) ∈ enumerate(config.vars)
-    ]
-    return DataFrame(errors, vec(config.labels))
+    horizons = repeat(config.forecast_ranges, inner = length(config.metric_fns))
+    metrics = repeat(map(string, config.metric_fns), length(config.forecast_ranges))
+    errors = reshape(
+        [
+            metric_fn(pred[var, 1:days], test_dataset.data[col, 1:days]) for
+            metric_fn ∈ config.metric_fns, days ∈ config.forecast_ranges,
+            (col, var) ∈ enumerate(config.vars)
+        ],
+        length(config.metric_fns) * length(config.forecast_ranges),
+        length(config.vars),
+    )
+    df1 = DataFrame([horizons metrics], [:horizon, :metric])
+    df2 = DataFrame(errors, config.labels)
+    return [df1 df2]
 end
 
 """
