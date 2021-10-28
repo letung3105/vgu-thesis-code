@@ -46,8 +46,13 @@ Construct a new default `Predictor` using the problem defined by the given model
 
 + `model`: a model containing a problem that can be solved
 """
-Predictor(model::AbstractCovidModel) =
-    Predictor(model.problem, Tsit5(), ForwardDiffSensitivity(), 1e-6, 1e-6)
+Predictor(model::AbstractCovidModel) = Predictor(
+    model.problem,
+    Tsit5(),
+    InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
+    1e-6,
+    1e-6,
+)
 
 """
 Call an object of struct `CovidModelPredict` to solve the underlying DiffEq problem
