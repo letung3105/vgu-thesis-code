@@ -28,6 +28,16 @@ function __init__()
     return nothing
 end
 
+"""
+Combine the data for Vietnam GADM level 1 and the population data for Vietnam. The resulting dataframe
+contain a row for each province and each row contains a list of IDs, Names, and Average Population of
+that province.
+
+# Arguments
+
++ `df_gadm`: the dataframe of the GADM data
++ `df_population`: the dataframe of the population data
+"""
 function combine_vietnam_province_level_gadm_and_gso_population(
     df_gadm::AbstractDataFrame,
     df_population::AbstractDataFrame,
@@ -68,6 +78,15 @@ function combine_vietnam_province_level_gadm_and_gso_population(
     return df
 end
 
+"""
+Read and combine the data for Vietnam GADM level 1 and the population data for Vietnam.
+
+# Arguments
++ `fpath_output`: the output CSV file path
++ `fpath_gadm`: path to the GADM geopackage file
++ `fpath_population`: path to the population CSV
++ `recreate`: the existing file will be ovewritten if this is true
+"""
 function save_vietnam_province_level_gadm_and_gso_population(
     fpath_output::AbstractString;
     fpath_gadm::AbstractString = datadep"gadm2.8/VNM_adm.gpkg",

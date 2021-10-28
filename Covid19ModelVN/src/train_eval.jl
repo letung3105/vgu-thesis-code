@@ -252,7 +252,18 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
     return false
 end
 
+"""
+Find a set of paramters that minimizes the loss function defined by `train_loss_fn`, starting from
+the initial set of parameters `params`.
 
+# Arguments
+
++ `train_loss_fn`: a function that will be minimized
++ `test_loss_fn`: a function for evaluating the model on out-of-sample data
++ `params`: the initial set of parameters
++ `sessions`: a collection of optimizers and settings used for training the model
++ `snapshots_dir`: a directory for saving the model parameters and training losses
+"""
 function train_model(
     train_loss_fn::Loss,
     test_loss_fn::Loss,
@@ -296,6 +307,16 @@ function train_model(
     return nothing
 end
 
+"""
+A struct for holding general configuration for the evaluation process
+
+# Arguments
+
++ `metric_fns`: a list of metric function that will be used to compute the model errors
++ `forecast_ranges`: a list of different time ranges on which the model's prediction will be evaluated
++ `vars`: indices of the model's states that will be evaluated
++ `labels`: names of the evaluated model's states
+"""
 struct EvalConfig
     metric_fns::AbstractVector{Function}
     forecast_ranges::AbstractVector{<:Integer}
@@ -303,6 +324,17 @@ struct EvalConfig
     labels::AbstractVector{<:AbstractString}
 end
 
+"""
+Evaluate the model by calculating the errors and draw plot againts ground truth data
+
+# Arguments
+
++ `predict_fn`: the function that produce the model's prediction
++ `train_dataset`: ground truth data on which the model was trained
++ `test_dataset`: ground truth data that the model has not seen
++ `config`: the configuration for the evalution process
++ `snapshots_dir`: the directory of where the model's paramters are saved
+"""
 function evaluate_model(
     predict_fn::Predictor,
     train_dataset::UDEDataset,

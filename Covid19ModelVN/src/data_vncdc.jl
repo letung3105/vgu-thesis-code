@@ -20,6 +20,13 @@ function __init__()
     return nothing
 end
 
+"""
+Parse an array of pairs of a date and a value in JSON format
+
+# Arguments
+
++ `data`: an arbitrary JSON data
+"""
 function parse_json_date_value_pairs(data::Any)
     dates = Vector{Date}()
     values = Vector{Int}()
@@ -30,6 +37,13 @@ function parse_json_date_value_pairs(data::Any)
     return dates, values
 end
 
+"""
+Read and parse the JSON for confirmed cases and deaths into a dataframe
+
+# Arguments
+
++ `fpath`: file path to the JSON data file
+"""
 function read_timeseries_confirmed_and_deaths(fpath::AbstractString)
     data = JSON.parsefile(fpath)
     column_names = ["confirmed_community", "confirmed_quarantined", "deaths"]

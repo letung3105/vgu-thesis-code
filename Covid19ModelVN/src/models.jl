@@ -155,6 +155,7 @@ and social connectedness
 * `u0`: the system initial conditions
 * `tspan`: the time span in which the system is considered
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
+* `spc_date`: the matrix for the Social Proximity to Cases Index
 """
 function CovidModelSEIRDFbMobility2(
     u0::AbstractVector{<:Real},

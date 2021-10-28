@@ -18,6 +18,14 @@ function __init__()
     return nothing
 end
 
+"""
+Request and parse Vietnam country-level Covid-19 timeseries from vnexpress into a dataframe
+
+# Arguments
+
++ `url`: the API url
++ `last_date`: the latest date that can exist in the dataframe
+"""
 function get_timeseries_vietnam_combined(
     url::AbstractString = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_day";
     last_date::Date = today() - Day(1),
@@ -41,6 +49,14 @@ function get_timeseries_vietnam_combined(
     return df
 end
 
+"""
+Request and parse Vietnam province-level Covid-19 confirmed cases timeseries from vnexpress into a dataframe
+
+# Arguments
+
++ `url`: the API url
++ `last_date`: the latest date that can exist in the dataframe
+"""
 function get_timeseries_vietnam_provinces_confirmed(
     url::AbstractString = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_location";
     last_date::Date = today() - Day(1),
@@ -60,6 +76,14 @@ function get_timeseries_vietnam_provinces_confirmed(
     return df
 end
 
+"""
+Request and parse Vietnam province-level Covid-19 total confirmed cases timeseries from vnexpress into a dataframe
+
+# Arguments
+
++ `url`: the API url
++ `last_date`: the latest date that can exist in the dataframe
+"""
 function get_timeseries_vietnam_provinces_confirmed_total(
     url::AbstractString = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_total";
     last_date::Date = today() - Day(1),
@@ -77,10 +101,24 @@ function get_timeseries_vietnam_provinces_confirmed_total(
     return df
 end
 
+"""
+Check if there's any missing data cell
+
+# Arguments
+
++ `df`: the dataframe to be checked
+"""
 hasmissing(df::AbstractDataFrame) =
     any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
 
-function rename_vnexpress_cities_provinces_names_to_gso!(df::AbstractDataFrame)
+"""
+Rename the provinces so that they match the data from GADM
+
+# Arguments
+
++ `df`: the dataframe to be renamed
+"""
+function rename_vnexpress_cities_provinces_names_to_gadm!(df::AbstractDataFrame)
     rename!(
         df,
         "TP HCM" => "Hồ Chí Minh city",
@@ -90,11 +128,18 @@ function rename_vnexpress_cities_provinces_names_to_gso!(df::AbstractDataFrame)
     return df
 end
 
+"""
+Clean the province-level data from vnexpress
+
+# Arguments
+
++ `df`: the dataframe to be cleaned
+"""
 function clean_provinces_confirmed_cases_timeseries!(df::AbstractDataFrame)
     # removes extra rows and columns
     delete!(df, 1)
     select!(df, 1:63)
-    rename_vnexpress_cities_provinces_names_to_gso!(df)
+    rename_vnexpress_cities_provinces_names_to_gadm!(df)
     # Convert string to date and only select needed columns
     select!(
         df,
