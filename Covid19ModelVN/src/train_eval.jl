@@ -36,6 +36,8 @@ struct Predictor
     problem::SciMLBase.DEProblem
     solver::SciMLBase.DEAlgorithm
     sensealg::SciMLBase.AbstractSensitivityAlgorithm
+    abstol::Real
+    reltol::Real
 end
 
 """
@@ -46,7 +48,7 @@ Construct a new default `Predictor` using the problem defined by the given model
 + `model`: a model containing a problem that can be solved
 """
 Predictor(model::AbstractCovidModel) =
-    Predictor(model.problem, Tsit5(), InterpolatingAdjoint(autojacvec = ReverseDiffVJP()))
+    Predictor(model.problem, Tsit5(), ForwardDiffSensitivity(), 1e-6, 1e-6)
 
 """
 Call an object of struct `CovidModelPredict` to solve the underlying DiffEq problem
@@ -63,7 +65,14 @@ function (p::Predictor)(
     saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen},
 )
     problem = remake(p.problem, p = params, tspan = tspan)
-    return solve(problem, p.solver, saveat = saveat, sensealg = p.sensealg)
+    return solve(
+        problem,
+        p.solver,
+        saveat = saveat,
+        sensealg = p.sensealg,
+        abstol = p.abstol,
+        reltol = p.reltol,
+    )
 end
 
 """
@@ -275,7 +284,7 @@ function train_and_evaluate_model(
     predict_fn = Predictor(model)
     train_loss_fn = Loss(loss_metric_fn, predict_fn, train_dataset, eval_config.vars)
     test_loss_fn = Loss(loss_metric_fn, predict_fn, test_dataset, eval_config.vars)
-    p0 = get_model_initial_params(model)
+    p0 = Covid19ModelVN.initial_params(model)
 
     @info "Initial training loss: $(train_loss_fn(p0))"
     @info "Initial testing loss: $(test_loss_fn(p0))"

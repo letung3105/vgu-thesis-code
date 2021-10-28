@@ -1,9 +1,3 @@
-# Activate the environment for running the script
-if isfile("Project.toml") && isfile("Manifest.toml")
-    import Pkg
-    Pkg.activate(".")
-end
-
 using CSV, Dates, DataDeps, DataFrames, DiffEqFlux, Covid19ModelVN
 
 import Covid19ModelVN.JHUCSSEData,
@@ -357,20 +351,3 @@ function run_experiment_vietnam_province(names::AbstractVector{<:AbstractString}
 end
 
 cachedata()
-
-run_experiment_vietnam(["baseline.default.vietnam", "fbmobility1.default.vietnam"])
-
-run_experiment_vietnam_province([
-    "baseline.default.hcm",
-    "fbmobility1.default.hcm",
-    "fbmobility2.default.hcm",
-    "baseline.default.binhduong",
-    "fbmobility1.default.binhduong",
-    "fbmobility2.default.binhduong",
-    "baseline.default.dongnai",
-    "fbmobility1.default.dongnai",
-    "fbmobility2.default.dongnai",
-    "baseline.default.longan",
-    "fbmobility1.default.longan",
-    "fbmobility2.default.longan",
-],)

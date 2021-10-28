@@ -1,4 +1,4 @@
-export get_model_initial_params,
+export initial_params,
     AbstractCovidModel,
     CovidModelSEIRDBaseline,
     CovidModelSEIRDFbMobility1,
@@ -64,8 +64,8 @@ end
 """
 Get the initial set of parameters of the baselien SEIRD model with Facebook movement range
 """
-get_model_initial_params(model::CovidModelSEIRDBaseline) =
-    [1 / 2; 1 / 4; 0.025; initial_params(model.β_ann)]
+initial_params(model::CovidModelSEIRDBaseline) =
+    [1 / 2; 1 / 4; 0.025; DiffEqFlux.initial_params(model.β_ann)]
 
 """
 A struct for containing the SEIRD model with Facebook movement range
@@ -130,8 +130,8 @@ end
 """
 Get the initial set of parameters of the SEIRD model with Facebook movement range
 """
-get_model_initial_params(model::CovidModelSEIRDFbMobility1) =
-    [1 / 2; 1 / 4; 0.025; initial_params(model.β_ann)]
+initial_params(model::CovidModelSEIRDFbMobility1) =
+    [1 / 2; 1 / 4; 0.025; DiffEqFlux.initial_params(model.β_ann)]
 
 """
 A struct for containing the SEIRD model with Facebook movement range
@@ -201,5 +201,5 @@ end
 """
 Get the initial set of parameters of the SEIRD model with Facebook movement range
 """
-get_model_initial_params(model::CovidModelSEIRDFbMobility2) =
-    [1 / 2; 1 / 4; 0.025; initial_params(model.β_ann)]
+initial_params(model::CovidModelSEIRDFbMobility2) =
+    [1 / 2; 1 / 4; 0.025; DiffEqFlux.initial_params(model.β_ann)]
