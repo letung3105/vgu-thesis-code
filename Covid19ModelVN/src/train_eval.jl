@@ -4,7 +4,6 @@ export TrainSession,
     Loss,
     TrainCallback,
     TrainCallbackConfig,
-    train_and_evaluate_model,
     train_model,
     evaluate_model,
     calculate_forecasts_errors,
@@ -270,36 +269,6 @@ struct EvalConfig
     forecast_ranges::AbstractVector{<:Integer}
     vars::Union{<:Integer,AbstractVector{<:Integer},OrdinalRange}
     labels::AbstractVector{<:AbstractString}
-end
-
-function train_and_evaluate_model(
-    model::AbstractCovidModel,
-    loss_metric_fn::Function,
-    train_dataset::TimeseriesDataset,
-    test_dataset::TimeseriesDataset,
-    train_sessions::AbstractVector{TrainSession},
-    eval_config::EvalConfig,
-    snapshots_dir::AbstractString,
-)
-    predict_fn = Predictor(model)
-    train_loss_fn = Loss(loss_metric_fn, predict_fn, train_dataset, eval_config.vars)
-    test_loss_fn = Loss(loss_metric_fn, predict_fn, test_dataset, eval_config.vars)
-    p0 = Covid19ModelVN.initial_params(model)
-
-    @info "Initial training loss: $(train_loss_fn(p0))"
-    @info "Initial testing loss: $(test_loss_fn(p0))"
-
-    if !isdir(snapshots_dir)
-        mkpath(snapshots_dir)
-    end
-
-    @info "Start training"
-    train_model(train_loss_fn, test_loss_fn, p0, train_sessions, snapshots_dir)
-
-    @info "Ploting evaluations"
-    evaluate_model(predict_fn, train_dataset, test_dataset, eval_config, snapshots_dir)
-
-    return nothing
 end
 
 """
