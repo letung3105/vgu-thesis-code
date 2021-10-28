@@ -1,7 +1,12 @@
 export get_model_initial_params,
-    CovidModelSEIRDBaseline, CovidModelSEIRDFbMobility1, CovidModelSEIRDFbMobility2
+    AbstractCovidModel,
+    CovidModelSEIRDBaseline,
+    CovidModelSEIRDFbMobility1,
+    CovidModelSEIRDFbMobility2
 
 using OrdinaryDiffEq, DiffEqFlux
+
+abstract type AbstractCovidModel end
 
 """
 A struct for containing the SEIRD baseline model
@@ -11,7 +16,7 @@ A struct for containing the SEIRD baseline model
 * `β_ann`: an neural network that outputs the time-dependent β contact rate
 * `problem`: the ODE problem to be solved
 """
-struct CovidModelSEIRDBaseline
+struct CovidModelSEIRDBaseline <: AbstractCovidModel
     β_ann::FastChain
     problem::ODEProblem
 end
@@ -65,7 +70,7 @@ A struct for containing the SEIRD model with Facebook movement range
 * `β_ann`: an neural network that outputs the time-dependent β contact rate
 * `problem`: the ODE problem to be solved
 """
-struct CovidModelSEIRDFbMobility1
+struct CovidModelSEIRDFbMobility1 <: CovidModel
     β_ann::FastChain
     problem::ODEProblem
 end
@@ -126,7 +131,7 @@ A struct for containing the SEIRD model with Facebook movement range
 * `β_ann`: an neural network that outputs the time-dependent β contact rate
 * `problem`: the ODE problem to be solved
 """
-struct CovidModelSEIRDFbMobility2
+struct CovidModelSEIRDFbMobility2 <: AbstractCovidModel
     β_ann::FastChain
     problem::ODEProblem
 end

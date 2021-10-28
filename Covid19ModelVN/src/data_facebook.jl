@@ -30,9 +30,9 @@ at each area, and the social connectedness between the areas that are considered
 # Arguments
 
 + `df_population`: A table contains the following columns
-    + `ID::String` is the preferred unique ID at level 1
-    + `NAME_1::String` is the level one GADM region's official name in latin script
-    + `VARNAME_1::String` for the level one GAME variant names, separated by pipes `|`
+    + `ID` is the preferred unique ID at level 1
+    + `NAME_1` is the level one GADM region's official name in latin script
+    + `VARNAME_1` for the level one GAME variant names, separated by pipes `|`
     + `AVGPOPULATION` for the level one GAME name of the region
 + `df_covid_timeseries_confirmed`: A table contains a column for each province in a country, and each row
 contains a timestamp `date` and the number of confirmed cases recorded at `date` for each province.
@@ -166,7 +166,7 @@ function save_region_average_movement_range(
         zip(fpath_outputs, country_codes, subdivision_ids)
 
         if isfile(fpath) && !recreate
-            return fpath
+            continue
         end
 
         @info "Generating '$fpath"
@@ -236,7 +236,7 @@ function save_inter_province_social_connectedness(
 
     for (fpath, country_code) ∈ zip(fpath_outputs, country_codes)
         if isfile(fpath) && !recreate
-            return fpath
+            continue
         end
 
         @info "Generating '$fpath"

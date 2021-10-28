@@ -32,9 +32,9 @@ Specifications for a model tranining session
 + `optimizer`: The optimizer that will run in the session
 + `maxiters`: Maximum number of iterations to run the optimizer
 """
-struct TrainSession
+struct TrainSession{O}
     name::String
-    optimizer::Any
+    optimizer::O
     maxiters::Int
 end
 
@@ -46,9 +46,9 @@ A struct that solves the underlying DiffEq problem and returns the solution when
 * `problem`: the problem that will be solved
 * `solver`: the numerical solver that will be used to calculate the DiffEq solution
 """
-struct Predictor
+struct Predictor{S}
     problem::ODEProblem
-    solver::Any
+    solver::S
 end
 
 """

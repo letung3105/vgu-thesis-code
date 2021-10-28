@@ -190,6 +190,6 @@ Calculate the moving average of all the `cols` in `df`
 """
 moving_average!(
     df::DataFrame,
-    cols::Union{Vector{<:String},Vector{Symbol},String,Symbol},
+    cols::Union{Vector{String},Vector{Symbol},String,Symbol},
     n::Int,
 ) = transform!(df, names(df, Cols(cols)) .=> x -> moving_average(x, n), renamecols = false)

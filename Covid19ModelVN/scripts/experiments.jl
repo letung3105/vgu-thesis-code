@@ -69,10 +69,10 @@ function cachedata(; recreate::Bool = false)
 end
 
 function train_and_evaluate_experiment(
-    model::Any,
+    model::AbstractCovidModel,
     train_dataset::UDEDataset,
     test_dataset::UDEDataset,
-    train_sessions::Vector{<:TrainSession},
+    train_sessions::Vector{TrainSession},
     eval_config::EvalConfig,
     snapshots_dir::String,
 )
