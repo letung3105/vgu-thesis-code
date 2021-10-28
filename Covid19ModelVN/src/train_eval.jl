@@ -49,7 +49,7 @@ Construct a new default `Predictor` using the problem defined by the given model
 Predictor(model::AbstractCovidModel) = Predictor(
     model.problem,
     Tsit5(),
-    InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
+    BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
     1e-6,
     1e-6,
 )
