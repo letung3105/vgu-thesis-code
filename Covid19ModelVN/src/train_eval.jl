@@ -33,9 +33,9 @@ Specifications for a model tranining session
 + `maxiters`: Maximum number of iterations to run the optimizer
 """
 struct TrainSession{O}
-    name::String
+    name::AbstractString
     optimizer::O
-    maxiters::Int
+    maxiters::Integer
 end
 
 """
@@ -102,7 +102,7 @@ struct Loss
     metric_fn::Function
     predict_fn::Predictor
     dataset::UDEDataset
-    vars::Union{Int,Vector{Int},OrdinalRange}
+    vars::Union{<:Integer,AbstractVector{<:Integer},OrdinalRange}
 end
 
 """
@@ -141,12 +141,12 @@ State of the callback struct
 * `minimizer_loss`: loss value of the current best set of parameters
 """
 mutable struct TrainCallbackState
-    iters::Int
+    iters::Integer
     progress::Progress
-    train_losses::Vector{Float64}
-    test_losses::Vector{Float64}
-    minimizer::Vector{Float64}
-    minimizer_loss::Float64
+    train_losses::AbstractVector{<:Real}
+    test_losses::AbstractVector{<:Real}
+    minimizer::AbstractVector{<:Real}
+    minimizer_loss::Real
 end
 
 """
@@ -179,10 +179,10 @@ Configuration of the callback struct
 """
 struct TrainCallbackConfig
     test_loss_fn::Union{Nothing,Loss}
-    losses_plot_fpath::Union{Nothing,String}
-    losses_plot_interval::Int
-    params_save_fpath::Union{Nothing,String}
-    params_save_interval::Int
+    losses_plot_fpath::Union{Nothing,<:AbstractString}
+    losses_plot_interval::Integer
+    params_save_fpath::Union{Nothing,<:AbstractString}
+    params_save_interval::Integer
 end
 
 """
@@ -297,10 +297,10 @@ function train_model(
 end
 
 struct EvalConfig
-    metric_fns::Vector{Function}
-    forecast_ranges::Vector{Int}
-    vars::Union{Int,Vector{Int},OrdinalRange}
-    labels::Vector{String}
+    metric_fns::AbstractVector{Function}
+    forecast_ranges::AbstractVector{<:Integer}
+    vars::Union{<:Integer,AbstractVector{<:Integer},OrdinalRange}
+    labels::AbstractVector{<:AbstractString}
 end
 
 function evaluate_model(

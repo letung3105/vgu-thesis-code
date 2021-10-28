@@ -22,9 +22,9 @@ This contains the minimum required information for a timeseriese dataset that is
 * `tsteps`: collocations points
 """
 struct UDEDataset
-    data::Matrix{Float64}
-    tspan::Tuple{Float64,Float64}
-    tsteps::Union{Float64,Vector{Float64},StepRange,StepRangeLen}
+    data::AbstractMatrix{<:Real}
+    tspan::Tuple{<:Real,<:Real}
+    tsteps::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen}
 end
 
 """
