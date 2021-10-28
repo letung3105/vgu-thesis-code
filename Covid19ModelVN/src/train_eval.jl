@@ -319,10 +319,11 @@ function train_model(
                 cb = cb,
             )
         catch e
-            @error e
             if isa(e, InterruptException)
                 rethrow(e)
             end
+            @error e
+            continue
         end
 
         params = cb.state.minimizer
@@ -360,7 +361,7 @@ function evaluate_model(
             if isa(e, InterruptException)
                 rethrow(e)
             end
-            @warn e
+            @error e
             continue
         end
 
