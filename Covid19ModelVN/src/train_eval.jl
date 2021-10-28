@@ -257,6 +257,7 @@ struct TrainSession{O}
     name::AbstractString
     optimizer::O
     maxiters::Integer
+    loss_samples::Integer
 end
 
 """
@@ -303,9 +304,9 @@ function train_model(
             TrainCallbackConfig(
                 test_loss_fn,
                 losses_plot_fpath,
-                div(sess.maxiters, 20),
+                div(sess.maxiters, sess.loss_samples),
                 params_save_fpath,
-                div(sess.maxiters, 20),
+                div(sess.maxiters, sess.loss_samples),
             ),
         )
 
