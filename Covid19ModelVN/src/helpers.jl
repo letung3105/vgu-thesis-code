@@ -1,4 +1,4 @@
-export UDEDataset,
+export TimeseriesDataset,
     train_test_split,
     load_timeseries,
     save_dataframe,
@@ -21,14 +21,14 @@ This contains the minimum required information for a timeseriese dataset that is
 * `tspan`: the first and last time coordinates of the timeseries data
 * `tsteps`: collocations points
 """
-struct UDEDataset
+struct TimeseriesDataset
     data::AbstractMatrix{<:Real}
     tspan::Tuple{<:Real,<:Real}
     tsteps::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen}
 end
 
 """
-Create two `UDEDataset`s from the given dataframe, the first dataset contains data point whose `date_col`
+Create two `TimeseriesDataset`s from the given dataframe, the first dataset contains data point whose `date_col`
 value is in the range [first_date, split_date], and the second dataset contains data point whose `date_col`
 value is in the range (split_date, last_date]
 
@@ -66,8 +66,8 @@ function train_test_split(
     train_data = Float64.(Array(df_train[!, data_cols])')
     test_data = Float64.(Array(df_test[!, data_cols])')
 
-    train_dataset = UDEDataset(train_data, train_tspan, train_tsteps)
-    test_dataset = UDEDataset(test_data, test_tspan, test_tsteps)
+    train_dataset = TimeseriesDataset(train_data, train_tspan, train_tsteps)
+    test_dataset = TimeseriesDataset(test_data, test_tspan, test_tsteps)
 
     return train_dataset, test_dataset
 end

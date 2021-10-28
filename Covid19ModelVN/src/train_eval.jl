@@ -4,6 +4,7 @@ export TrainSession,
     Loss,
     TrainCallback,
     TrainCallbackConfig,
+    train_and_evaluate_model,
     train_model,
     evaluate_model,
     calculate_forecasts_errors,
@@ -24,21 +25,6 @@ using Serialization,
     Covid19ModelVN
 
 """
-Specifications for a model tranining session
-
-# Arguments
-
-+ `name`: Session name
-+ `optimizer`: The optimizer that will run in the session
-+ `maxiters`: Maximum number of iterations to run the optimizer
-"""
-struct TrainSession{O}
-    name::AbstractString
-    optimizer::O
-    maxiters::Integer
-end
-
-"""
 A struct that solves the underlying DiffEq problem and returns the solution when it is called
 
 # Fields
@@ -46,10 +32,10 @@ A struct that solves the underlying DiffEq problem and returns the solution when
 * `problem`: the problem that will be solved
 * `solver`: the numerical solver that will be used to calculate the DiffEq solution
 """
-struct Predictor{S,A}
-    problem::ODEProblem
-    solver::S
-    sensealg::A
+struct Predictor
+    problem::SciMLBase.DEProblem
+    solver::SciMLBase.DEAlgorithm
+    sensealg::SciMLBase.AbstractSensitivityAlgorithm
 end
 
 """
@@ -94,7 +80,7 @@ A callable struct that uses `metric_fn` to calculate the loss between the output
 struct Loss
     metric_fn::Function
     predict_fn::Predictor
-    dataset::UDEDataset
+    dataset::TimeseriesDataset
     vars::Union{<:Integer,AbstractVector{<:Integer},OrdinalRange}
 end
 
@@ -246,6 +232,68 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
 end
 
 """
+Specifications for a model tranining session
+
+# Arguments
+
++ `name`: Session name
++ `optimizer`: The optimizer that will run in the session
++ `maxiters`: Maximum number of iterations to run the optimizer
+"""
+struct TrainSession{O}
+    name::AbstractString
+    optimizer::O
+    maxiters::Integer
+end
+
+"""
+A struct for holding general configuration for the evaluation process
+
+# Arguments
+
++ `metric_fns`: a list of metric function that will be used to compute the model errors
++ `forecast_ranges`: a list of different time ranges on which the model's prediction will be evaluated
++ `vars`: indices of the model's states that will be evaluated
++ `labels`: names of the evaluated model's states
+"""
+struct EvalConfig
+    metric_fns::AbstractVector{Function}
+    forecast_ranges::AbstractVector{<:Integer}
+    vars::Union{<:Integer,AbstractVector{<:Integer},OrdinalRange}
+    labels::AbstractVector{<:AbstractString}
+end
+
+function train_and_evaluate_model(
+    model::AbstractCovidModel,
+    loss_metric_fn::Function,
+    train_dataset::TimeseriesDataset,
+    test_dataset::TimeseriesDataset,
+    train_sessions::AbstractVector{TrainSession},
+    eval_config::EvalConfig,
+    snapshots_dir::AbstractString,
+)
+    predict_fn = Predictor(model)
+    train_loss_fn = Loss(loss_metric_fn, predict_fn, train_dataset, eval_config.vars)
+    test_loss_fn = Loss(loss_metric_fn, predict_fn, test_dataset, eval_config.vars)
+    p0 = get_model_initial_params(model)
+
+    @info "Initial training loss: $(train_loss_fn(p0))"
+    @info "Initial testing loss: $(test_loss_fn(p0))"
+
+    if !isdir(snapshots_dir)
+        mkpath(snapshots_dir)
+    end
+
+    @info "Start training"
+    train_model(train_loss_fn, test_loss_fn, p0, train_sessions, snapshots_dir)
+
+    @info "Ploting evaluations"
+    evaluate_model(predict_fn, train_dataset, test_dataset, eval_config, snapshots_dir)
+
+    return nothing
+end
+
+"""
 Find a set of paramters that minimizes the loss function defined by `train_loss_fn`, starting from
 the initial set of parameters `params`.
 
@@ -301,23 +349,6 @@ function train_model(
 end
 
 """
-A struct for holding general configuration for the evaluation process
-
-# Arguments
-
-+ `metric_fns`: a list of metric function that will be used to compute the model errors
-+ `forecast_ranges`: a list of different time ranges on which the model's prediction will be evaluated
-+ `vars`: indices of the model's states that will be evaluated
-+ `labels`: names of the evaluated model's states
-"""
-struct EvalConfig
-    metric_fns::AbstractVector{Function}
-    forecast_ranges::AbstractVector{<:Integer}
-    vars::Union{<:Integer,AbstractVector{<:Integer},OrdinalRange}
-    labels::AbstractVector{<:AbstractString}
-end
-
-"""
 Evaluate the model by calculating the errors and draw plot againts ground truth data
 
 # Arguments
@@ -330,8 +361,8 @@ Evaluate the model by calculating the errors and draw plot againts ground truth 
 """
 function evaluate_model(
     predict_fn::Predictor,
-    train_dataset::UDEDataset,
-    test_dataset::UDEDataset,
+    train_dataset::TimeseriesDataset,
+    test_dataset::TimeseriesDataset,
     config::EvalConfig,
     snapshots_dir::AbstractString,
 )
@@ -375,8 +406,8 @@ for that day
 * `config`: configuration for evaluation
 """
 function calculate_forecasts_errors(
-    pred::ODESolution,
-    test_dataset::UDEDataset,
+    pred::SciMLBase.AbstractTimeseriesSolution,
+    test_dataset::TimeseriesDataset,
     config::EvalConfig,
 )
     horizons = repeat(config.forecast_ranges, inner = length(config.metric_fns))
@@ -408,10 +439,10 @@ forecasted value using `metric_fn`.
 * `config`: configuration for evaluation
 """
 function plot_forecasts(
-    fit::ODESolution,
-    pred::ODESolution,
-    train_dataset::UDEDataset,
-    test_dataset::UDEDataset,
+    fit::SciMLBase.AbstractTimeseriesSolution,
+    pred::SciMLBase.AbstractTimeseriesSolution,
+    train_dataset::TimeseriesDataset,
+    test_dataset::TimeseriesDataset,
     config::EvalConfig,
 )
     plts = []

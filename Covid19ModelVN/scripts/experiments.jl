@@ -68,35 +68,6 @@ function cachedata(; recreate::Bool = false)
     )
 end
 
-function train_and_evaluate_experiment(
-    model::AbstractCovidModel,
-    train_dataset::UDEDataset,
-    test_dataset::UDEDataset,
-    train_sessions::AbstractVector{TrainSession},
-    eval_config::EvalConfig,
-    snapshots_dir::AbstractString,
-)
-    predict_fn = Predictor(model)
-    train_loss_fn = Loss(rmsle, predict_fn, train_dataset, eval_config.vars)
-    test_loss_fn = Loss(rmsle, predict_fn, test_dataset, eval_config.vars)
-    p0 = get_model_initial_params(model)
-
-    @info "Initial training loss: $(train_loss_fn(p0))"
-    @info "Initial testing loss: $(test_loss_fn(p0))"
-
-    if !isdir(snapshots_dir)
-        mkpath(snapshots_dir)
-    end
-
-    @info "Start training"
-    train_model(train_loss_fn, test_loss_fn, p0, train_sessions, snapshots_dir)
-
-    @info "Ploting evaluations for"
-    evaluate_model(predict_fn, train_dataset, test_dataset, eval_config, snapshots_dir)
-
-    return nothing
-end
-
 """
 Setup different experiement scenarios for Vietnam country-wide data
 
@@ -107,7 +78,7 @@ Setup different experiement scenarios for Vietnam country-wide data
 * `fb_movement_range_fpath`: paths to the Facebook movement range data file
 * `recreate=false`: true if we want to create a new file when one already exists
 """
-function setup_experiment_preset_vietnam(exp_name::AbstractString)
+function setup_experiment_vietnam(exp_name::AbstractString)
     # train for 1 month
     train_range = Day(31)
     # forecast upto 4-week
@@ -174,17 +145,21 @@ function setup_experiment_preset_vietnam(exp_name::AbstractString)
     # initial states
     u0 = [S0, E0, I0, R0, D0, C0, N0]
 
-    model = if exp_name == "baseline.default.vietnam"
-        CovidModelSEIRDBaseline(u0, train_dataset.tspan)
+    if exp_name == "baseline.default.vietnam"
+        model = CovidModelSEIRDBaseline(u0, train_dataset.tspan)
+        return model, train_dataset, test_dataset
+
     elseif exp_name == "fbmobility1.default.vietnam"
         movement_range_dataset = load_movement_range(Day(2))
-        CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
+        model = CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
+        return model, train_dataset, test_dataset
     end
 
-    return model, train_dataset, test_dataset
+    @error "No matching experiment"
+    return nothing
 end
 
-function setup_experiment_preset_vietnam_province(exp_name::AbstractString)
+function setup_experiment_vietnam_province(exp_name::AbstractString)
     # train for 1 month
     train_range = Day(31)
     # forecast upto 4-week
@@ -283,7 +258,7 @@ function setup_experiment_preset_vietnam_province(exp_name::AbstractString)
         "Long An", datadep"vncdc/LongAn.json", FPATH_LONG_AN_AVERAGE_MOVEMENT_RANGE
     else
         @error "No matching experiment"
-        return
+        return nothing
     end
 
     if exp_model_type == "baseline.default"
@@ -319,30 +294,29 @@ function setup_experiment_preset_vietnam_province(exp_name::AbstractString)
         return model, train_dataset, test_dataset
     end
 
+    @error "No matching experiment"
     return nothing
 end
 
-function main(;
-    experiments_vn::AbstractVector{<:AbstractString} = String[],
-    experiments_vn_province::AbstractVector{<:AbstractString} = String[],
-)
-    for exp_name ∈ experiments_vn
+function run_experiment_vietnam(names::AbstractVector{<:AbstractString} = String[])
+    for exp_name ∈ names
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         sessions = [
             TrainSession("$timestamp.adam", ADAM(1e-3), 10),
             TrainSession("$timestamp.lbfgs", LBFGS(), 10),
         ]
         eval_config = EvalConfig(
-            [mae, map, rmse],
+            [mae, mape, rmse],
             [7, 14, 21, 28],
             3:6,
             ["infective", "recovered", "deaths", "total confirmed"],
         )
 
-        model, train_dataset, test_dataset = setup_experiment_preset_vietnam(exp_name)
+        model, train_dataset, test_dataset = setup_experiment_vietnam(exp_name)
         snapshots_dir = joinpath(SNAPSHOTS_DIR, exp_name)
-        train_and_evaluate_experiment(
+        train_and_evaluate_model(
             model,
+            rmsle,
             train_dataset,
             test_dataset,
             sessions,
@@ -350,25 +324,28 @@ function main(;
             snapshots_dir,
         )
     end
+    return nothing
+end
 
-    for exp_name ∈ experiments_vn_province
+function run_experiment_vietnam_province(names::AbstractVector{<:AbstractString} = String[])
+    for exp_name ∈ names
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         sessions = [
             TrainSession("$timestamp.adam", ADAM(1e-3), 10),
             TrainSession("$timestamp.lbfgs", LBFGS(), 10),
         ]
         eval_config = EvalConfig(
-            [mae, map, rmse],
+            [mae, mape, rmse],
             [7, 14, 21, 28],
             5:6,
             ["deaths", "total confirmed"],
         )
 
-        model, train_dataset, test_dataset =
-            setup_experiment_preset_vietnam_province(exp_name)
+        model, train_dataset, test_dataset = setup_experiment_vietnam_province(exp_name)
         snapshots_dir = joinpath(SNAPSHOTS_DIR, exp_name)
-        train_and_evaluate_experiment(
+        train_and_evaluate_model(
             model,
+            rmsle,
             train_dataset,
             test_dataset,
             sessions,
@@ -376,24 +353,24 @@ function main(;
             snapshots_dir,
         )
     end
+    return nothing
 end
 
 cachedata()
 
-main(
-    experiments_vn = ["baseline.default.vietnam", "fbmobility1.default.vietnam"],
-    experiments_vn_province = [
-        "baseline.default.hcm",
-        "fbmobility1.default.hcm",
-        "fbmobility2.default.hcm",
-        "baseline.default.binhduong",
-        "fbmobility1.default.binhduong",
-        "fbmobility2.default.binhduong",
-        "baseline.default.dongnai",
-        "fbmobility1.default.dongnai",
-        "fbmobility2.default.dongnai",
-        "baseline.default.longan",
-        "fbmobility1.default.longan",
-        "fbmobility2.default.longan",
-    ],
-)
+run_experiment_vietnam(["baseline.default.vietnam", "fbmobility1.default.vietnam"])
+
+run_experiment_vietnam_province([
+    "baseline.default.hcm",
+    "fbmobility1.default.hcm",
+    "fbmobility2.default.hcm",
+    "baseline.default.binhduong",
+    "fbmobility1.default.binhduong",
+    "fbmobility2.default.binhduong",
+    "baseline.default.dongnai",
+    "fbmobility1.default.dongnai",
+    "fbmobility2.default.dongnai",
+    "baseline.default.longan",
+    "fbmobility1.default.longan",
+    "fbmobility2.default.longan",
+],)
