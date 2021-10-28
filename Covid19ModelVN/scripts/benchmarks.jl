@@ -86,13 +86,13 @@ function benchmarks_compute_loss_gradient_with_different_sensealg(
     return nothing
 end
 
-benchmarks_compute_loss_gradient_experiment_vietnam(
+benchmarks_compute_loss_gradient_with_different_sensealg(
     "baseline.default.vietnam",
     rmsle,
     solver = Vern7(),
 )
 
-benchmarks_compute_loss_gradient_experiment_vietnam(
+benchmarks_compute_loss_gradient_with_different_sensealg(
     "baseline.default.vietnam",
     rmsle,
     solver = Tsit5(),
