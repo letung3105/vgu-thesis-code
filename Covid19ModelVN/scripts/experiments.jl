@@ -326,8 +326,8 @@ function run_experiment_vietnam(names::AbstractVector{<:AbstractString} = String
     for exp_name ∈ names
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         sessions = [
-            TrainSession("$timestamp.adam", ADAM(1e-3), 10),
-            TrainSession("$timestamp.lbfgs", LBFGS(), 10),
+            TrainSession("$timestamp.adam", ADAM(1e-3), 10000),
+            TrainSession("$timestamp.lbfgs", LBFGS(), 1000),
         ]
         eval_config = EvalConfig(
             [mae, mape, rmse],
@@ -355,8 +355,8 @@ function run_experiment_vietnam_province(names::AbstractVector{<:AbstractString}
     for exp_name ∈ names
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         sessions = [
-            TrainSession("$timestamp.adam", ADAM(1e-3), 10),
-            TrainSession("$timestamp.lbfgs", LBFGS(), 10),
+            TrainSession("$timestamp.adam", ADAM(1e-3), 10000),
+            TrainSession("$timestamp.lbfgs", LBFGS(), 1000),
         ]
         eval_config = EvalConfig(
             [mae, mape, rmse],
