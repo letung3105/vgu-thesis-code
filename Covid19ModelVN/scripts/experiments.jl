@@ -62,234 +62,190 @@ function cachedata(; recreate::Bool = false)
     )
 end
 
-"""
-Setup different experiement scenarios for Vietnam country-wide data
+get_experiment_covid_timeseries(location_code::AbstractString) =
+    if location_code == "vietnam"
+        df = CSV.read(FPATH_VIETNAM_COVID_TIMESERIES, DataFrame)
+        # after 4th August, the recovered count is not updated
+        bound!(df, :date, Date(2021, 4, 26), Date(2021, 8, 4))
+        transform!(
+            df,
+            :infective => x -> x .- df[1, :infective],
+            :recovered_total => x -> x .- df[1, :recovered_total],
+            :deaths_total => x -> x .- df[1, :deaths_total],
+            :confirmed_total => x -> x .- df[1, :confirmed_total],
+            renamecols = false,
+        )
+        bound!(df, :date, Date(2021, 4, 27), Date(2021, 8, 4))
+    elseif location_code == "hcm"
+        VnCdcData.read_timeseries_confirmed_and_deaths(datadep"vncdc/HoChiMinh.json")
+    elseif location_code == "binhduong"
+        VnCdcData.read_timeseries_confirmed_and_deaths(datadep"vncdc/BinhDuong.json")
+    elseif location_code == "dongnai"
+        VnCdcData.read_timeseries_confirmed_and_deaths(datadep"vncdc/DongNai.json")
+    elseif location_code == "longan"
+        VnCdcData.read_timeseries_confirmed_and_deaths(datadep"vncdc/LongAn.json")
+    else
+        throw("Unsupported location code '$location_code'!")
+    end
 
-# Arguments
+get_experiment_population(location_code::AbstractString) =
+    if location_code == "vietnam"
+        97_582_700
+    elseif location_code == "hcm"
+        df_population = CSV.read(FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION, DataFrame)
+        first(filter(x -> x.NAME_1 == "Hồ Chí Minh city", df_population).AVGPOPULATION)
+    elseif location_code == "binhduong"
+        df_population = CSV.read(FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION, DataFrame)
+        first(filter(x -> x.NAME_1 == "Bình Dương", df_population).AVGPOPULATION)
+    elseif location_code == "dongnai"
+        df_population = CSV.read(FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION, DataFrame)
+        first(filter(x -> x.NAME_1 == "Đồng Nai", df_population).AVGPOPULATION)
+    elseif location_code == "longan"
+        df_population = CSV.read(FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION, DataFrame)
+        first(filter(x -> x.NAME_1 == "Long An", df_population).AVGPOPULATION)
+    else
+        throw("Unsupported location code '$location_code'!")
+    end
 
-* `exp_name`: name of the preset experiment
-* `datasets_dir`: paths to the folder where newly created datasets are contained
-* `fb_movement_range_fpath`: paths to the Facebook movement range data file
-* `recreate=false`: true if we want to create a new file when one already exists
-"""
-function setup_experiment_vietnam(exp_name::AbstractString)
-    # train for 1 month
-    train_range = Day(31)
-    # forecast upto 4-week
-    forecast_range = Day(28)
+function get_experiment_data_config(
+    location_code::AbstractString,
 
-    # load covid cases data
-    df_covid_timeseries = CSV.read(FPATH_VIETNAM_COVID_TIMESERIES, DataFrame)
-    # after 4th August, the recovered count is not updated
-    bound!(df_covid_timeseries, :date, Date(2021, 4, 26), Date(2021, 8, 4))
-    transform!(
-        df_covid_timeseries,
-        :infective => x -> x .- df_covid_timeseries[1, :infective],
-        :recovered_total => x -> x .- df_covid_timeseries[1, :recovered_total],
-        :deaths_total => x -> x .- df_covid_timeseries[1, :deaths_total],
-        :confirmed_total => x -> x .- df_covid_timeseries[1, :confirmed_total],
-        renamecols = false,
-    )
-    df_covid_timeseries500 =
-        subset(df_covid_timeseries, :confirmed_total => x -> x .>= 500, view = true)
+    train_range::Day,
+    forecast_range::Day,
+)
+    data_cols1 = ["infective", "recovered_total", "deaths_total", "confirmed_total"]
+    data_cols2 = ["deaths_total", "confirmed_total"]
+    df = get_experiment_covid_timeseries(location_code)
 
-    # first date that total number of confirmed cases passed 500
-    first_date = first(df_covid_timeseries500.date)
+    initial_state_fn, data_cols = if issubset(data_cols1, names(df))
+        initial_state_fn = function (data::AbstractVector{<:Real}, population::Real)
+            I0 = data[1] # infective individuals
+            R0 = data[2] # recovered individuals
+            D0 = data[3] # total deaths
+            C0 = data[4] # total confirmed
+            N0 = population - D0 # effective population
+            E0 = I0 * 2 # exposed individuals
+            S0 = population - C0 - E0 # susceptible individuals
+            # initial state
+            u0 = [S0, E0, I0, R0, D0, C0, N0]
+            return u0
+        end
+        initial_state_fn, data_cols1
+    elseif issubset(data_cols2, names(df))
+        initial_state_fn = function (data::AbstractVector{<:Real}, population::Real)
+            D0 = data[1] # total deaths
+            C0 = data[2] # total confirmed
+            I0 = div(C0 - D0, 2) # infective individuals
+            R0 = C0 - I0 - D0 # recovered individuals
+            N0 = population - D0 # effective population
+            E0 = I0 * 2 # exposed individuals
+            S0 = population - C0 - E0 # susceptible individuals
+            # initial state
+            u0 = [S0, E0, I0, R0, D0, C0, N0]
+            return u0
+        end
+        initial_state_fn, data_cols2
+    else
+        throw("Unsupported dataframe structure!")
+    end
+
+    first_date = first(subset(df, :confirmed_total => x -> x .>= 500, view = true).date)
     split_date = first_date + train_range
-    last_date = first_date + train_range + forecast_range
+    last_date = split_date + forecast_range
+    @info first_date
 
-    @info "First date: $first_date"
+    population = get_experiment_population(location_code)
+    moving_average!(df, data_cols, 7)
 
-    # ma7
-    covid_timeseries_cols = [:infective, :recovered_total, :deaths_total, :confirmed_total]
-    moving_average!(df_covid_timeseries, covid_timeseries_cols, 7)
-    # separate dataframe into data arrays for train and test
-    train_dataset, test_dataset = train_test_split(
-        df_covid_timeseries,
-        covid_timeseries_cols,
+    return DataConfig(
+        df,
+        data_cols,
         :date,
         first_date,
         split_date,
         last_date,
+        population,
+        initial_state_fn,
     )
-
-    # load facebook movement range
-    df_movement_range = CSV.read(FPATH_VIETNAM_AVERAGE_MOVEMENT_RANGE, DataFrame)
-    movement_range_cols =
-        [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users]
-    moving_average!(df_movement_range, movement_range_cols, 7)
-    # load timeseries data with the chosen temporal lag
-    load_movement_range(lag::Day) = load_timeseries(
-        df_movement_range,
-        movement_range_cols,
-        :ds,
-        first_date - lag,
-        last_date - lag,
-    )
-
-    # Vietnam population from GSO (https://gso.gov.vn)
-    population = 97_582_700
-    I0 = train_dataset.data[1, 1] # infective individuals
-    R0 = train_dataset.data[2, 1] # recovered individuals
-    D0 = train_dataset.data[3, 1] # deaths
-    C0 = train_dataset.data[4, 1] # total confirmed cases
-    N0 = population - D0 # effective population
-    E0 = I0 * 2 # exposed individuals
-    S0 = population - C0 - E0 # susceptible individuals
-    # initial states
-    u0 = [S0, E0, I0, R0, D0, C0, N0]
-
-    if exp_name == "baseline.default.vietnam"
-        model = CovidModelSEIRDBaseline(u0, train_dataset.tspan)
-        return model, train_dataset, test_dataset
-
-    elseif exp_name == "fbmobility1.default.vietnam"
-        movement_range_dataset = load_movement_range(Day(2))
-        model = CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
-        return model, train_dataset, test_dataset
-    end
-
-    @error "No matching experiment"
-    return nothing
 end
 
-function setup_experiment_vietnam_province(exp_name::AbstractString)
-    # train for 1 month
-    train_range = Day(31)
-    # forecast upto 4-week
-    forecast_range = Day(28)
-
-    df_population = CSV.read(FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION, DataFrame)
-    get_province_population(province_name::AbstractString) =
-        first(filter(x -> x.NAME_1 == province_name, df_population).AVGPOPULATION)
-
-    function load_covid_data(fpath::AbstractString, population::Real)
-        # load covid cases data
-        df_covid_timeseries = VnCdcData.read_timeseries_confirmed_and_deaths(fpath)
-        df_covid_timeseries500 =
-            subset(df_covid_timeseries, :confirmed_total => x -> x .>= 500, view = true)
-        # first date that total number of confirmed cases passed 500
-        first_date = first(df_covid_timeseries500.date)
-        split_date = first_date + train_range
-        last_date = first_date + train_range + forecast_range
-
-        @info "First date: $first_date"
-
-        # ma7
-        covid_timeseries_cols = [:deaths_total, :confirmed_total]
-        moving_average!(df_covid_timeseries, covid_timeseries_cols, 7)
-        # separate dataframe into data arrays for train and test
-        train_dataset, test_dataset = train_test_split(
-            df_covid_timeseries,
-            covid_timeseries_cols,
-            :date,
-            first_date,
-            split_date,
-            last_date,
-        )
-
-        D0 = train_dataset.data[1, 1] # total deaths
-        C0 = train_dataset.data[2, 1] # total confirmed
-        N0 = population - D0 # effective population
-        I0 = div(C0 - D0, 2) # infective individuals
-        R0 = C0 - I0 - D0 # recovered individuals
-        E0 = I0 * 2 # exposed individuals
-        S0 = population - C0 - E0 # susceptible individuals
-        # initial state
-        u0 = [S0, E0, I0, R0, D0, C0, N0]
-
-        return u0, train_dataset, test_dataset, first_date
+function get_experiment_movement_range_config(
+    location_code::AbstractString,
+    temporal_lag::Day,
+)
+    df = if location_code == "vietnam"
+        CSV.read(FPATH_VIETNAM_AVERAGE_MOVEMENT_RANGE, DataFrame)
+    elseif location_code == "hcm"
+        CSV.read(FPATH_HCM_CITY_AVERAGE_MOVEMENT_RANGE, DataFrame)
+    elseif location_code == "binhduong"
+        CSV.read(FPATH_BINH_DUONG_AVERAGE_MOVEMENT_RANGE, DataFrame)
+    elseif location_code == "dongnai"
+        CSV.read(FPATH_DONG_NAI_AVERAGE_MOVEMENT_RANGE, DataFrame)
+    elseif location_code == "longan"
+        CSV.read(FPATH_LONG_AN_AVERAGE_MOVEMENT_RANGE, DataFrame)
+    else
+        throw("Unsupported location code '$location_code'!")
     end
 
-    function load_social_proximity_to_cases_index(
-        province_name::AbstractString,
-        first_date::Date,
-        lag::Day,
-    )
+    data_cols =
+        [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users]
+    moving_average!(df, data_cols, 7)
+
+    return MobilityConfig(df, data_cols, :ds, temporal_lag)
+end
+
+function get_experiment_social_proximity_config(
+    location_code::AbstractString,
+    temporal_lag::Day,
+)
+    get_social_proximity_vn = function ()
+        df_population = CSV.read(FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION, DataFrame)
         df_covid_timeseries_confirmed = CSV.read(
             datadep"vnexpress/timeseries-vietnam-provinces-confirmed.csv",
             DataFrame,
         )
         df_social_connectedness =
             CSV.read(FPATH_VIETNAM_INTER_PROVINCE_SOCIAL_CONNECTEDNESS, DataFrame)
-        df_spc = FacebookData.calculate_social_proximity_to_cases(
+
+        return FacebookData.calculate_social_proximity_to_cases(
             df_population,
             df_covid_timeseries_confirmed,
             df_social_connectedness,
         )
-        moving_average!(df_spc, province_name, 7)
-        return load_timeseries(
-            df_spc,
-            province_name,
-            :date,
-            first_date - lag,
-            first_date - lag + train_range + forecast_range,
-        )
     end
 
-    function load_movement_range(fpath::AbstractString, first_date::Date, lag::Day)
-        df_movement_range = CSV.read(fpath, DataFrame)
-        movement_range_cols =
-            [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users]
-        moving_average!(df_movement_range, movement_range_cols, 7)
-        return load_timeseries(
-            df_movement_range,
-            movement_range_cols,
-            :ds,
-            first_date - lag,
-            first_date - lag + train_range + forecast_range,
-        )
-    end
-
-    exp_model_type, exp_location = rsplit(exp_name, ".", limit = 2)
-    province_name, fpath_covid_timeseries, fpath_movement_range = if exp_location == "hcm"
-        "Hồ Chí Minh city", datadep"vncdc/HoChiMinh.json", FPATH_HCM_CITY_AVERAGE_MOVEMENT_RANGE
-    elseif exp_location == "binhduong"
-        "Bình Dương", datadep"vncdc/BinhDuong.json", FPATH_BINH_DUONG_AVERAGE_MOVEMENT_RANGE
-    elseif exp_location == "dongnai"
-        "Đồng Nai", datadep"vncdc/DongNai.json", FPATH_DONG_NAI_AVERAGE_MOVEMENT_RANGE
-    elseif exp_location == "longan"
-        "Long An", datadep"vncdc/LongAn.json", FPATH_LONG_AN_AVERAGE_MOVEMENT_RANGE
+    df, data_col = if location_code == "hcm"
+        get_social_proximity_vn(), "Hồ Chí Minh city"
+    elseif location_code == "binhduong"
+        get_social_proximity_vn(), "Bình Dương"
+    elseif location_code == "dongnai"
+        get_social_proximity_vn(), "Đồng Nai"
+    elseif location_code == "longan"
+        get_social_proximity_vn(), "Long An"
     else
-        @error "No matching experiment"
-        return nothing
+        throw("Unsupported location code '$location_code'!")
     end
 
-    if exp_model_type == "baseline.default"
-        population = get_province_population(province_name)
-        u0, train_dataset, test_dataset, _ =
-            load_covid_data(fpath_covid_timeseries, population)
-        model = CovidModelSEIRDBaseline(u0, train_dataset.tspan)
-        return model, train_dataset, test_dataset
+    df = df[!, ["date", data_col]]
+    moving_average!(df, data_col, 7)
 
-    elseif exp_model_type == "fbmobility1.default"
-        population = get_province_population(province_name)
-        u0, train_dataset, test_dataset, train_first_date =
-            load_covid_data(fpath_covid_timeseries, population)
-        movement_range_dataset =
-            load_movement_range(fpath_movement_range, train_first_date, Day(2))
-        model = CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_dataset)
-        return model, train_dataset, test_dataset
+    return MobilityConfig(df, data_col, :date, temporal_lag)
+end
 
-    elseif exp_model_type == "fbmobility2.default"
-        population = get_province_population(province_name)
-        u0, train_dataset, test_dataset, train_first_date =
-            load_covid_data(fpath_covid_timeseries, population)
-        movement_range_dataset =
-            load_movement_range(fpath_movement_range, train_first_date, Day(2))
-        spc_index =
-            load_social_proximity_to_cases_index(province_name, train_first_date, Day(2))
-        model = CovidModelSEIRDFbMobility2(
-            u0,
-            train_dataset.tspan,
-            movement_range_dataset,
-            spc_index,
-        )
-        return model, train_dataset, test_dataset
+function get_experiment_eval_config(name::AbstractString)
+    _, location_code = rsplit(name, ".", limit = 2)
+    vars, labels = if location_code == "vietnam"
+        3:6, ["infective", "recovered", "deaths", "total confirmed"]
+    elseif location_code == "hcm" ||
+           location_code == "binhduong" ||
+           location_code == "dongnai" ||
+           location_code == "longan"
+        5:6, ["deaths", "total confirmed"]
+    else
+        throw("Unsupported location code '$location_code'!")
     end
 
-    @error "No matching experiment"
-    return nothing
+    return EvalConfig([mae, mape, rmse], [7, 14, 21, 28], vars, labels)
 end
 
 function train_and_evaluate_model(
@@ -309,6 +265,7 @@ function train_and_evaluate_model(
     @info "Initial training loss: $(train_loss_fn(p0))"
     @info "Initial testing loss: $(test_loss_fn(p0))"
 
+    @infor "Snapshot directory '$snapshots_dir'"
     if !isdir(snapshots_dir)
         mkpath(snapshots_dir)
     end
@@ -322,51 +279,42 @@ function train_and_evaluate_model(
     return nothing
 end
 
-function run_experiment_vietnam(names::AbstractVector{<:AbstractString} = String[])
-    for exp_name ∈ names
-        timestamp = Dates.format(now(), "yyyymmddHHMMSS")
-        sessions = [
-            TrainSession("$timestamp.adam", ADAM(1e-3), 10000, 100),
-            TrainSession("$timestamp.lbfgs", LBFGS(), 1000, 100),
-        ]
-        eval_config = EvalConfig(
-            [mae, mape, rmse],
-            [7, 14, 21, 28],
-            3:6,
-            ["infective", "recovered", "deaths", "total confirmed"],
-        )
+function setup_experiment(
+    name::AbstractString;
+    train_range = Day(31),
+    forecast_range = Day(28),
+)
+    model_type, location_code = rsplit(name, ".", limit = 2)
+    base_config = get_experiment_data_config(location_code, train_range, forecast_range)
 
-        model, train_dataset, test_dataset = setup_experiment_vietnam(exp_name)
-        snapshots_dir = joinpath(SNAPSHOTS_DIR, exp_name)
-        train_and_evaluate_model(
-            model,
-            rmsle,
-            train_dataset,
-            test_dataset,
-            sessions,
-            eval_config,
-            snapshots_dir,
+    model, train_dataset, test_dataset = if model_type == "baseline.default"
+        setup_model(base_config)
+    elseif model_type == "fbmobility1.default"
+        setup_model(base_config, get_experiment_movement_range_config(location_code, Day(2)))
+    elseif model_type == "fbmobility2.default"
+        setup_model(
+            base_config,
+            get_experiment_movement_range_config(location_code, Day(2)),
+            get_experiment_social_proximity_config(location_code, Day(2)),
         )
+    else
+        throw("Unsupported model type '$model_type'")
     end
-    return nothing
+
+    return model, train_dataset, test_dataset
 end
 
-function run_experiment_vietnam_province(names::AbstractVector{<:AbstractString} = String[])
-    for exp_name ∈ names
+function run_experiments(names::AbstractVector{<:AbstractString} = String[])
+    for name ∈ names
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         sessions = [
             TrainSession("$timestamp.adam", ADAM(1e-3), 10000, 100),
             TrainSession("$timestamp.lbfgs", LBFGS(), 1000, 100),
         ]
-        eval_config = EvalConfig(
-            [mae, mape, rmse],
-            [7, 14, 21, 28],
-            5:6,
-            ["deaths", "total confirmed"],
-        )
+        eval_config = get_experiment_eval_config(name)
 
-        model, train_dataset, test_dataset = setup_experiment_vietnam_province(exp_name)
-        snapshots_dir = joinpath(SNAPSHOTS_DIR, exp_name)
+        model, train_dataset, test_dataset = setup_experiment(name)
+        snapshots_dir = joinpath(SNAPSHOTS_DIR, name)
         train_and_evaluate_model(
             model,
             rmsle,
@@ -377,7 +325,22 @@ function run_experiment_vietnam_province(names::AbstractVector{<:AbstractString}
             snapshots_dir,
         )
     end
-    return nothing
 end
 
 cachedata()
+
+# run_experiments(
+#     vec([
+#         "$model.$loc" for
+#         model ∈ ["baseline.default", "fbmobility1.default"],
+#         loc ∈ ["vietnam"]
+#     ]),
+# )
+
+run_experiments(
+    vec([
+        "$model.$loc" for
+        model ∈ ["baseline.default", "fbmobility1.default", "fbmobility2.default"],
+        loc ∈ ["hcm", "binhduong", "dongnai", "longan"]
+    ]),
+)

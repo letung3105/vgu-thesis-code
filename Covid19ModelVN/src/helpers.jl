@@ -202,8 +202,8 @@ Calculate the moving average of all the `cols` in `df`
 moving_average!(
     df::AbstractDataFrame,
     cols::Union{
-        AbstractVector{<:AbstractString},
-        AbstractVector{Symbol},
+        <:AbstractVector{<:AbstractString},
+        <:AbstractVector{Symbol},
         <:AbstractString,
         Symbol,
     },
