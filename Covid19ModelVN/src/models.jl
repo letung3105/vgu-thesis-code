@@ -236,6 +236,7 @@ struct MobilityConfig
 end
 
 function setup_model(
+    model_constructor::DataType,
     data_config::DataConfig,
     movement_range_config::Union{MobilityConfig,Nothing} = nothing,
     social_proximity_config::Union{MobilityConfig,Nothing} = nothing,
@@ -254,7 +255,7 @@ function setup_model(
 
     # use baseline model if no movement range data is given
     if isnothing(movement_range_config)
-        model = CovidModelSEIRDBaseline(u0, train_dataset.tspan)
+        model = model_constructor(u0, train_dataset.tspan)
         return model, train_dataset, test_dataset
     end
 
@@ -269,7 +270,7 @@ function setup_model(
 
     # use fbmobility1 model if no social proximity data is given
     if isnothing(social_proximity_config)
-        model = CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_data)
+        model = model_constructor(u0, train_dataset.tspan, movement_range_data)
         return model, train_dataset, test_dataset
     end
 
@@ -281,7 +282,7 @@ function setup_model(
         data_config.first_date - social_proximity_config.temporal_lag,
         data_config.last_date - social_proximity_config.temporal_lag,
     )
-    model = CovidModelSEIRDFbMobility2(
+    model = model_constructor(
         u0,
         train_dataset.tspan,
         movement_range_data,

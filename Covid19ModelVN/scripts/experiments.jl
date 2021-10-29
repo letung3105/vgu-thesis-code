@@ -109,7 +109,6 @@ get_experiment_population(location_code::AbstractString) =
 
 function get_experiment_data_config(
     location_code::AbstractString,
-
     train_range::Day,
     forecast_range::Day,
 )
@@ -265,7 +264,7 @@ function train_and_evaluate_model(
     @info "Initial training loss: $(train_loss_fn(p0))"
     @info "Initial testing loss: $(test_loss_fn(p0))"
 
-    @infor "Snapshot directory '$snapshots_dir'"
+    @info "Snapshot directory '$snapshots_dir'"
     if !isdir(snapshots_dir)
         mkpath(snapshots_dir)
     end
@@ -288,11 +287,16 @@ function setup_experiment(
     base_config = get_experiment_data_config(location_code, train_range, forecast_range)
 
     model, train_dataset, test_dataset = if model_type == "baseline.default"
-        setup_model(base_config)
+        setup_model(CovidModelSEIRDBaseline, base_config)
     elseif model_type == "fbmobility1.default"
-        setup_model(base_config, get_experiment_movement_range_config(location_code, Day(2)))
+        setup_model(
+            CovidModelSEIRDFbMobility1,
+            base_config,
+            get_experiment_movement_range_config(location_code, Day(2)),
+        )
     elseif model_type == "fbmobility2.default"
         setup_model(
+            CovidModelSEIRDFbMobility2,
             base_config,
             get_experiment_movement_range_config(location_code, Day(2)),
             get_experiment_social_proximity_config(location_code, Day(2)),
@@ -337,10 +341,10 @@ cachedata()
 #     ]),
 # )
 
-run_experiments(
-    vec([
-        "$model.$loc" for
-        model ∈ ["baseline.default", "fbmobility1.default", "fbmobility2.default"],
-        loc ∈ ["hcm", "binhduong", "dongnai", "longan"]
-    ]),
-)
+# run_experiments(
+#     vec([
+#         "$model.$loc" for
+#         model ∈ ["baseline.default", "fbmobility1.default", "fbmobility2.default"],
+#         loc ∈ ["hcm", "binhduong", "dongnai", "longan"]
+#     ]),
+# )
