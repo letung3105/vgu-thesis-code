@@ -215,6 +215,12 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
         cb.config.test_loss_fn(params)
     end
 
+    showvalues = if isnothing(test_loss)
+        [:train_loss => train_loss]
+    else
+        [:train_loss => train_loss, :test_loss => test_loss]
+    end
+
     if train_loss < cb.state.minimizer_loss
         cb.state.minimizer_loss = train_loss
         cb.state.minimizer = params
@@ -223,13 +229,18 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
     cb.state.iters += 1
     if cb.state.iters % cb.config.losses_plot_interval == 0 &&
        !isnothing(cb.config.losses_plot_fpath)
-        append!(cb.state.train_losses, train_loss)
-        append!(cb.state.test_losses, test_loss)
-        plt = plot(
-            [cb.state.train_losses, cb.state.test_losses],
-            labels = ["train loss" "test loss"],
-            legend = :outerright,
-        )
+        plt = if isnothing(test_loss)
+            append!(cb.state.train_losses, train_loss)
+            plot([cb.state.train_losses], label = "train loss", legend = :outerright)
+        else
+            append!(cb.state.train_losses, train_loss)
+            append!(cb.state.test_losses, test_loss)
+            plot(
+                [cb.state.train_losses, cb.state.test_losses],
+                labels = ["train loss" "test loss"],
+                legend = :outerright,
+            )
+        end
         savefig(plt, cb.config.losses_plot_fpath)
     end
     if cb.state.iters % cb.config.params_save_interval == 0 &&
@@ -237,10 +248,7 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
         Serialization.serialize(cb.config.params_save_fpath, cb.state.minimizer)
     end
 
-    next!(
-        cb.state.progress,
-        showvalues = [:train_loss => train_loss, :test_loss => test_loss],
-    )
+    next!(cb.state.progress, showvalues = showvalues)
     return false
 end
 
@@ -283,30 +291,38 @@ the initial set of parameters `params`.
 
 # Arguments
 
-+ `train_loss_fn`: a function that will be minimized
-+ `test_loss_fn`: a function for evaluating the model on out-of-sample data
-+ `params`: the initial set of parameters
 + `sessions`: a collection of optimizers and settings used for training the model
++ `train_loss_fn`: a function that will be minimized
++ `params`: the initial set of parameters
 + `snapshots_dir`: a directory for saving the model parameters and training losses
++ `test_loss_fn`: a function for evaluating the model on out-of-sample data
 """
 function train_model(
-    train_loss_fn::Loss,
-    test_loss_fn::Loss,
-    params::AbstractVector{<:Real},
     sessions::AbstractVector{TrainSession},
-    snapshots_dir::AbstractString,
+    train_loss_fn::Loss,
+    params::AbstractVector{<:Real};
+    snapshots_dir::Union{AbstractString,Nothing} = nothing,
+    test_loss_fn::Union{Loss,Nothing} = nothing,
 )
+    sessions_params = Vector{Float64}[]
     for sess ∈ sessions
-        losses_plot_fpath = get_losses_plot_fpath(snapshots_dir, sess.name)
-        params_save_fpath = get_params_save_fpath(snapshots_dir, sess.name)
+        snapshot_and_plot_interval = div(sess.maxiters, sess.loss_samples)
+        losses_plot_fpath, params_save_fpath = if isnothing(snapshots_dir)
+            (nothing, nothing)
+        else
+            (
+                get_losses_plot_fpath(snapshots_dir, sess.name),
+                get_params_save_fpath(snapshots_dir, sess.name),
+            )
+        end
         cb = TrainCallback(
             sess.maxiters,
             TrainCallbackConfig(
                 test_loss_fn,
                 losses_plot_fpath,
-                div(sess.maxiters, sess.loss_samples),
+                snapshot_and_plot_interval,
                 params_save_fpath,
-                div(sess.maxiters, sess.loss_samples),
+                snapshot_and_plot_interval,
             ),
         )
 
@@ -328,9 +344,15 @@ function train_model(
         end
 
         params = cb.state.minimizer
+        push!(sessions_params, params)
         Serialization.serialize(params_save_fpath, params)
     end
-    return nothing
+    return sessions_params
+end
+
+struct EvalResult
+    df_errors::AbstractDataFrame
+    fig_forecasts::Plots.Plot
 end
 
 """
@@ -338,46 +360,24 @@ Evaluate the model by calculating the errors and draw plot againts ground truth 
 
 # Arguments
 
++ `config`: the configuration for the evalution process
++ `params`: the parameters used for making the predictions
 + `predict_fn`: the function that produce the model's prediction
 + `train_dataset`: ground truth data on which the model was trained
 + `test_dataset`: ground truth data that the model has not seen
-+ `config`: the configuration for the evalution process
-+ `snapshots_dir`: the directory of where the model's paramters are saved
 """
 function evaluate_model(
+    config::EvalConfig,
+    params::AbstractVector{<:Real},
     predict_fn::Predictor,
     train_dataset::TimeseriesDataset,
     test_dataset::TimeseriesDataset,
-    config::EvalConfig,
-    snapshots_dir::AbstractString,
 )
-    fpaths_params, uuids = lookup_saved_params(snapshots_dir)
-    for (fpath_params, uuid) ∈ zip(fpaths_params, uuids)
-        fit, pred = try
-            minimizer = Serialization.deserialize(fpath_params)
-            fit = predict_fn(minimizer, train_dataset.tspan, train_dataset.tsteps)
-            pred = predict_fn(minimizer, test_dataset.tspan, test_dataset.tsteps)
-            (fit, pred)
-        catch e
-            if isa(e, InterruptException)
-                rethrow(e)
-            end
-            @error e
-            continue
-        end
-
-        csv_fpath = joinpath(snapshots_dir, "$uuid.evaluate.csv")
-        if !isfile(csv_fpath)
-            df = calculate_forecasts_errors(pred, test_dataset, config)
-            CSV.write(csv_fpath, df)
-        end
-
-        fig_fpath = joinpath(snapshots_dir, "$uuid.evaluate.png")
-        if !isfile(fig_fpath)
-            plt = plot_forecasts(fit, pred, train_dataset, test_dataset, config)
-            savefig(plt, fig_fpath)
-        end
-    end
+    fit = predict_fn(params, train_dataset.tspan, train_dataset.tsteps)
+    pred = predict_fn(params, test_dataset.tspan, test_dataset.tsteps)
+    df_errors = calculate_forecasts_errors(config, pred, test_dataset)
+    fig_forecasts = plot_forecasts(config, fit, pred, train_dataset, test_dataset)
+    return EvalResult(df_errors, fig_forecasts)
 end
 
 """
@@ -391,9 +391,9 @@ for that day
 * `config`: configuration for evaluation
 """
 function calculate_forecasts_errors(
+    config::EvalConfig,
     pred::SciMLBase.AbstractTimeseriesSolution,
     test_dataset::TimeseriesDataset,
-    config::EvalConfig,
 )
     horizons = repeat(config.forecast_ranges, inner = length(config.metric_fns))
     metrics = repeat(map(string, config.metric_fns), length(config.forecast_ranges))
@@ -424,11 +424,11 @@ forecasted value using `metric_fn`.
 * `config`: configuration for evaluation
 """
 function plot_forecasts(
+    config::EvalConfig,
     fit::SciMLBase.AbstractTimeseriesSolution,
     pred::SciMLBase.AbstractTimeseriesSolution,
     train_dataset::TimeseriesDataset,
     test_dataset::TimeseriesDataset,
-    config::EvalConfig,
 )
     plts = []
     for days ∈ config.forecast_ranges,

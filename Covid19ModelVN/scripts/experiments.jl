@@ -247,37 +247,6 @@ function get_experiment_eval_config(name::AbstractString)
     return EvalConfig([mae, mape, rmse], [7, 14, 21, 28], vars, labels)
 end
 
-function train_and_evaluate_model(
-    model::AbstractCovidModel,
-    loss_metric_fn::Function,
-    train_dataset::TimeseriesDataset,
-    test_dataset::TimeseriesDataset,
-    train_sessions::AbstractVector{TrainSession},
-    eval_config::EvalConfig,
-    snapshots_dir::AbstractString,
-)
-    predict_fn = Predictor(model)
-    train_loss_fn = Loss(loss_metric_fn, predict_fn, train_dataset, eval_config.vars)
-    test_loss_fn = Loss(loss_metric_fn, predict_fn, test_dataset, eval_config.vars)
-    p0 = Covid19ModelVN.initial_params(model)
-
-    @info "Initial training loss: $(train_loss_fn(p0))"
-    @info "Initial testing loss: $(test_loss_fn(p0))"
-
-    @info "Snapshot directory '$snapshots_dir'"
-    if !isdir(snapshots_dir)
-        mkpath(snapshots_dir)
-    end
-
-    @info "Start training"
-    train_model(train_loss_fn, test_loss_fn, p0, train_sessions, snapshots_dir)
-
-    @info "Ploting evaluations"
-    evaluate_model(predict_fn, train_dataset, test_dataset, eval_config, snapshots_dir)
-
-    return nothing
-end
-
 function setup_experiment(
     name::AbstractString;
     train_range = Day(31),
@@ -311,23 +280,50 @@ end
 function run_experiments(names::AbstractVector{<:AbstractString} = String[])
     for name ∈ names
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
-        sessions = [
+        train_sessions = [
             TrainSession("$timestamp.adam", ADAM(1e-3), 10000, 100),
             TrainSession("$timestamp.lbfgs", LBFGS(), 1000, 100),
         ]
         eval_config = get_experiment_eval_config(name)
 
         model, train_dataset, test_dataset = setup_experiment(name)
+        predict_fn = Predictor(model)
+        train_loss_fn = Loss(rmsle, predict_fn, train_dataset, eval_config.vars)
+        test_loss_fn = Loss(rmsle, predict_fn, test_dataset, eval_config.vars)
+        p0 = Covid19ModelVN.initial_params(model)
+
+        @info "Initial training loss: $(train_loss_fn(p0))"
+        @info "Initial testing loss: $(test_loss_fn(p0))"
+
         snapshots_dir = joinpath(SNAPSHOTS_DIR, name)
-        train_and_evaluate_model(
-            model,
-            rmsle,
-            train_dataset,
-            test_dataset,
-            sessions,
-            eval_config,
-            snapshots_dir,
+        if !isdir(snapshots_dir)
+            mkpath(snapshots_dir)
+        end
+        @info "Snapshot directory '$snapshots_dir'"
+
+        @info "Start training"
+        sessions_params = train_model(
+            train_sessions,
+            train_loss_fn,
+            p0,
+            snapshots_dir = snapshots_dir,
+            test_loss_fn = test_loss_fn,
         )
+
+        @info "Ploting evaluations"
+        for (sess, params) in zip(train_sessions, sessions_params)
+            eval_res = evaluate_model(eval_config, params, predict_fn, train_dataset, test_dataset)
+
+            csv_fpath = joinpath(snapshots_dir, "$(sess.name).evaluate.csv")
+            if !isfile(csv_fpath)
+                CSV.write(csv_fpath, eval_res.df_errors)
+            end
+
+            fig_fpath = joinpath(snapshots_dir, "$(sess.name).evaluate.png")
+            if !isfile(fig_fpath)
+                savefig(eval_res.fig_forecasts, fig_fpath)
+            end
+        end
     end
 end
 
