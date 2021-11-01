@@ -46,9 +46,10 @@ function calculate_social_proximity_to_cases(
     df_covid_timeseries_confirmed::AbstractDataFrame,
     df_social_connectedness::AbstractDataFrame,
 )
-    # get the population row with the given location id
+    # gadm code
     getloc(id::AbstractString) =
         subset(df_population, :ID_1 => x -> x .== parse(Int, id[4:end]), view = true)
+    # fips code
     getloc(id::Float64) = subset(df_population, :ID_1 => x -> x .== id, view = true)
 
     locs_with_confirmed = Set(names(df_covid_timeseries_confirmed))
@@ -111,16 +112,10 @@ function region_average_movement_range(
     country_code::AbstractString,
     subdivision_id::Union{Nothing,<:Integer} = nothing,
 )
-    parse_fips(x::AbstractString) = parse(Int, x)
-    parse_gadm(x::AbstractString) = parse(Int, split(x, ".")[2])
-    parse_subdivision(x::AbstractString, source::AbstractString) =
-        if source == "FIPS"
-            parse_fips(x)
-        elseif source == "GADM"
-            parse_gadm(x)
-        else
-            @warn "No matching subdivision source"
-        end
+    # gadm code
+    parse_subdivision(x::AbstractString) = parse(Int, split(x, ".")[2])
+    # fips code
+    parse_subdivision(x::Int) = x
 
     df_movement_range_region =
         subset(df_movement_range, :country => x -> x .== country_code, view = true)
@@ -128,7 +123,7 @@ function region_average_movement_range(
         df_movement_range_region = subset(
             df_movement_range_region,
             [:polygon_id, :polygon_source] =>
-                (x, y) -> subdivision_id .== parse_subdivision.(x, y),
+                (x, y) -> subdivision_id .== parse_subdivision.(x),
             view = true,
         )
     end
