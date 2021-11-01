@@ -89,7 +89,7 @@ end
 
 """
 + `path`: Path to the file
-+ `country`: ISO-3166 code of the country whose Covid-19 timeseries data is contained in `path`
++ `country`: Name of the country whose Covid-19 timeseries data is contained in `path`
 """
 struct CountryCovidTimeseriesFile
     path::AbstractString

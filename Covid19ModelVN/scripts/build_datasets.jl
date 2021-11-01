@@ -25,11 +25,11 @@ function build_datasets_main(dir::AbstractString = "")
     JHUCSSEData.save_country_level_timeseries([
         JHUCSSEData.CountryCovidTimeseriesFile(
             joinpath(dir, "timeseries-covid19-combined-vietnam.csv"),
-            "VNM",
+            "Vietnam",
         ),
         JHUCSSEData.CountryCovidTimeseriesFile(
             joinpath(dir, "timeseries-covid19-combined-united-states.csv"),
-            "USA",
+            "US",
         ),
     ])
     JHUCSSEData.save_us_county_level_timeseries([
