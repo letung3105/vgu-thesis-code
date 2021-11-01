@@ -1,4 +1,4 @@
-using CSV, Dates, DataDeps, DataFrames, DiffEqFlux, Covid19ModelVN
+using Dates, Plots, CSV, DataDeps, DataFrames, DiffEqFlux, Covid19ModelVN
 
 import Covid19ModelVN.JHUCSSEData,
     Covid19ModelVN.FacebookData,
@@ -8,63 +8,12 @@ import Covid19ModelVN.JHUCSSEData,
 
 const SNAPSHOTS_DIR = "snapshots"
 
-const CACHE_DIR = ".cache"
-
-const FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION =
-    joinpath(CACHE_DIR, "average-population-by-province-vietnam.csv")
-
-const FPATH_VIETNAM_COVID_TIMESERIES = joinpath(CACHE_DIR, "timeseries-covid19-vietnam.csv")
-
-const FPATH_VIETNAM_INTER_PROVINCE_SOCIAL_CONNECTEDNESS =
-    joinpath(CACHE_DIR, "social-connectedness-vietnam.csv")
-
-const FPATH_VIETNAM_AVERAGE_MOVEMENT_RANGE =
-    joinpath(CACHE_DIR, "movement-range-vietnam.csv")
-
-const FPATH_HCM_CITY_AVERAGE_MOVEMENT_RANGE =
-    joinpath(CACHE_DIR, "movement-range-hcm-city.csv")
-
-const FPATH_BINH_DUONG_AVERAGE_MOVEMENT_RANGE =
-    joinpath(CACHE_DIR, "movement-range-binh-duong.csv")
-
-const FPATH_DONG_NAI_AVERAGE_MOVEMENT_RANGE =
-    joinpath(CACHE_DIR, "movement-range-dong-nai.csv")
-
-const FPATH_LONG_AN_AVERAGE_MOVEMENT_RANGE =
-    joinpath(CACHE_DIR, "movement-range-long-an.csv")
-
-function cachedata(; recreate::Bool = false)
-    PopulationData.save_vietnam_province_level_gadm_and_gso_population(
-        FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION,
-        recreate = recreate,
-    )
-    JHUCSSEData.save_country_level_timeseries(
-        [FPATH_VIETNAM_COVID_TIMESERIES],
-        ["Vietnam"],
-        recreate = recreate,
-    )
-    FacebookData.save_inter_province_social_connectedness(
-        [FPATH_VIETNAM_INTER_PROVINCE_SOCIAL_CONNECTEDNESS],
-        ["VNM"],
-        recreate = recreate,
-    )
-    FacebookData.save_region_average_movement_range(
-        [
-            FPATH_VIETNAM_AVERAGE_MOVEMENT_RANGE,
-            FPATH_HCM_CITY_AVERAGE_MOVEMENT_RANGE,
-            FPATH_BINH_DUONG_AVERAGE_MOVEMENT_RANGE,
-            FPATH_DONG_NAI_AVERAGE_MOVEMENT_RANGE,
-            FPATH_LONG_AN_AVERAGE_MOVEMENT_RANGE,
-        ],
-        ["VNM", "VNM", "VNM", "VNM", "VNM"],
-        [nothing, 26, 10, 2, 39],
-        recreate = recreate,
-    )
-end
-
 get_experiment_covid_timeseries(location_code::AbstractString) =
     if location_code == "vietnam"
-        df = CSV.read(FPATH_VIETNAM_COVID_TIMESERIES, DataFrame)
+        df = CSV.read(
+            datadep"covid19model/timeseries-covid19-combined-vietnam.csv",
+            DataFrame,
+        )
         # after 4th August, the recovered count is not updated
         bound!(df, :date, Date(2021, 4, 26), Date(2021, 8, 4))
         transform!(
@@ -92,16 +41,20 @@ get_experiment_population(location_code::AbstractString) =
     if location_code == "vietnam"
         97_582_700
     elseif location_code == "hcm"
-        df_population = CSV.read(FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION, DataFrame)
+        df_population =
+            CSV.read(datadep"covid19model/average-population-vn-provinces.csv", DataFrame)
         first(filter(x -> x.NAME_1 == "Hồ Chí Minh city", df_population).AVGPOPULATION)
     elseif location_code == "binhduong"
-        df_population = CSV.read(FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION, DataFrame)
+        df_population =
+            CSV.read(datadep"covid19model/average-population-vn-provinces.csv", DataFrame)
         first(filter(x -> x.NAME_1 == "Bình Dương", df_population).AVGPOPULATION)
     elseif location_code == "dongnai"
-        df_population = CSV.read(FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION, DataFrame)
+        df_population =
+            CSV.read(datadep"covid19model/average-population-vn-provinces.csv", DataFrame)
         first(filter(x -> x.NAME_1 == "Đồng Nai", df_population).AVGPOPULATION)
     elseif location_code == "longan"
-        df_population = CSV.read(FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION, DataFrame)
+        df_population =
+            CSV.read(datadep"covid19model/average-population-vn-provinces.csv", DataFrame)
         first(filter(x -> x.NAME_1 == "Long An", df_population).AVGPOPULATION)
     else
         throw("Unsupported location code '$location_code'!")
@@ -154,7 +107,7 @@ function get_experiment_data_config(
     @info first_date
 
     population = get_experiment_population(location_code)
-    moving_average!(df, data_cols, 7)
+    # moving_average!(df, data_cols, 7)
 
     return DataConfig(
         df,
@@ -168,20 +121,17 @@ function get_experiment_data_config(
     )
 end
 
-function get_experiment_movement_range_config(
-    location_code::AbstractString,
-    temporal_lag::Day,
-)
+function get_experiment_movement_range_config(location_code::AbstractString)
     df = if location_code == "vietnam"
-        CSV.read(FPATH_VIETNAM_AVERAGE_MOVEMENT_RANGE, DataFrame)
+        CSV.read(datadep"covid19model/movement-range-vietnam.csv", DataFrame)
     elseif location_code == "hcm"
-        CSV.read(FPATH_HCM_CITY_AVERAGE_MOVEMENT_RANGE, DataFrame)
+        CSV.read(datadep"covid19model/movement-range-hcm-city.csv", DataFrame)
     elseif location_code == "binhduong"
-        CSV.read(FPATH_BINH_DUONG_AVERAGE_MOVEMENT_RANGE, DataFrame)
+        CSV.read(datadep"covid19model/movement-range-binh-duong.csv", DataFrame)
     elseif location_code == "dongnai"
-        CSV.read(FPATH_DONG_NAI_AVERAGE_MOVEMENT_RANGE, DataFrame)
+        CSV.read(datadep"covid19model/movement-range-dong-nai.csv", DataFrame)
     elseif location_code == "longan"
-        CSV.read(FPATH_LONG_AN_AVERAGE_MOVEMENT_RANGE, DataFrame)
+        CSV.read(datadep"covid19model/movement-range-long-an.csv", DataFrame)
     else
         throw("Unsupported location code '$location_code'!")
     end
@@ -190,37 +140,37 @@ function get_experiment_movement_range_config(
         [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users]
     moving_average!(df, data_cols, 7)
 
-    return MobilityConfig(df, data_cols, :ds, temporal_lag)
+    return MobilityConfig(df, data_cols, :ds, Day(0))
 end
 
 function get_experiment_social_proximity_config(
     location_code::AbstractString,
     temporal_lag::Day,
 )
-    get_social_proximity_vn = function ()
-        df_population = CSV.read(FPATH_VIETNAM_PROVINCES_GADM_AND_GSO_POPULATION, DataFrame)
-        df_covid_timeseries_confirmed = CSV.read(
-            datadep"vnexpress/timeseries-vietnam-provinces-confirmed.csv",
+    df, data_col = if location_code == "hcm"
+        df = CSV.read(
+            datadep"covid19model/social-proximity-to-cases-vn-provinces.csv",
             DataFrame,
         )
-        df_social_connectedness =
-            CSV.read(FPATH_VIETNAM_INTER_PROVINCE_SOCIAL_CONNECTEDNESS, DataFrame)
-
-        return FacebookData.calculate_social_proximity_to_cases(
-            df_population,
-            df_covid_timeseries_confirmed,
-            df_social_connectedness,
-        )
-    end
-
-    df, data_col = if location_code == "hcm"
-        get_social_proximity_vn(), "Hồ Chí Minh city"
+        df, "Hồ Chí Minh city"
     elseif location_code == "binhduong"
-        get_social_proximity_vn(), "Bình Dương"
+        df = CSV.read(
+            datadep"covid19model/social-proximity-to-cases-vn-provinces.csv",
+            DataFrame,
+        )
+        df, "Bình Dương"
     elseif location_code == "dongnai"
-        get_social_proximity_vn(), "Đồng Nai"
+        df = CSV.read(
+            datadep"covid19model/social-proximity-to-cases-vn-provinces.csv",
+            DataFrame,
+        )
+        df, "Đồng Nai"
     elseif location_code == "longan"
-        get_social_proximity_vn(), "Long An"
+        df = CSV.read(
+            datadep"covid19model/social-proximity-to-cases-vn-provinces.csv",
+            DataFrame,
+        )
+        df, "Long An"
     else
         throw("Unsupported location code '$location_code'!")
     end
@@ -261,14 +211,14 @@ function setup_experiment(
         setup_model(
             CovidModelSEIRDFbMobility1,
             base_config,
-            get_experiment_movement_range_config(location_code, Day(2)),
+            get_experiment_movement_range_config(location_code),
         )
     elseif model_type == "fbmobility2.default"
         setup_model(
             CovidModelSEIRDFbMobility2,
             base_config,
-            get_experiment_movement_range_config(location_code, Day(2)),
-            get_experiment_social_proximity_config(location_code, Day(2)),
+            get_experiment_movement_range_config(location_code),
+            get_experiment_social_proximity_config(location_code, Day(14)),
         )
     else
         throw("Unsupported model type '$model_type'")
@@ -277,49 +227,54 @@ function setup_experiment(
     return model, train_dataset, test_dataset
 end
 
-function run_experiments(names::AbstractVector{<:AbstractString} = String[])
+function run_experiments(
+    names::AbstractVector{<:AbstractString} = String[],
+    snapshots_dir::AbstractString = SNAPSHOTS_DIR,
+)
     for name ∈ names
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         train_sessions = [
-            TrainSession("$timestamp.adam", ADAM(1e-3), 10000, 100),
-            TrainSession("$timestamp.lbfgs", LBFGS(), 1000, 100),
+            TrainSession("$timestamp.adam", ADAM(1e-3), 8000, 100),
+            TrainSession("$timestamp.bfgs", LBFGS(), 500, 100),
         ]
         eval_config = get_experiment_eval_config(name)
 
         model, train_dataset, test_dataset = setup_experiment(name)
         predict_fn = Predictor(model)
-        train_loss_fn = Loss(rmsle, predict_fn, train_dataset, eval_config.vars)
-        test_loss_fn = Loss(rmsle, predict_fn, test_dataset, eval_config.vars)
+        loss(ŷ, y) = sum(mean((log.(ŷ .+ 1) .- log.(y .+ 1)) .^ 2, dims = 2))
+        train_loss_fn = Loss(loss, predict_fn, train_dataset, eval_config.vars)
+        test_loss_fn = Loss(loss, predict_fn, test_dataset, eval_config.vars)
         p0 = Covid19ModelVN.initial_params(model)
 
         @info "Initial training loss: $(train_loss_fn(p0))"
         @info "Initial testing loss: $(test_loss_fn(p0))"
 
-        snapshots_dir = joinpath(SNAPSHOTS_DIR, name)
-        if !isdir(snapshots_dir)
-            mkpath(snapshots_dir)
+        experiment_dir = joinpath(snapshots_dir, name)
+        if !isdir(experiment_dir)
+            mkpath(experiment_dir)
         end
-        @info "Snapshot directory '$snapshots_dir'"
+        @info "Snapshot directory '$experiment_dir'"
 
         @info "Start training"
         sessions_params = train_model(
             train_sessions,
             train_loss_fn,
             p0,
-            snapshots_dir = snapshots_dir,
+            snapshots_dir = experiment_dir,
             test_loss_fn = test_loss_fn,
         )
 
         @info "Ploting evaluations"
         for (sess, params) in zip(train_sessions, sessions_params)
-            eval_res = evaluate_model(eval_config, params, predict_fn, train_dataset, test_dataset)
+            eval_res =
+                evaluate_model(eval_config, params, predict_fn, train_dataset, test_dataset)
 
-            csv_fpath = joinpath(snapshots_dir, "$(sess.name).evaluate.csv")
+            csv_fpath = joinpath(experiment_dir, "$(sess.name).evaluate.csv")
             if !isfile(csv_fpath)
                 CSV.write(csv_fpath, eval_res.df_errors)
             end
 
-            fig_fpath = joinpath(snapshots_dir, "$(sess.name).evaluate.png")
+            fig_fpath = joinpath(experiment_dir, "$(sess.name).evaluate.png")
             if !isfile(fig_fpath)
                 savefig(eval_res.fig_forecasts, fig_fpath)
             end
@@ -331,10 +286,10 @@ cachedata()
 
 # run_experiments(
 #     vec([
-#         "$model.$loc" for
-#         model ∈ ["baseline.default", "fbmobility1.default"],
+#         "$model.$loc" for model ∈ ["baseline.default", "fbmobility1.default"],
 #         loc ∈ ["vietnam"]
 #     ]),
+#     "snapshots/run01",
 # )
 
 # run_experiments(
@@ -343,4 +298,5 @@ cachedata()
 #         model ∈ ["baseline.default", "fbmobility1.default", "fbmobility2.default"],
 #         loc ∈ ["hcm", "binhduong", "dongnai", "longan"]
 #     ]),
+#     "snapshots/run01",
 # )
