@@ -36,22 +36,22 @@ function build_datasets_main(dir::AbstractString = "")
         JHUCSSEData.CountyCovidTimeseriesFile(
             joinpath(dir, "timeseries-covid19-combined-los-angeles-CA.csv"),
             "California",
-            "Los Angeles"
+            "Los Angeles",
         ),
         JHUCSSEData.CountyCovidTimeseriesFile(
             joinpath(dir, "timeseries-covid19-combined-cook-county-IL.csv"),
             "Illinois",
-            "Cook"
+            "Cook",
         ),
         JHUCSSEData.CountyCovidTimeseriesFile(
             joinpath(dir, "timeseries-covid19-combined-harris-county-TX.csv"),
             "Texas",
-            "Harris"
+            "Harris",
         ),
         JHUCSSEData.CountyCovidTimeseriesFile(
             joinpath(dir, "timeseries-covid19-combined-maricopa-county-AZ.csv"),
             "Arizona",
-            "Maricopa"
+            "Maricopa",
         ),
     ])
 
