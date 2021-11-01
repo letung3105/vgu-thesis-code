@@ -24,7 +24,7 @@ function benchmarks_compute_loss_gradient_with_different_sensealg(
     abstol = 1e-6,
     reltol = 1e-6,
 )
-    model, train_dataset, _ = setup_experiment_vietnam(exp_name)
+    model, train_dataset, _ = setup_experiment(exp_name)
     p0 = Covid19ModelVN.initial_params(model)
 
     @info "Solver = $solver | abstol = $abstol | reltol = $reltol"
