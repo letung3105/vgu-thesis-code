@@ -188,7 +188,7 @@ Calculate the moving average of the given list of numbers
 + `n`: Subset size to average over
 """
 moving_average(xs::AbstractVector{<:Real}, n::Integer) =
-    [mean(@view xs[(i >= n ? i - n + 1 : 1):i]) for i = 1:length(xs)]
+    [mean(@view xs[(i >= n ? i - n + 1 : 1):i]) for i ∈ 1:length(xs)]
 
 """
 Calculate the moving average of all the `cols` in `df`
