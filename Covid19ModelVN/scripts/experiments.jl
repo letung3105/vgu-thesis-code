@@ -282,8 +282,6 @@ function run_experiments(
     end
 end
 
-cachedata()
-
 # run_experiments(
 #     vec([
 #         "$model.$loc" for model ∈ ["baseline.default", "fbmobility1.default"],
