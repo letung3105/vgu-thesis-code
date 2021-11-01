@@ -269,3 +269,49 @@ function get_us_county_population(
     df_deaths = dropmissing(df_deaths, "Admin2", view = true)
     return first(filter_county(df_deaths).Population)
 end
+
+function get_us_counties_timeseries_confirmed(df_confirmed_total::AbstractDataFrame)
+    get_new_count(xs::AbstractVector{<:Real}) =
+        [i == 1 ? xs[i] : xs[i] - xs[i-1] for i ∈ 1:length(xs)]
+    df = dropmissing(df_confirmed_total, :FIPS, view = true)
+    df = select(
+        df,
+        Not([
+            "UID",
+            "iso2",
+            "iso3",
+            "code3",
+            "Admin2",
+            "Country_Region",
+            "Province_State",
+            "Lat",
+            "Long_",
+            "FIPS",
+        ]),
+        copycols = false,
+    )
+    df = stack(df, Not(:Combined_Key), variable_name = :date, view = true)
+    df = identity.(unstack(df, :date, :Combined_Key, :value))
+    transform!(
+        df,
+        :date => x -> Date.(x, dateformat"mm/dd/yy"),
+        names(df, Not(:date)) .=> get_new_count,
+        renamecols = false,
+    )
+    return df
+end
+
+"""
+Read the county's population from JHU-CSSE deaths timeseries
+
+# Arguments
+
++ `df_deaths`: the dataframe that contains the deaths count
++ `state_name`: the name of the state in which the county is located
++ `county_name`: the name of the county whose data is extracted
+"""
+function get_us_counties_population(df_deaths::AbstractDataFrame)
+    df = dropmissing(df_deaths, :FIPS, view = true)
+    df = select(df, :FIPS => :ID_1, :Combined_Key => :NAME_1, :Population => :AVGPOPULATION)
+    return df
+end
