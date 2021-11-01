@@ -48,7 +48,10 @@ function calculate_social_proximity_to_cases(
 )
     # get the population row with the given location id
     getloc(id::AbstractString) =
-        subset(df_population, :ID_1 => x -> x .== parse(Int, id), view = true)
+        subset(df_population, :ID_1 => x -> x .== parse(Int, id[4:end]), view = true)
+    getloc(id::Float64) = subset(df_population, :ID_1 => x -> x .== id, view = true)
+
+    locs_with_confirmed = Set(names(df_covid_timeseries_confirmed))
 
     df_spc = DataFrame()
     df_spc.date = df_covid_timeseries_confirmed.date
@@ -56,7 +59,7 @@ function calculate_social_proximity_to_cases(
     # go through each dataframe that is grouped by the first location
     for (key, df_group) ∈ pairs(groupby(df_social_connectedness, :user_loc))
         # check if population data for the first location is available, skip if not
-        first_loc = getloc(key.user_loc[4:end])
+        first_loc = getloc(key.user_loc)
         first_loc = isempty(first_loc) ? continue : first(first_loc)
 
         sum_sci = sum(df_group.scaled_sci)
@@ -64,10 +67,10 @@ function calculate_social_proximity_to_cases(
         # go through each location that is connected with the first location
         for row ∈ eachrow(df_group)
             # check if population data for the second location is available, skip if not
-            second_loc = getloc(row.fr_loc[4:end])
+            second_loc = getloc(row.fr_loc)
             second_loc = isempty(second_loc) ? continue : first(second_loc)
             # only calculate SPC for location that has confirmed cases
-            if second_loc.NAME_1 ∈ names(df_covid_timeseries_confirmed)
+            if second_loc.NAME_1 ∈ locs_with_confirmed
                 df_spc[!, first_loc.NAME_1] .+=
                     (
                         df_covid_timeseries_confirmed[!, second_loc.NAME_1] ./
