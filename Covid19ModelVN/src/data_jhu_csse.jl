@@ -88,6 +88,15 @@ function combine_country_level_timeseries(
 end
 
 """
++ `path`: Path to the file
++ `country`: ISO-3166 code of the country whose Covid-19 timeseries data is contained in `path`
+"""
+struct CountryCovidTimeseriesFile
+    path::AbstractString
+    country::AbstractString
+end
+
+"""
 Read and combine 3 separated timeseries from JHU-CSSE into 1 single dataframe for a specific country,
 then save the resulting dataframe into a CSV file.
 
@@ -102,37 +111,48 @@ to the corresponding path at the same index.
 + `recreate`: the existing file will be ovewritten if this is true
 """
 function save_country_level_timeseries(
-    fpath_outputs::AbstractVector{<:AbstractString},
-    country_names::AbstractVector{<:AbstractString};
+    files::AbstractVector{CountryCovidTimeseriesFile};
     fpath_confirmed::AbstractString = datadep"jhu-csse/time_series_covid19_confirmed_global.csv",
     fpath_recovered::AbstractString = datadep"jhu-csse/time_series_covid19_recovered_global.csv",
     fpath_deaths::AbstractString = datadep"jhu-csse/time_series_covid19_deaths_global.csv",
     recreate::Bool = false,
 )
-    if all(isfile, fpath_outputs) && !recreate
+    if all(f -> isfile(f.path), files) && !recreate
         return nothing
     end
 
+    @info "Reading '$fpath_confirmed', '$fpath_recovered', and '$fpath_deaths'"
     df_confirmed = CSV.read(fpath_confirmed, DataFrame)
     df_recovered = CSV.read(fpath_recovered, DataFrame)
     df_deaths = CSV.read(fpath_deaths, DataFrame)
 
-    for (fpath, country_name) ∈ zip(fpath_outputs, country_names)
-        if isfile(fpath) && !recreate
+    for f ∈ files
+        if isfile(f.path) && !recreate
             continue
         end
 
-        @info "Generating '$fpath"
+        @info "Generating '$(f.path)'"
         df_combined = combine_country_level_timeseries(
             df_confirmed,
             df_recovered,
             df_deaths,
-            country_name,
+            f.country,
         )
-        save_dataframe(df_combined, fpath)
+        save_dataframe(df_combined, f.path)
     end
 
     return nothing
+end
+
+"""
++ `path`: Path to the file
++ `state`: Name of state where `county` is located
++ `county`: The county whose Covid-19 timeseries data is contained in `path`
+"""
+struct CountyCovidTimeseriesFile
+    path::AbstractString
+    state::AbstractString
+    county::AbstractString
 end
 
 """
@@ -151,33 +171,28 @@ to the corresponding path at the same index.
 + `recreate`: the existing file will be ovewritten if this is true
 """
 function save_us_county_level_timeseries(
-    fpath_outputs::AbstractVector{<:AbstractString},
-    state_names::AbstractVector{<:AbstractString},
-    county_names::AbstractVector{<:AbstractString};
+    files::AbstractVector{CountyCovidTimeseriesFile};
     fpath_confirmed::AbstractString = datadep"jhu-csse/time_series_covid19_confirmed_US.csv",
     fpath_deaths::AbstractString = datadep"jhu-csse/time_series_covid19_deaths_US.csv",
     recreate::Bool = false,
 )
-    if all(isfile, fpath_outputs) && !recreate
+    if all(f -> isfile(f.path), files) && !recreate
         return nothing
     end
 
+    @info "Reading '$fpath_confirmed' and '$fpath_deaths'"
     df_confirmed = CSV.read(fpath_confirmed, DataFrame)
     df_deaths = CSV.read(fpath_deaths, DataFrame)
 
-    for (fpath, state_name, county_name) ∈ zip(fpath_outputs, state_names, county_names)
-        if isfile(fpath) && !recreate
+    for f ∈ files
+        if isfile(f.path) && !recreate
             continue
         end
 
-        @info "Generating '$fpath"
-        df_combined = combine_us_county_level_timeseries(
-            df_confirmed,
-            df_deaths,
-            state_name,
-            county_name,
-        )
-        save_dataframe(df_combined, fpath)
+        @info "Generating '$(f.path)'"
+        df_combined =
+            combine_us_county_level_timeseries(df_confirmed, df_deaths, f.state, f.county)
+        save_dataframe(df_combined, f.path)
     end
 
     return nothing
@@ -314,4 +329,31 @@ function get_us_counties_population(df_deaths::AbstractDataFrame)
     df = dropmissing(df_deaths, :FIPS, view = true)
     df = select(df, :FIPS => :ID_1, :Combined_Key => :NAME_1, :Population => :AVGPOPULATION)
     return df
+end
+
+"""
+Extract counties population data from JHU deaths time series
+
+# Arguments
++ `fpath_output`: the output CSV file path
++ `fpath_deaths`: path to the time series for US counties deaths
++ `recreate`: the existing file will be ovewritten if this is true
+"""
+function save_us_counties_population(
+    fpath_output::AbstractString,
+    fpath_deaths::AbstractString = datadep"jhu-csse/time_series_covid19_deaths_US.csv",
+    recreate::Bool = false,
+)
+    if isfile(fpath_output) && !recreate
+        return nothing
+    end
+
+    @info "Reading '$fpath_deaths'"
+    df_deaths = CSV.read(fpath_deaths, DataFrame)
+
+    @info "Generating '$fpath_output'"
+    df_population = get_us_counties_population(df_deaths)
+    save_dataframe(df_population, fpath_output)
+
+    return nothing
 end

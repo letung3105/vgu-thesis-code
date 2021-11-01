@@ -97,12 +97,15 @@ function save_vietnam_province_level_gadm_and_gso_population(
         return nothing
     end
 
-    @info "Generating '$fpath_output"
 
+    @info "Reading '$fpath_gadm' and '$fpath_population'"
     df_gadm = GeoDataFrames.read(fpath_gadm, 1)
     df_population = CSV.read(fpath_population, DataFrame)
+
+    @info "Generating '$fpath_output'"
     df_combined =
         combine_vietnam_province_level_gadm_and_gso_population(df_gadm, df_population)
     save_dataframe(df_combined, fpath_output)
+
     return nothing
 end

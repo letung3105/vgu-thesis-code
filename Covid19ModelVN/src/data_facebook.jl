@@ -137,43 +137,49 @@ function region_average_movement_range(
 end
 
 """
++ `path`: Path to the file
++ `country`: ISO-3166 code of the country whose average movement range is contained in `path`
++ `subdivision`: GADM or FIPS code of the subdivion of `country`
+"""
+struct RegionMovementRangeFile
+    path::AbstractString
+    country::AbstractString
+    subdivision::Union{<:Integer,Nothing}
+end
+
+"""
 Save a subset of the movement range maps dataset for a specific region to CSV files.
 
 # Arguments
 
-+ `fpath_outputs`: Paths to the output files
-+ `country_codes`: List of ISO-3166 codes of the countries whose average movement range while be calculated
-+ `subdivision_ids`: List of GADM or FIPS codes of the subdivion of the countries in `country_codes`
++ `files`: List of file configurations
 + `fpath_movement_range`: Path to the movement range dataset
 + `recreate`: Whether to ovewrite an existing file
 """
 function save_region_average_movement_range(
-    fpath_outputs::AbstractVector{<:AbstractString},
-    country_codes::AbstractVector{<:AbstractString},
-    subdivision_ids::AbstractVector{<:Union{Nothing,<:Integer}};
+    files::AbstractVector{RegionMovementRangeFile};
     fpath_movement_range::AbstractString = datadep"facebook/movement-range-2021-10-09.txt",
     recreate::Bool = false,
 )
-    if all(isfile, fpath_outputs) && !recreate
+    if all(f -> isfile(f.path), files) && !recreate
         return nothing
     end
 
+    @info "Reading '$fpath_movement_range'"
     df_movement_range = FacebookData.read_movement_range(fpath_movement_range)
 
-    for (fpath, country_code, subdivision_id) ∈
-        zip(fpath_outputs, country_codes, subdivision_ids)
-
-        if isfile(fpath) && !recreate
+    for f ∈ files
+        if isfile(f.path) && !recreate
             continue
         end
 
-        @info "Generating '$fpath"
+        @info "Generating '$(f.path)'"
         df_region_movement_range = FacebookData.region_average_movement_range(
             df_movement_range,
-            country_code,
-            subdivision_id,
+            f.country,
+            f.subdivision,
         )
-        save_dataframe(df_region_movement_range, fpath)
+        save_dataframe(df_region_movement_range, f.path)
     end
 
     return nothing
@@ -211,36 +217,44 @@ inter_province_social_connectedness(
 )
 
 """
++ `path`: Path to the file
++ `country`: ISO-3166 code of the country whose average social connectedness is contained in `path`
+"""
+struct InterProvinceSocialConnectednessFile
+    path::AbstractString
+    country::AbstractString
+end
+
+"""
 Save a subset of the social connectedness index dataset for specific countries to CSV files.
 
 # Arguments
 
-+ `fpath_outputs`: Paths to the output files
-+ `country_codes`: List of ISO-3166 codes of the countries whose average movement range while be calculated
++ `files`: List of file configurations
 + `fpath_social_connectedness`: Path to the social connectness dataset
 + `recreate`: Whether to ovewrite an existing file
 """
 function save_inter_province_social_connectedness(
-    fpath_outputs::AbstractVector{<:AbstractString},
-    country_codes::AbstractVector{<:AbstractString};
+    files::AbstractVector{InterProvinceSocialConnectednessFile};
     fpath_social_connectedness::AbstractString = datadep"facebook/gadm1_nuts2_gadm1_nuts2.tsv",
     recreate::Bool = false,
 )
-    if all(isfile, fpath_outputs) && !recreate
+    if all(f -> isfile(f.path), files) && !recreate
         return nothing
     end
 
+    @info "Reading '$fpath_social_connectedness'"
     df_social_connectedness = read_social_connectedness(fpath_social_connectedness)
 
-    for (fpath, country_code) ∈ zip(fpath_outputs, country_codes)
-        if isfile(fpath) && !recreate
+    for f ∈ files
+        if isfile(f.path) && !recreate
             continue
         end
 
-        @info "Generating '$fpath"
+        @info "Generating '$(f.path)'"
         df_country_social_connectedness =
-            inter_province_social_connectedness(df_social_connectedness, country_code)
-        save_dataframe(df_country_social_connectedness, fpath)
+            inter_province_social_connectedness(df_social_connectedness, f.country)
+        save_dataframe(df_country_social_connectedness, f.path)
     end
 
     return nothing
