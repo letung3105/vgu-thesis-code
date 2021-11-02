@@ -7,7 +7,7 @@ function __init__()
         DataDep(
             "covid19model",
             """
-            Dataset: Population and Social Proximty to Cases
+            Dataset: Datsets for the experiments
             """,
             [
                 "https://github.com/letung3105/coviddata/raw/master/covid19model/average-population-vn-provinces.csv",
@@ -19,7 +19,17 @@ function __init__()
                 "https://github.com/letung3105/coviddata/raw/master/covid19model/movement-range-binh-duong.csv",
                 "https://github.com/letung3105/coviddata/raw/master/covid19model/movement-range-dong-nai.csv",
                 "https://github.com/letung3105/coviddata/raw/master/covid19model/movement-range-long-an.csv",
+                "https://github.com/letung3105/coviddata/raw/master/covid19model/movement-range-united-states.csv",
+                "https://github.com/letung3105/coviddata/raw/master/covid19model/movement-range-los-angeles-CA.csv",
+                "https://github.com/letung3105/coviddata/raw/master/covid19model/movement-range-cook-county-IL.csv",
+                "https://github.com/letung3105/coviddata/raw/master/covid19model/movement-range-harris-county-TX.csv",
+                "https://github.com/letung3105/coviddata/raw/master/covid19model/movement-range-maricopa-county-AZ.csv",
                 "https://github.com/letung3105/coviddata/raw/master/covid19model/timeseries-covid19-combined-vietnam.csv",
+                "https://github.com/letung3105/coviddata/raw/master/covid19model/timeseries-covid19-combined-united-states.csv",
+                "https://github.com/letung3105/coviddata/raw/master/covid19model/timeseries-covid19-combined-los-angeles-CA.csv",
+                "https://github.com/letung3105/coviddata/raw/master/covid19model/timeseries-covid19-combined-cook-county-IL.csv",
+                "https://github.com/letung3105/coviddata/raw/master/covid19model/timeseries-covid19-combined-harris-county-TX.csv",
+                "https://github.com/letung3105/coviddata/raw/master/covid19model/timeseries-covid19-combined-maricopa-county-AZ.csv",
             ],
         ),
     )

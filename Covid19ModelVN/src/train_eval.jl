@@ -340,7 +340,6 @@ function train_model(
                 rethrow(e)
             end
             @error e
-            continue
         end
 
         params = cb.state.minimizer

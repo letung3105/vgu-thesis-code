@@ -12,6 +12,7 @@ function __init__()
             """,
             [
                 "https://github.com/letung3105/coviddata/raw/master/facebook/movement-range-data-2021-10-09.zip"
+                "https://github.com/letung3105/coviddata/raw/master/facebook/movement-range-data-2020-03-01-2020-12-31.zip"
                 "https://github.com/letung3105/coviddata/raw/master/facebook/gadm1_nuts2-gadm1_nuts2-fb-social-connectedness-index-october-2021.zip"
                 "https://github.com/letung3105/coviddata/raw/master/facebook/us-counties-us-counties-fb-social-connectedness-index-october-2021.zip"
             ],
