@@ -108,6 +108,36 @@ function build_datasets_main(dir::AbstractString = "")
             4013,
         ),
     ])
+    FacebookData.save_region_average_movement_range(
+        [
+            FacebookData.RegionMovementRangeFile(
+                joinpath(dir, "movement-range-united-states-2020.csv"),
+                "USA",
+                nothing,
+            ),
+            FacebookData.RegionMovementRangeFile(
+                joinpath(dir, "movement-range-los-angeles-CA-2020.csv"),
+                "USA",
+                6037,
+            ),
+            FacebookData.RegionMovementRangeFile(
+                joinpath(dir, "movement-range-cook-county-IL-2020.csv"),
+                "USA",
+                17031,
+            ),
+            FacebookData.RegionMovementRangeFile(
+                joinpath(dir, "movement-range-harris-county-TX-2020.csv"),
+                "USA",
+                13145,
+            ),
+            FacebookData.RegionMovementRangeFile(
+                joinpath(dir, "movement-range-maricopa-county-AZ-2020.csv"),
+                "USA",
+                4013,
+            ),
+        ],
+        fpath_movement_range = datadep"facebook/movement-range-data-2020-03-01--2020-12-31.txt",
+    )
 
     # SOCIAL PROXIMITY TO CASES INDEX
     let
