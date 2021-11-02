@@ -1,4 +1,4 @@
-using Dates, Plots, CSV, DataDeps, DataFrames, DiffEqFlux, Covid19ModelVN
+using Dates, Statistics, Plots, CSV, DataDeps, DataFrames, DiffEqFlux, Covid19ModelVN
 
 import Covid19ModelVN.JHUCSSEData,
     Covid19ModelVN.FacebookData,
@@ -33,6 +33,31 @@ get_experiment_covid_timeseries(location_code::AbstractString) =
         VnCdcData.read_timeseries_confirmed_and_deaths(datadep"vncdc/DongNai.json")
     elseif location_code == "longan"
         VnCdcData.read_timeseries_confirmed_and_deaths(datadep"vncdc/LongAn.json")
+    elseif location_code == "unitedstates"
+        CSV.read(
+            datadep"covid19model/timeseries-covid19-combined-united-states.csv",
+            DataFrame,
+        )
+    elseif location_code == "losangeles_ca"
+        CSV.read(
+            datadep"covid19model/timeseries-covid19-combined-los-angeles-CA.csv",
+            DataFrame,
+        )
+    elseif location_code == "cook_il"
+        CSV.read(
+            datadep"covid19model/timeseries-covid19-combined-cook-county-IL.csv",
+            DataFrame,
+        )
+    elseif location_code == "harris_tx"
+        CSV.read(
+            datadep"covid19model/timeseries-covid19-combined-harris-county-TX.csv",
+            DataFrame,
+        )
+    elseif location_code == "maricopa_az"
+        CSV.read(
+            datadep"covid19model/timeseries-covid19-combined-maricopa-county-AZ.csv",
+            DataFrame,
+        )
     else
         throw("Unsupported location code '$location_code'!")
     end
@@ -56,6 +81,29 @@ get_experiment_population(location_code::AbstractString) =
         df_population =
             CSV.read(datadep"covid19model/average-population-vn-provinces.csv", DataFrame)
         first(filter(x -> x.NAME_1 == "Long An", df_population).AVGPOPULATION)
+    elseif location_code == "unitedstates"
+        332_889_844
+    elseif location_code == "losangeles_ca"
+        df_population =
+            CSV.read(datadep"covid19model/average-population-us-counties.csv", DataFrame)
+        first(
+            filter(
+                x -> x.NAME_1 == "Los Angeles, California, US",
+                df_population,
+            ).AVGPOPULATION,
+        )
+    elseif location_code == "cook_il"
+        df_population =
+            CSV.read(datadep"covid19model/average-population-us-counties.csv", DataFrame)
+        first(filter(x -> x.NAME_1 == "Cook, Illinois, US", df_population).AVGPOPULATION)
+    elseif location_code == "harris_tx"
+        df_population =
+            CSV.read(datadep"covid19model/average-population-us-counties.csv", DataFrame)
+        first(filter(x -> x.NAME_1 == "Harris, Texas, US", df_population).AVGPOPULATION)
+    elseif location_code == "maricopa_az"
+        df_population =
+            CSV.read(datadep"covid19model/average-population-us-counties.csv", DataFrame)
+        first(filter(x -> x.NAME_1 == "Maricopa, Arizona, US", df_population).AVGPOPULATION)
     else
         throw("Unsupported location code '$location_code'!")
     end
@@ -132,6 +180,16 @@ function get_experiment_movement_range_config(location_code::AbstractString)
         CSV.read(datadep"covid19model/movement-range-dong-nai.csv", DataFrame)
     elseif location_code == "longan"
         CSV.read(datadep"covid19model/movement-range-long-an.csv", DataFrame)
+    elseif location_code == "unitedstates"
+        CSV.read(datadep"covid19model/movement-range-united-states-2020.csv", DataFrame)
+    elseif location_code == "losangeles_ca"
+        CSV.read(datadep"covid19model/movement-range-los-angeles-CA-2020.csv", DataFrame)
+    elseif location_code == "cook_il"
+        CSV.read(datadep"covid19model/movement-range-cook-county-IL-2020.csv", DataFrame)
+    elseif location_code == "harris_tx"
+        CSV.read(datadep"covid19model/movement-range-harris-county-TX-2020.csv", DataFrame)
+    elseif location_code == "maricopa_az"
+        CSV.read(datadep"covid19model/movement-range-maricopa-county-AZ-2020.csv", DataFrame)
     else
         throw("Unsupported location code '$location_code'!")
     end
@@ -171,6 +229,30 @@ function get_experiment_social_proximity_config(
             DataFrame,
         )
         df, "Long An"
+    elseif location_code == "losangeles_ca"
+        df = CSV.read(
+            datadep"covid19model/social-proximity-to-cases-us-counties.csv",
+            DataFrame,
+        )
+        df, "Los Angeles, California, US"
+    elseif location_code == "cook_il"
+        df = CSV.read(
+            datadep"covid19model/social-proximity-to-cases-us-counties.csv",
+            DataFrame,
+        )
+        df, "Cook, Illinois, US"
+    elseif location_code == "harris_tx"
+        df = CSV.read(
+            datadep"covid19model/social-proximity-to-cases-us-counties.csv",
+            DataFrame,
+        )
+        df, "Harris, Texas, US"
+    elseif location_code == "maricopa_az"
+        df = CSV.read(
+            datadep"covid19model/social-proximity-to-cases-us-counties.csv",
+            DataFrame,
+        )
+        df, "Maricopa, Arizona, US"
     else
         throw("Unsupported location code '$location_code'!")
     end
@@ -183,12 +265,16 @@ end
 
 function get_experiment_eval_config(name::AbstractString)
     _, location_code = rsplit(name, ".", limit = 2)
-    vars, labels = if location_code == "vietnam"
+    vars, labels = if location_code == "vietnam" || location_code == "unitedstates"
         3:6, ["infective", "recovered", "deaths", "total confirmed"]
     elseif location_code == "hcm" ||
            location_code == "binhduong" ||
            location_code == "dongnai" ||
-           location_code == "longan"
+           location_code == "longan" ||
+           location_code == "losangeles_ca" ||
+           location_code == "cook_il" ||
+           location_code == "harris_tx" ||
+           location_code == "maricopa_az"
         5:6, ["deaths", "total confirmed"]
     else
         throw("Unsupported location code '$location_code'!")
@@ -235,15 +321,18 @@ function run_experiments(
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         train_sessions = [
             TrainSession("$timestamp.adam", ADAM(1e-3), 8000, 100),
-            TrainSession("$timestamp.bfgs", LBFGS(), 500, 100),
+            TrainSession("$timestamp.bfgs", BFGS(initial_stepnorm = 1e-2), 1000, 100),
         ]
         eval_config = get_experiment_eval_config(name)
 
         model, train_dataset, test_dataset = setup_experiment(name)
+
+        weights = exp.(cumsum(ones(size(train_dataset.data, 2))) .* 0.1)
+        loss(ŷ, y) = sum((log.(ŷ .+ 1) .- log.(y .+ 1)) .^ 2 .* weights')
+
         predict_fn = Predictor(model)
-        loss(ŷ, y) = sum(mean((log.(ŷ .+ 1) .- log.(y .+ 1)) .^ 2, dims = 2))
         train_loss_fn = Loss(loss, predict_fn, train_dataset, eval_config.vars)
-        test_loss_fn = Loss(loss, predict_fn, test_dataset, eval_config.vars)
+        test_loss_fn = Loss(rmse, predict_fn, test_dataset, eval_config.vars)
         p0 = Covid19ModelVN.initial_params(model)
 
         @info "Initial training loss: $(train_loss_fn(p0))"
@@ -284,17 +373,34 @@ end
 
 # run_experiments(
 #     vec([
-#         "$model.$loc" for model ∈ ["baseline.default", "fbmobility1.default"],
-#         loc ∈ ["vietnam"]
+#         "$model.$loc" for model ∈ ["baseline.default", "fbmobility1.default"], loc ∈ [
+#             "vietnam",
+#             "hcm",
+#             "binhduong",
+#             "dongnai",
+#             "longan",
+#             "unitedstates",
+#             "losangeles_ca",
+#             "cook_il",
+#             "harris_tx",
+#             "maricopa_az",
+#         ]
 #     ]),
-#     "snapshots/run01",
+#     "snapshots/run02",
 # )
 
 # run_experiments(
 #     vec([
-#         "$model.$loc" for
-#         model ∈ ["baseline.default", "fbmobility1.default", "fbmobility2.default"],
-#         loc ∈ ["hcm", "binhduong", "dongnai", "longan"]
+#         "fbmobility2.default.$loc" for loc ∈ [
+#             "hcm",
+#             "binhduong",
+#             "dongnai",
+#             "longan",
+#             "losangeles_ca",
+#             "cook_il",
+#             "harris_tx",
+#             "maricopa_az",
+#         ]
 #     ]),
-#     "snapshots/run01",
+#     "snapshots/run02",
 # )
