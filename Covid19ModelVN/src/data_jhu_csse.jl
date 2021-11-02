@@ -255,7 +255,8 @@ function combine_us_county_level_timeseries(
         stack_timeseries(df_deaths, :deaths_total),
         on = :date,
     )
-    df_combined[!, :date] .= Date.(df_combined[!, :date], dateformat"mm/dd/yyyy")
+    df_combined[!, :date] .=
+        Date.(df_combined[!, :date], dateformat"mm/dd/yyyy") .+ Year(2000)
 
     return df_combined
 end
@@ -309,7 +310,7 @@ function get_us_counties_timeseries_confirmed(df_confirmed_total::AbstractDataFr
     df = identity.(unstack(df, :date, :Combined_Key, :value))
     transform!(
         df,
-        :date => x -> Date.(x, dateformat"mm/dd/yy"),
+        :date => x -> Date.(x, dateformat"mm/dd/yy") .+ Year(2000),
         names(df, Not(:date)) .=> get_new_count,
         renamecols = false,
     )
