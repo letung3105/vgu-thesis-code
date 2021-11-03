@@ -1,11 +1,12 @@
-export initial_params,
-    AbstractCovidModel,
+export AbstractCovidModel,
     CovidModelSEIRDBaseline,
     CovidModelSEIRDFbMobility1,
     CovidModelSEIRDFbMobility2,
-    setup_model,
+    initial_params,
+    effective_reproduction_number,
     DataConfig,
-    MobilityConfig
+    MobilityConfig,
+    setup_model
 
 using OrdinaryDiffEq, DiffEqFlux
 
@@ -70,6 +71,34 @@ Get the initial set of parameters of the baselien SEIRD model with Facebook move
 initial_params(model::CovidModelSEIRDBaseline) =
     [1 / 2; 1 / 4; 0.025; DiffEqFlux.initial_params(model.β_ann)]
 
+function effective_reproduction_number(
+    model::CovidModelSEIRDBaseline,
+    params::AbstractVector{<:Real},
+    tspan::Tuple{<:Real,<:Real},
+    saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen},
+)
+    problem = remake(model.problem, p = params, tspan = tspan)
+    sol = solve(
+        problem,
+        Tsit5(),
+        saveat = saveat,
+        solver = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
+        abstol = 1e-6,
+        reltol = 1e-6,
+    )
+
+    states = Array(sol)
+    S = @view states[1, :]
+    I = @view states[3, :]
+    N = @view states[7, :]
+
+    β_ann_input = [(S ./ N) (I ./ N)]'
+    βt = model.β_ann(β_ann_input, @view params[4:end])
+    Rt = βt ./ params[1]
+
+    return Rt
+end
+
 """
 A struct for containing the SEIRD model with Facebook movement range
 
@@ -81,6 +110,7 @@ A struct for containing the SEIRD model with Facebook movement range
 struct CovidModelSEIRDFbMobility1 <: AbstractCovidModel
     β_ann::FastChain
     problem::ODEProblem
+    movement_range_data::AbstractMatrix{<:Real}
 end
 
 """
@@ -127,7 +157,7 @@ function CovidModelSEIRDFbMobility1(
         return nothing
     end
     prob = ODEProblem(dudt!, u0, tspan)
-    return CovidModelSEIRDFbMobility1(β_ann, prob)
+    return CovidModelSEIRDFbMobility1(β_ann, prob, movement_range_data)
 end
 
 """
@@ -135,6 +165,35 @@ Get the initial set of parameters of the SEIRD model with Facebook movement rang
 """
 initial_params(model::CovidModelSEIRDFbMobility1) =
     [1 / 2; 1 / 4; 0.025; DiffEqFlux.initial_params(model.β_ann)]
+
+function effective_reproduction_number(
+    model::CovidModelSEIRDFbMobility1,
+    params::AbstractVector{<:Real},
+    tspan::Tuple{<:Real,<:Real},
+    saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen},
+)
+    problem = remake(model.problem, p = params, tspan = tspan)
+    sol = solve(
+        problem,
+        Tsit5(),
+        saveat = saveat,
+        solver = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
+        abstol = 1e-6,
+        reltol = 1e-6,
+    )
+
+    states = Array(sol)
+    S = @view states[1, :]
+    I = @view states[3, :]
+    N = @view states[7, :]
+    mobility = model.movement_range_data[Int.(saveat) .+ 1, :]
+
+    β_ann_input = [(S ./ N) (I ./ N) mobility]'
+    βt = model.β_ann(β_ann_input, @view params[4:end])
+    Rt = βt ./ params[1]
+
+    return Rt
+end
 
 """
 A struct for containing the SEIRD model with Facebook movement range
@@ -147,6 +206,8 @@ A struct for containing the SEIRD model with Facebook movement range
 struct CovidModelSEIRDFbMobility2 <: AbstractCovidModel
     β_ann::FastChain
     problem::ODEProblem
+    movement_range_data::AbstractMatrix{<:Real}
+    social_proximity_data::AbstractMatrix{<:Real}
 end
 
 """
@@ -164,7 +225,7 @@ function CovidModelSEIRDFbMobility2(
     u0::AbstractVector{<:Real},
     tspan::Tuple{<:Real,<:Real},
     movement_range_data::AbstractMatrix{<:Real},
-    spc_data::AbstractMatrix{<:Real},
+    social_proximity_data::AbstractMatrix{<:Real},
 )
     # small neural network and can be trained faster on CPU
     β_ann =
@@ -183,7 +244,7 @@ function CovidModelSEIRDFbMobility2(
             # daily mobility
             time_idx = Int(floor(t + 1))
             mobility = movement_range_data[time_idx, :]
-            spc = spc_data[time_idx]
+            spc = social_proximity_data[time_idx]
             # infection rate depends on time, susceptible, and infected
             β = first(β_ann([S / N; I / N; spc; mobility...], @view p[4:end]))
 
@@ -198,7 +259,12 @@ function CovidModelSEIRDFbMobility2(
         return nothing
     end
     prob = ODEProblem(dudt!, u0, tspan)
-    return CovidModelSEIRDFbMobility2(β_ann, prob)
+    return CovidModelSEIRDFbMobility2(
+        β_ann,
+        prob,
+        movement_range_data,
+        social_proximity_data,
+    )
 end
 
 """
@@ -206,6 +272,36 @@ Get the initial set of parameters of the SEIRD model with Facebook movement rang
 """
 initial_params(model::CovidModelSEIRDFbMobility2) =
     [1 / 2; 1 / 4; 0.025; DiffEqFlux.initial_params(model.β_ann)]
+
+function effective_reproduction_number(
+    model::CovidModelSEIRDFbMobility2,
+    params::AbstractVector{<:Real},
+    tspan::Tuple{<:Real,<:Real},
+    saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen},
+)
+    problem = remake(model.problem, p = params, tspan = tspan)
+    sol = solve(
+        problem,
+        Tsit5(),
+        saveat = saveat,
+        solver = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
+        abstol = 1e-6,
+        reltol = 1e-6,
+    )
+
+    states = Array(sol)
+    S = @view states[1, :]
+    I = @view states[3, :]
+    N = @view states[7, :]
+    mobility = model.movement_range_data[Int.(saveat) .+ 1, :]
+    spc = model.social_proximity_data[Int.(saveat) .+ 1, :]
+
+    β_ann_input = [(S ./ N) (I ./ N) mobility spc]'
+    βt = model.β_ann(β_ann_input, @view params[4:end])
+    Rt = βt ./ params[1]
+
+    return Rt
+end
 
 struct DataConfig
     df::AbstractDataFrame
