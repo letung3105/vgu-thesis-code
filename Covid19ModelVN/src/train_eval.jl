@@ -215,11 +215,15 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
         cb.config.test_loss_fn(params)
     end
 
-    showvalues = if isnothing(test_loss)
-        [:train_loss => train_loss]
-    else
-        [:train_loss => train_loss, :test_loss => test_loss]
+    showvalues::Vector{Pair{Symbol, Any}} = [:train_loss => train_loss]
+    if !isnothing(test_loss)
+        push!(showvalues, :test_loss => test_loss)
     end
+    push!(
+        showvalues,
+        :losses_plot_fpath => cb.config.losses_plot_fpath,
+        :params_save_fpath => cb.config.params_save_fpath,
+    )
 
     if train_loss < cb.state.minimizer_loss
         cb.state.minimizer_loss = train_loss
