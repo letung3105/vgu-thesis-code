@@ -151,3 +151,90 @@ function setup_experiment(
 
     return model, train_dataset, test_dataset
 end
+
+struct Hyperparameters
+    ζ::Float64
+    adam_maxiters::Int
+    adam_learning_rate::Float64
+    bfgs_maxiters::Int
+    bfgs_initial_stepnorm::Float64
+end
+
+function experiment_train_and_eval(
+    model::AbstractCovidModel,
+    model_type::AbstractString,
+    location_code::AbstractString,
+    hyperparams::Hyperparameters,
+    train_dataset::TimeseriesDataset,
+    test_dataset::TimeseriesDataset;
+    snapshots_dir::AbstractString,
+    savefig_reproduction_number::Bool = true,
+)
+    experiment_dir = joinpath(snapshots_dir, location_code)
+    if !isdir(experiment_dir)
+        mkpath(experiment_dir)
+    end
+    @info "Snapshot directory '$experiment_dir'"
+
+    weights = exp.(collect(train_dataset.tsteps) .* hyperparams.ζ)
+    loss(ŷ, y) = sum((log.(ŷ .+ 1) .- log.(y .+ 1)) .^ 2 .* weights')
+
+    p0 = Covid19ModelVN.initial_params(model)
+    predict_fn = Predictor(model)
+    train_loss_fn = Loss(loss, predict_fn, train_dataset, eval_config.vars)
+    @info "Initial training loss: $(train_loss_fn(p0))"
+
+    @info "Start training"
+    timestamp = Dates.format(now(), "yyyymmddHHMMSS")
+    train_sessions = [
+        TrainSession(
+            "$timestamp.$model_type.adam",
+            ADAM(hyperparams.adam_learning_rate),
+            hyperparams.adam_maxiters,
+            100,
+        ),
+        TrainSession(
+            "$timestamp.$model_type.bfgs",
+            BFGS(initial_stepnorm = hyperparams.bfgs_initial_stepnorm),
+            hyperparams.bfgs_maxiters,
+            100,
+        ),
+    ]
+    sessions_params =
+        train_model(train_sessions, train_loss_fn, p0, snapshots_dir = experiment_dir)
+
+    @info "Ploting evaluations"
+    eval_config = get_experiment_eval_config(location_code)
+    for (sess, params) in zip(train_sessions, sessions_params)
+        eval_res =
+            evaluate_model(eval_config, params, predict_fn, train_dataset, test_dataset)
+
+        csv_fpath = joinpath(experiment_dir, "$(sess.name).evaluate.csv")
+        if !isfile(csv_fpath)
+            CSV.write(csv_fpath, eval_res.df_errors)
+        end
+
+        fig_fpath = joinpath(experiment_dir, "$(sess.name).evaluate.png")
+        if !isfile(fig_fpath)
+            savefig(eval_res.fig_forecasts, fig_fpath)
+        end
+
+        reproduction_number_fpath = joinpath(experiment_dir, "$(sess.name).Rt.png")
+        if !isfile(reproduction_number_fpath) && savefig_reproduction_number
+            Rt1 = effective_reproduction_number(
+                model,
+                params,
+                train_dataset.tspan,
+                train_dataset.tsteps,
+            )
+            Rt2 = effective_reproduction_number(
+                model,
+                params,
+                test_dataset.tspan,
+                test_dataset.tsteps,
+            )
+            fig = plot([Rt1 Rt2]')
+            savefig(fig, reproduction_number_fpath)
+        end
+    end
+end
