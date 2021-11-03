@@ -9,20 +9,22 @@ import Covid19ModelVN.JHUCSSEData,
 function get_experiment_covid_timeseries(location_code::AbstractString)
     df = get_prebuilt_covid_timeseries(location_code)
 
-    if location_code == Covid19ModelVN.LOC_CODE_VIETNAM
+    first_date, last_date = if location_code == Covid19ModelVN.LOC_CODE_VIETNAM
         # after 4th August, the recovered count is not updated
-        bound!(df, :date, Date(2021, 4, 26), Date(2021, 8, 4))
-        # reset cases count to 27th April 2021
-        transform!(
-            df,
-            :infective => x -> x .- df[1, :infective],
-            :recovered_total => x -> x .- df[1, :recovered_total],
-            :deaths_total => x -> x .- df[1, :deaths_total],
-            :confirmed_total => x -> x .- df[1, :confirmed_total],
-            renamecols = false,
-        )
-        bound!(df, :date, Date(2021, 4, 27), Date(2021, 8, 4))
+        Date(2021, 4, 27), Date(2021, 8, 4)
+    elseif location_code == Covid19ModelVN.LOC_CODE_UNITED_STATES ||
+           location_code ∈ keys(Covid19ModelVN.LOC_NAMES_US)
+        # we considered 1st July 2021 to be the start of the 4th outbreak in the US
+        Date(2021, 7, 1), Date(2021, 9, 30)
+    else
+        return df
     end
+
+    bound!(df, :date, first_date - Day(1), last_date)
+    datacols = names(df, Not(:date))
+    starting_states = Array(df[1, datacols])
+    transform!(df, datacols => ByRow((x...) -> x .- starting_states) => datacols)
+    bound!(df, :date, first_date, last_date)
 
     return df
 end
