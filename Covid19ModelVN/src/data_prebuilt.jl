@@ -128,15 +128,13 @@ function get_prebuilt_movement_range(location_code::AbstractString)
         LOC_CODE_DONG_NAI => datadep"covid19model/movement-range-dong-nai.csv",
         LOC_CODE_LONG_AN => datadep"covid19model/movement-range-long-an.csv",
         LOC_CODE_UNITED_STATES =>
-            datadep"covid19model/movement-range-united-states-2020.csv",
+            datadep"covid19model/movement-range-united-states.csv",
         LOC_CODE_LOS_ANGELES_CA =>
-            datadep"covid19model/movement-range-los-angeles-CA-2020.csv",
-        LOC_CODE_COOK_IL =>
-            datadep"covid19model/movement-range-cook-county-IL-2020.csv",
-        LOC_CODE_HARRIS_TX =>
-            datadep"covid19model/movement-range-harris-county-TX-2020.csv",
+            datadep"covid19model/movement-range-los-angeles-CA.csv",
+        LOC_CODE_COOK_IL => datadep"covid19model/movement-range-cook-county-IL.csv",
+        LOC_CODE_HARRIS_TX => datadep"covid19model/movement-range-harris-county-TX.csv",
         LOC_CODE_MARICOPA_AZ =>
-            datadep"covid19model/movement-range-maricopa-county-AZ-2020.csv",
+            datadep"covid19model/movement-range-maricopa-county-AZ.csv",
     ])
 
     if location_code ∉ keys(data)
