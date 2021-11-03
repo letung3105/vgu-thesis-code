@@ -186,7 +186,7 @@ function effective_reproduction_number(
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
-    mobility = model.movement_range_data[Int.(saveat) .+ 1, :]
+    mobility = model.movement_range_data[Int.(saveat).+1, :]
 
     β_ann_input = [(S ./ N) (I ./ N) mobility]'
     βt = model.β_ann(β_ann_input, @view params[4:end])
@@ -293,8 +293,8 @@ function effective_reproduction_number(
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
-    mobility = model.movement_range_data[Int.(saveat) .+ 1, :]
-    spc = model.social_proximity_data[Int.(saveat) .+ 1, :]
+    mobility = model.movement_range_data[Int.(saveat).+1, :]
+    spc = model.social_proximity_data[Int.(saveat).+1, :]
 
     β_ann_input = [(S ./ N) (I ./ N) mobility spc]'
     βt = model.β_ann(β_ann_input, @view params[4:end])

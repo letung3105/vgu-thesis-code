@@ -215,7 +215,7 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
         cb.config.test_loss_fn(params)
     end
 
-    showvalues::Vector{Pair{Symbol, Any}} = [:train_loss => train_loss]
+    showvalues::Vector{Pair{Symbol,Any}} = [:train_loss => train_loss]
     if !isnothing(test_loss)
         push!(showvalues, :test_loss => test_loss)
     end
