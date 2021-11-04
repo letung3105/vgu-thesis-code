@@ -7,13 +7,6 @@ end
 include("experiments.jl")
 
 using Covid19ModelVN
-
-import Covid19ModelVN.JHUCSSEData,
-    Covid19ModelVN.FacebookData,
-    Covid19ModelVN.PopulationData,
-    Covid19ModelVN.VnExpressData,
-    Covid19ModelVN.VnCdcData
-
 using OrdinaryDiffEq, DiffEqFlux
 using BenchmarkTools
 
@@ -28,20 +21,14 @@ function benchmarks_compute_loss_gradient_with_different_sensealg(
 
     @info "Solver = $solver | abstol = $abstol | reltol = $reltol"
 
-    predict_fn1 = Predictor(
-        model.problem,
-        solver,
-        ForwardDiffSensitivity(),
-        abstol,
-        reltol,
-        [3, 4, 5, 6],
-    )
+    predict_fn1 =
+        Predictor(model.problem, solver, ForwardDiffSensitivity(), abstol, reltol, [5, 6])
     lossfn1 = Loss(metric_fn, predict_fn1, train_dataset)
     @info "Compute gradient with sensealg = ForwardDiffSensitivity()"
     display(@benchmark gradient($lossfn1, $p0))
 
     predict_fn2 =
-        Predictor(model.problem, solver, ForwardSensitivity(), abstol, reltol, [3, 4, 5, 6])
+        Predictor(model.problem, solver, ForwardSensitivity(), abstol, reltol, [5, 6])
     lossfn2 = Loss(metric_fn, predict_fn2, train_dataset)
     @info "Compute gradient with sensealg = ForwardSensitivity()"
     display(@benchmark gradient($lossfn2, $p0))
@@ -52,10 +39,10 @@ function benchmarks_compute_loss_gradient_with_different_sensealg(
         BacksolveAdjoint(autojacvec = ReverseDiffVJP(false)),
         abstol,
         reltol,
-        [3, 4, 5, 6],
+        [5, 6],
     )
     lossfn3 = Loss(metric_fn, predict_fn3, train_dataset)
-    @info "Compute gradient with sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP())"
+    @info "Compute gradient with sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(false))"
     display(@benchmark gradient($lossfn3, $p0))
 
     predict_fn4 = Predictor(
@@ -64,10 +51,10 @@ function benchmarks_compute_loss_gradient_with_different_sensealg(
         InterpolatingAdjoint(autojacvec = ReverseDiffVJP(false)),
         abstol,
         reltol,
-        [3, 4, 5, 6],
+        [5, 6],
     )
     lossfn4 = Loss(metric_fn, predict_fn4, train_dataset)
-    @info "Compute gradient with sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP())"
+    @info "Compute gradient with sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(false))"
     display(@benchmark gradient($lossfn4, $p0))
 
     predict_fn5 = Predictor(
@@ -76,10 +63,10 @@ function benchmarks_compute_loss_gradient_with_different_sensealg(
         BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
         abstol,
         reltol,
-        [3, 4, 5, 6],
+        [5, 6],
     )
     lossfn5 = Loss(metric_fn, predict_fn5, train_dataset)
-    @info "Compute gradient with sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true))"
+    @info "Compute gradient with sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true))"
     display(@benchmark gradient($lossfn5, $p0))
 
     predict_fn6 = Predictor(
@@ -88,7 +75,7 @@ function benchmarks_compute_loss_gradient_with_different_sensealg(
         InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
         abstol,
         reltol,
-        [3, 4, 5, 6],
+        [5, 6],
     )
     lossfn6 = Loss(metric_fn, predict_fn6, train_dataset)
     @info "Compute gradient with sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true))"

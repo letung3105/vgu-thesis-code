@@ -328,18 +328,13 @@ function train_model(
         )
 
         @info "Running $(sess.name)"
-        try
-            DiffEqFlux.sciml_train(
-                train_loss,
-                params,
-                sess.optimizer,
-                maxiters = sess.maxiters,
-                cb = cb,
-            )
-        catch e
-            isa(e, InterruptException) && rethrow(e)
-            @error e
-        end
+        DiffEqFlux.sciml_train(
+            train_loss,
+            params,
+            sess.optimizer,
+            maxiters = sess.maxiters,
+            cb = cb,
+        )
 
         push!(minimizers, cb.state.minimizer)
         params .= cb.state.minimizer
