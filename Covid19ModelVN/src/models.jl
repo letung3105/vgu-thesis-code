@@ -45,9 +45,9 @@ function CovidModelSEIRDBaseline(u0::AbstractVector{<:Real}, tspan::Tuple{<:Real
         t::Real,
     )
         @inbounds begin
+            # states and params
             S, E, I, _, _, _, N = u
             γ, λ, α = abs.(@view(p[1:3]))
-
             # infection rate depends on time, susceptible, and infected
             β = first(β_ann([S / N; I / N], @view p[4:end]))
 
@@ -82,7 +82,7 @@ function effective_reproduction_number(
         problem,
         Tsit5(),
         saveat = saveat,
-        solver = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
+        solver = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
         abstol = 1e-6,
         reltol = 1e-6,
     )
@@ -92,10 +92,9 @@ function effective_reproduction_number(
     I = @view states[3, :]
     N = @view states[7, :]
 
-    β_ann_input = [(S ./ N) (I ./ N)]'
+    β_ann_input = [(S ./ N)'; (I ./ N)']
     βt = model.β_ann(β_ann_input, @view params[4:end])
     Rt = βt ./ params[1]
-
     return Rt
 end
 
@@ -138,11 +137,11 @@ function CovidModelSEIRDFbMobility1(
         t::Real,
     )
         @inbounds begin
+            # daily mobility
+            mobility = @view movement_range_data[:, Int(floor(t + 1))]
+            # states and params
             S, E, I, _, _, _, N = u
             γ, λ, α = abs.(@view(p[1:3]))
-
-            # daily mobility
-            mobility = movement_range_data[Int(floor(t + 1)), :]
             # infection rate depends on time, susceptible, and infected
             β = first(β_ann([S / N; I / N; mobility...], @view p[4:end]))
 
@@ -177,7 +176,7 @@ function effective_reproduction_number(
         problem,
         Tsit5(),
         saveat = saveat,
-        solver = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
+        solver = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
         abstol = 1e-6,
         reltol = 1e-6,
     )
@@ -186,12 +185,11 @@ function effective_reproduction_number(
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
-    mobility = model.movement_range_data[Int.(saveat).+1, :]
+    mobility = @view model.movement_range_data[:, Int.(saveat).+1]
 
-    β_ann_input = [(S ./ N) (I ./ N) mobility]'
+    β_ann_input = [(S ./ N)'; (I ./ N)'; mobility]
     βt = model.β_ann(β_ann_input, @view params[4:end])
     Rt = βt ./ params[1]
-
     return Rt
 end
 
@@ -238,15 +236,16 @@ function CovidModelSEIRDFbMobility2(
         t::Real,
     )
         @inbounds begin
+            time_idx = Int(floor(t + 1))
+            # daily mobility
+            mobility = @view movement_range_data[:, time_idx]
+            # daily social proximity to cases
+            proximity = @view social_proximity_data[:, time_idx]
+            # states and params
             S, E, I, _, _, _, N = u
             γ, λ, α = abs.(@view(p[1:3]))
-
-            # daily mobility
-            time_idx = Int(floor(t + 1))
-            mobility = movement_range_data[time_idx, :]
-            spc = social_proximity_data[time_idx]
             # infection rate depends on time, susceptible, and infected
-            β = first(β_ann([S / N; I / N; spc; mobility...], @view p[4:end]))
+            β = first(β_ann([S / N; I / N; mobility...; proximity...], @view p[4:end]))
 
             du[1] = -β * S * I / N
             du[2] = β * S * I / N - γ * E
@@ -284,7 +283,7 @@ function effective_reproduction_number(
         problem,
         Tsit5(),
         saveat = saveat,
-        solver = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
+        solver = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
         abstol = 1e-6,
         reltol = 1e-6,
     )
@@ -293,96 +292,11 @@ function effective_reproduction_number(
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
-    mobility = model.movement_range_data[Int.(saveat).+1, :]
-    spc = model.social_proximity_data[Int.(saveat).+1, :]
+    mobility = @view model.movement_range_data[:, Int.(saveat).+1]
+    proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
 
-    β_ann_input = [(S ./ N) (I ./ N) mobility spc]'
+    β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
     βt = model.β_ann(β_ann_input, @view params[4:end])
     Rt = βt ./ params[1]
-
     return Rt
-end
-
-struct DataConfig
-    df::AbstractDataFrame
-    data_cols::Union{
-        Symbol,
-        <:AbstractString,
-        <:AbstractVector{Symbol},
-        <:AbstractVector{<:AbstractString},
-    }
-    date_col::Union{Symbol,<:AbstractString}
-    first_date::Date
-    split_date::Date
-    last_date::Date
-    population::Real
-    initial_state_fn::Function
-end
-
-struct MobilityConfig
-    df::AbstractDataFrame
-    data_cols::Union{
-        Symbol,
-        <:AbstractString,
-        <:AbstractVector{Symbol},
-        <:AbstractVector{<:AbstractString},
-    }
-    date_col::Union{Symbol,<:AbstractString}
-    temporal_lag::Day
-end
-
-function setup_model(
-    model_constructor::DataType,
-    data_config::DataConfig,
-    movement_range_config::Union{MobilityConfig,Nothing} = nothing,
-    social_proximity_config::Union{MobilityConfig,Nothing} = nothing,
-)
-    # separate dataframe into data arrays for train and test
-    train_dataset, test_dataset = train_test_split(
-        data_config.df,
-        data_config.data_cols,
-        data_config.date_col,
-        data_config.first_date,
-        data_config.split_date,
-        data_config.last_date,
-    )
-    # get initial state
-    u0 = data_config.initial_state_fn(train_dataset.data[:, 1], data_config.population)
-
-    # use baseline model if no movement range data is given
-    if isnothing(movement_range_config)
-        model = model_constructor(u0, train_dataset.tspan)
-        return model, train_dataset, test_dataset
-    end
-
-    # load movement range
-    movement_range_data = load_timeseries(
-        movement_range_config.df,
-        movement_range_config.data_cols,
-        movement_range_config.date_col,
-        data_config.first_date - movement_range_config.temporal_lag,
-        data_config.last_date - movement_range_config.temporal_lag,
-    )
-
-    # use fbmobility1 model if no social proximity data is given
-    if isnothing(social_proximity_config)
-        model = model_constructor(u0, train_dataset.tspan, movement_range_data)
-        return model, train_dataset, test_dataset
-    end
-
-    # load social proximity
-    social_proximity_data = load_timeseries(
-        social_proximity_config.df,
-        social_proximity_config.data_cols,
-        social_proximity_config.date_col,
-        data_config.first_date - social_proximity_config.temporal_lag,
-        data_config.last_date - social_proximity_config.temporal_lag,
-    )
-    model = model_constructor(
-        u0,
-        train_dataset.tspan,
-        movement_range_data,
-        social_proximity_data,
-    )
-    return model, train_dataset, test_dataset
 end
