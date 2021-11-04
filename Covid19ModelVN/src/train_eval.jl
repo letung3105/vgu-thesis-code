@@ -30,6 +30,10 @@ A struct that solves the underlying DiffEq problem and returns the solution when
 
 * `problem`: the problem that will be solved
 * `solver`: the numerical solver that will be used to calculate the DiffEq solution
+* `sensealg`: sensitivity algorithm for getting the local gradient
+* `abstol`: solver's absolute tolerant
+* `reltol`: solver's relative tolerant
++ `save_idxs`: indices of the states that are considered
 """
 struct Predictor
     problem::SciMLBase.DEProblem
@@ -37,6 +41,7 @@ struct Predictor
     sensealg::SciMLBase.AbstractSensitivityAlgorithm
     abstol::Real
     reltol::Real
+    save_idxs::AbstractVector{<:Integer}
 end
 
 """
@@ -45,13 +50,15 @@ Construct a new default `Predictor` using the problem defined by the given model
 # Argument
 
 + `model`: a model containing a problem that can be solved
++ `save_idxs`: indices of the states that are considered
 """
-Predictor(model::AbstractCovidModel) = Predictor(
+Predictor(model::AbstractCovidModel, save_idxs::AbstractVector{<:Integer}) = Predictor(
     model.problem,
     Tsit5(),
-    BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
+    InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
     1e-6,
     1e-6,
+    save_idxs,
 )
 
 """
@@ -76,6 +83,7 @@ function (p::Predictor)(
         sensealg = p.sensealg,
         abstol = p.abstol,
         reltol = p.reltol,
+        save_idxs = p.save_idxs,
     )
 end
 
@@ -88,13 +96,11 @@ A callable struct that uses `metric_fn` to calculate the loss between the output
 * `metric_fn`: a function that computes the error between two data arrays
 * `predict_fn`: the time span that the ODE solver will be run on
 * `dataset`: the dataset that contains the ground truth data
-* `vars`: indices of the states that will be used to calculate the loss
 """
 struct Loss
     metric_fn::Function
     predict_fn::Predictor
     dataset::TimeseriesDataset
-    vars::Union{<:Integer,AbstractVector{<:Integer},OrdinalRange}
 end
 
 """
@@ -111,7 +117,7 @@ function (l::Loss)(params::AbstractVector{<:Real})
         return Inf
     end
 
-    pred = @view sol[l.vars, :]
+    pred = Array(sol)
     if size(pred) != size(l.dataset.data)
         # Unstable trajectories / Wrong inputs
         return Inf
@@ -211,19 +217,16 @@ Call an object of type `TrainCallback`
 * `train_loss`: loss from the training step
 """
 function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
+    showvalues = Pair{Symbol,Any}[
+        :losses_plot_fpath=>cb.config.losses_plot_fpath,
+        :params_save_fpath=>cb.config.params_save_fpath,
+        :train_loss=>train_loss,
+    ]
     test_loss = if !isnothing(cb.config.test_loss_fn)
-        cb.config.test_loss_fn(params)
+        loss = cb.config.test_loss_fn(params)
+        push!(showvalues, :test_loss => loss)
+        loss
     end
-
-    showvalues::Vector{Pair{Symbol,Any}} = [:train_loss => train_loss]
-    if !isnothing(test_loss)
-        push!(showvalues, :test_loss => test_loss)
-    end
-    push!(
-        showvalues,
-        :losses_plot_fpath => cb.config.losses_plot_fpath,
-        :params_save_fpath => cb.config.params_save_fpath,
-    )
 
     if train_loss < cb.state.minimizer_loss
         cb.state.minimizer_loss = train_loss
@@ -233,18 +236,14 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
     cb.state.iters += 1
     if cb.state.iters % cb.config.losses_plot_interval == 0 &&
        !isnothing(cb.config.losses_plot_fpath)
-        plt = if isnothing(test_loss)
-            append!(cb.state.train_losses, train_loss)
-            plot([cb.state.train_losses], label = "train loss", legend = :outerright)
+        append!(cb.state.train_losses, train_loss)
+        losses = if isnothing(test_loss)
+            cb.state.train_losses
         else
-            append!(cb.state.train_losses, train_loss)
             append!(cb.state.test_losses, test_loss)
-            plot(
-                [cb.state.train_losses, cb.state.test_losses],
-                labels = ["train loss" "test loss"],
-                legend = :outerright,
-            )
+            [cb.state.train_losses cb.state.test_losses]
         end
+        plt = plot(losses, labels = ["train loss" "test loss"], legend = :outerright)
         savefig(plt, cb.config.losses_plot_fpath)
     end
     if cb.state.iters % cb.config.params_save_interval == 0 &&
@@ -264,6 +263,7 @@ Specifications for a model tranining session
 + `name`: Session name
 + `optimizer`: The optimizer that will run in the session
 + `maxiters`: Maximum number of iterations to run the optimizer
++ `loss_samples`: Number of times to collect the training losses and testing losses
 """
 struct TrainSession{O}
     name::AbstractString
@@ -279,13 +279,11 @@ A struct for holding general configuration for the evaluation process
 
 + `metric_fns`: a list of metric function that will be used to compute the model errors
 + `forecast_ranges`: a list of different time ranges on which the model's prediction will be evaluated
-+ `vars`: indices of the model's states that will be evaluated
 + `labels`: names of the evaluated model's states
 """
 struct EvalConfig
     metric_fns::AbstractVector{Function}
     forecast_ranges::AbstractVector{<:Integer}
-    vars::Union{<:Integer,AbstractVector{<:Integer},OrdinalRange}
     labels::AbstractVector{<:AbstractString}
 end
 
@@ -295,34 +293,33 @@ the initial set of parameters `params`.
 
 # Arguments
 
-+ `sessions`: a collection of optimizers and settings used for training the model
-+ `train_loss_fn`: a function that will be minimized
++ `train_loss`: a function that will be minimized
 + `params`: the initial set of parameters
++ `sessions`: a collection of optimizers and settings used for training the model
 + `snapshots_dir`: a directory for saving the model parameters and training losses
-+ `test_loss_fn`: a function for evaluating the model on out-of-sample data
++ `test_loss`: a function for evaluating the model on out-of-sample data
 """
 function train_model(
-    sessions::AbstractVector{TrainSession},
-    train_loss_fn::Loss,
-    params::AbstractVector{<:Real};
+    train_loss::Loss,
+    params::AbstractVector{<:Real},
+    sessions::AbstractVector{TrainSession};
     snapshots_dir::Union{AbstractString,Nothing} = nothing,
-    test_loss_fn::Union{Loss,Nothing} = nothing,
+    test_loss::Union{Loss,Nothing} = nothing,
 )
-    sessions_params = Vector{Float64}[]
+    minimizers = Vector{Float64}[]
+    params = copy(params)
     for sess ∈ sessions
         snapshot_and_plot_interval = div(sess.maxiters, sess.loss_samples)
-        losses_plot_fpath, params_save_fpath = if isnothing(snapshots_dir)
-            (nothing, nothing)
-        else
+        losses_plot_fpath, params_save_fpath =
+            isnothing(snapshots_dir) ? (nothing, nothing) :
             (
                 get_losses_plot_fpath(snapshots_dir, sess.name),
                 get_params_save_fpath(snapshots_dir, sess.name),
             )
-        end
         cb = TrainCallback(
             sess.maxiters,
             TrainCallbackConfig(
-                test_loss_fn,
+                test_loss,
                 losses_plot_fpath,
                 snapshot_and_plot_interval,
                 params_save_fpath,
@@ -333,29 +330,22 @@ function train_model(
         @info "Running $(sess.name)"
         try
             DiffEqFlux.sciml_train(
-                train_loss_fn,
+                train_loss,
                 params,
                 sess.optimizer,
                 maxiters = sess.maxiters,
                 cb = cb,
             )
         catch e
-            if isa(e, InterruptException)
-                rethrow(e)
-            end
+            isa(e, InterruptException) && rethrow(e)
             @error e
         end
 
-        params = cb.state.minimizer
-        push!(sessions_params, params)
+        push!(minimizers, cb.state.minimizer)
+        params .= cb.state.minimizer
         Serialization.serialize(params_save_fpath, params)
     end
-    return sessions_params
-end
-
-struct EvalResult
-    df_errors::AbstractDataFrame
-    fig_forecasts::Plots.Plot
+    return minimizers
 end
 
 """
@@ -378,9 +368,9 @@ function evaluate_model(
 )
     fit = predict_fn(params, train_dataset.tspan, train_dataset.tsteps)
     pred = predict_fn(params, test_dataset.tspan, test_dataset.tsteps)
-    df_errors = calculate_forecasts_errors(config, pred, test_dataset)
-    fig_forecasts = plot_forecasts(config, fit, pred, train_dataset, test_dataset)
-    return EvalResult(df_errors, fig_forecasts)
+    forecasts_plot = plot_forecasts(config, fit, pred, train_dataset, test_dataset)
+    df_forecasts_errors = calculate_forecasts_errors(config, pred, test_dataset)
+    return forecasts_plot, df_forecasts_errors
 end
 
 """
@@ -402,12 +392,12 @@ function calculate_forecasts_errors(
     metrics = repeat(map(string, config.metric_fns), length(config.forecast_ranges))
     errors = reshape(
         [
-            metric_fn(pred[var, 1:days], test_dataset.data[col, 1:days]) for
+            metric_fn(pred[idx, 1:days], test_dataset.data[idx, 1:days]) for
             metric_fn ∈ config.metric_fns, days ∈ config.forecast_ranges,
-            (col, var) ∈ enumerate(config.vars)
+            idx ∈ 1:length(config.labels)
         ],
         length(config.metric_fns) * length(config.forecast_ranges),
-        length(config.vars),
+        length(config.labels),
     )
     df1 = DataFrame([horizons metrics], [:horizon, :metric])
     df2 = DataFrame(errors, config.labels)
@@ -434,26 +424,25 @@ function plot_forecasts(
     test_dataset::TimeseriesDataset,
 )
     plts = []
-    for days ∈ config.forecast_ranges,
-        (col, (var, label)) ∈ enumerate(zip(config.vars, config.labels))
-
+    for days ∈ config.forecast_ranges, (idx, label) ∈ enumerate(config.labels)
         plt = plot(title = "$days-day forecast", legend = :outertop, xrotation = 45)
         scatter!(
-            [train_dataset.data[col, :]; test_dataset.data[col, 1:days]],
+            [train_dataset.data[idx, :]; test_dataset.data[idx, 1:days]],
             label = label,
             fillcolor = nothing,
         )
-        plot!([fit[var, :]; pred[var, 1:days]], label = "forecast $label", lw = 2)
+        plot!([fit[idx, :]; pred[idx, 1:days]], label = "forecast $label", lw = 2)
         vline!([train_dataset.tspan[2]], color = :black, ls = :dash, label = nothing)
         push!(plts, plt)
     end
 
     nforecasts = length(config.forecast_ranges)
-    nvariables = length(config.vars)
+    nvariables = length(config.labels)
     return plot(
         plts...,
         layout = (nforecasts, nvariables),
         size = (300 * nvariables, 300 * nforecasts),
+        left_margin = 5Plots.mm,
     )
 end
 
