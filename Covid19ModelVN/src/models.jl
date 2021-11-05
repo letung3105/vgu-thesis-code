@@ -69,7 +69,7 @@ end
 Get the initial set of parameters of the baselien SEIRD model with Facebook movement range
 """
 initial_params(model::CovidModelSEIRDBaseline) =
-    [1 / 2; 1 / 14; 0.025; DiffEqFlux.initial_params(model.β_ann)]
+    [1 / 3; 1 / 14; 0.025; DiffEqFlux.initial_params(model.β_ann)]
 
 function effective_reproduction_number(
     model::CovidModelSEIRDBaseline,
@@ -163,7 +163,7 @@ end
 Get the initial set of parameters of the SEIRD model with Facebook movement range
 """
 initial_params(model::CovidModelSEIRDFbMobility1) =
-    [1 / 2; 1 / 14; 0.025; DiffEqFlux.initial_params(model.β_ann)]
+    [1 / 3; 1 / 14; 0.025; DiffEqFlux.initial_params(model.β_ann)]
 
 function effective_reproduction_number(
     model::CovidModelSEIRDFbMobility1,
@@ -270,7 +270,7 @@ end
 Get the initial set of parameters of the SEIRD model with Facebook movement range
 """
 initial_params(model::CovidModelSEIRDFbMobility2) =
-    [1 / 2; 1 / 14; 0.025; DiffEqFlux.initial_params(model.β_ann)]
+    [1 / 3; 1 / 14; 0.025; DiffEqFlux.initial_params(model.β_ann)]
 
 function effective_reproduction_number(
     model::CovidModelSEIRDFbMobility2,
