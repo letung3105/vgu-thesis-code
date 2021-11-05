@@ -8,6 +8,7 @@ export TrainSession,
     evaluate_model,
     calculate_forecasts_errors,
     plot_forecasts,
+    plot_effective_reproduction_number,
     mae,
     mape,
     rmse,
@@ -16,7 +17,7 @@ export TrainSession,
 using Serialization,
     Statistics,
     ProgressMeter,
-    Plots,
+    CairoMakie,
     DataFrames,
     CSV,
     OrdinaryDiffEq,
@@ -140,7 +141,7 @@ State of the callback struct
 """
 mutable struct TrainCallbackState
     iters::Integer
-    progress::Progress
+    progress::ProgressUnknown
     train_losses::AbstractVector{<:Real}
     test_losses::AbstractVector{<:Real}
     minimizer::AbstractVector{<:Real}
@@ -155,9 +156,9 @@ and other fields set to their default values
 
 + `maxiters`: Maximum number of iterrations that the optimizer will run
 """
-TrainCallbackState(maxiters::Integer) = TrainCallbackState(
+TrainCallbackState() = TrainCallbackState(
     0,
-    Progress(maxiters, showspeed = true),
+    ProgressUnknown(showspeed = true),
     Float64[],
     Float64[],
     Float64[],
@@ -205,8 +206,8 @@ Create a callback for `sciml_train`
 * `maxiters`: max number of iterations the optimizer will run
 * `config`: callback configurations
 """
-TrainCallback(maxiters::Integer, config::TrainCallbackConfig = TrainCallbackConfig()) =
-    TrainCallback(TrainCallbackState(maxiters), config)
+TrainCallback(config::TrainCallbackConfig = TrainCallbackConfig()) =
+    TrainCallback(TrainCallbackState(), config)
 
 """
 Call an object of type `TrainCallback`
@@ -236,16 +237,22 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
     cb.state.iters += 1
     if cb.state.iters % cb.config.losses_plot_interval == 0 &&
        !isnothing(cb.config.losses_plot_fpath)
+        fig = Figure()
+        ax = Axis(
+            fig[1, 1],
+            title = "Losses of the model after each iteration",
+            xlabel = "Iterations",
+        )
         append!(cb.state.train_losses, train_loss)
-        losses = if isnothing(test_loss)
-            cb.state.train_losses
-        else
+        scatter!(ax, cb.state.train_losses, label = "Train loss")
+        if !isnothing(test_loss)
             append!(cb.state.test_losses, test_loss)
-            [cb.state.train_losses cb.state.test_losses]
+            scatter!(ax, cb.state.test_losses, label = "Test loss")
         end
-        plt = plot(losses, labels = ["train loss" "test loss"], legend = :outerright)
-        savefig(plt, cb.config.losses_plot_fpath)
+        axislegend(ax, position = :lt)
+        save(cb.config.losses_plot_fpath, fig)
     end
+
     if cb.state.iters % cb.config.params_save_interval == 0 &&
        !isnothing(cb.config.params_save_fpath)
         Serialization.serialize(cb.config.params_save_fpath, cb.state.minimizer)
@@ -265,9 +272,9 @@ Specifications for a model tranining session
 + `maxiters`: Maximum number of iterations to run the optimizer
 + `loss_samples`: Number of times to collect the training losses and testing losses
 """
-struct TrainSession{O}
+struct TrainSession{Opt}
     name::AbstractString
-    optimizer::O
+    optimizer::Opt
     maxiters::Integer
     loss_samples::Integer
 end
@@ -302,11 +309,10 @@ the initial set of parameters `params`.
 function train_model(
     train_loss::Loss,
     params::AbstractVector{<:Real},
-    sessions::AbstractVector{TrainSession{Any}};
-    lower_bounds = nothing,
-    upper_bounds = nothing,
+    sessions::AbstractVector{TrainSession};
     test_loss::Union{Loss,Nothing} = nothing,
     snapshots_dir::Union{AbstractString,Nothing} = nothing,
+    kwargs...,
 )
     minimizers = Vector{Float64}[]
     params = copy(params)
@@ -319,7 +325,6 @@ function train_model(
                 get_params_save_fpath(snapshots_dir, sess.name),
             )
         cb = TrainCallback(
-            sess.maxiters,
             TrainCallbackConfig(
                 test_loss,
                 losses_plot_fpath,
@@ -333,11 +338,10 @@ function train_model(
         DiffEqFlux.sciml_train(
             train_loss,
             params,
-            sess.optimizer,
-            maxiters = sess.maxiters,
+            sess.optimizer;
             cb = cb,
-            lower_bounds = lower_bounds,
-            upper_bounds = upper_bounds,
+            maxiters = sess.maxiters,
+            kwargs...,
         )
 
         push!(minimizers, cb.state.minimizer)
@@ -422,27 +426,73 @@ function plot_forecasts(
     train_dataset::TimeseriesDataset,
     test_dataset::TimeseriesDataset,
 )
-    plts = []
-    for days ∈ config.forecast_ranges, (idx, label) ∈ enumerate(config.labels)
-        plt = plot(title = "$days-day forecast", legend = :outertop, xrotation = 45)
-        scatter!(
-            [train_dataset.data[idx, :]; test_dataset.data[idx, 1:days]],
-            label = label,
-            fillcolor = nothing,
-        )
-        plot!([fit[idx, :]; pred[idx, 1:days]], label = "forecast $label", lw = 2)
-        vline!([train_dataset.tspan[2]], color = :black, ls = :dash, label = nothing)
-        push!(plts, plt)
-    end
-
-    nforecasts = length(config.forecast_ranges)
-    nvariables = length(config.labels)
-    return plot(
-        plts...,
-        layout = (nforecasts, nvariables),
-        size = (300 * nvariables, 300 * nforecasts),
-        left_margin = 5Plots.mm,
+    fig = Figure(
+        resolution = (400 * length(config.forecast_ranges), 400 * length(config.labels)),
     )
+    for (i, label) ∈ enumerate(config.labels), (j, days) ∈ enumerate(config.forecast_ranges)
+        ax = Axis(
+            fig[i, j],
+            title = "$days-day forecast",
+            xlabel = "Days since the 500th confirmed cases",
+            ylabel = "Cases",
+        )
+        vlines!(ax, [train_dataset.tspan[2]], color = :black, linestyle = :dash)
+        scatter!([train_dataset.data[i, :]; test_dataset.data[i, 1:days]], label = label)
+        scatter!([fit[i, :]; pred[i, 1:days]], label = "model's prediction")
+        axislegend(ax, position = :lt)
+    end
+    return fig
+end
+
+"""
+Get the effective reproduction number of the model and produce a plot from the data
+
+# Arguments
+* `model`: the Covid-19 model
+* `minimizer`: the parameters to be used as the model's input
+* `train_dataset`: the timeseries dataset for the training period
+* `test_dataset`: the timeseries dataset for the testing period
+"""
+function plot_effective_reproduction_number(
+    model::AbstractCovidModel,
+    minimizer::AbstractVector{<:Real},
+    train_dataset::TimeseriesDataset,
+    test_dataset::TimeseriesDataset,
+)
+    # get the effective reproduction number learned by the model
+    Re1 = effective_reproduction_number(
+        model,
+        minimizer,
+        train_dataset.tspan,
+        train_dataset.tsteps,
+    )
+    Re2 = effective_reproduction_number(
+        model,
+        minimizer,
+        test_dataset.tspan,
+        test_dataset.tsteps,
+    )
+    fig = Figure()
+    ax = Axis(
+        fig[1, 1],
+        title = "Effective reproduction number learned by the model",
+        xlabel = "Days since the 500th confirmed case",
+    )
+    vlines!(
+        ax,
+        [train_dataset.tspan[2]],
+        color = :black,
+        linestyle = :dash,
+        label = "last training day",
+    )
+    scatter!(
+        vec([Re1 Re2]),
+        color = :red,
+        linewidth = 2,
+        label = "effective reproduction number",
+    )
+    axislegend(ax, position = :lt)
+    return fig
 end
 
 """
