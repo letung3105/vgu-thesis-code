@@ -302,9 +302,11 @@ the initial set of parameters `params`.
 function train_model(
     train_loss::Loss,
     params::AbstractVector{<:Real},
-    sessions::AbstractVector{TrainSession};
-    snapshots_dir::Union{AbstractString,Nothing} = nothing,
+    sessions::AbstractVector{TrainSession{Any}};
+    lower_bounds = nothing,
+    upper_bounds = nothing,
     test_loss::Union{Loss,Nothing} = nothing,
+    snapshots_dir::Union{AbstractString,Nothing} = nothing,
 )
     minimizers = Vector{Float64}[]
     params = copy(params)
@@ -334,6 +336,8 @@ function train_model(
             sess.optimizer,
             maxiters = sess.maxiters,
             cb = cb,
+            lower_bounds = lower_bounds,
+            upper_bounds = upper_bounds,
         )
 
         push!(minimizers, cb.state.minimizer)
