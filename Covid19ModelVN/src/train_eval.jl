@@ -41,6 +41,7 @@ struct Predictor
     sensealg::SciMLBase.AbstractSensitivityAlgorithm
     abstol::Real
     reltol::Real
+    save_idxs::AbstractVector{<:Integer}
 end
 
 """
@@ -50,12 +51,13 @@ Construct a new default `Predictor` using the problem defined by the given model
 
 + `model`: a model containing a problem that can be solved
 """
-Predictor(model::AbstractCovidModel) = Predictor(
+Predictor(model::AbstractCovidModel, save_idxs::AbstractVector{<:Integer}) = Predictor(
     model.problem,
     Tsit5(),
     InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
     1e-6,
     1e-6,
+    save_idxs,
 )
 
 """
@@ -80,6 +82,7 @@ function (p::Predictor)(
         sensealg = p.sensealg,
         abstol = p.abstol,
         reltol = p.reltol,
+        save_idxs = p.save_idxs,
     )
 end
 
@@ -97,7 +100,6 @@ struct Loss
     metric_fn::Function
     predict_fn::Predictor
     dataset::TimeseriesDataset
-    vars::AbstractVector{<:Integer}
 end
 
 """
@@ -114,7 +116,7 @@ function (l::Loss)(params::AbstractVector{<:Real})
         return Inf
     end
 
-    pred = @view sol[l.vars, :]
+    pred = Array(sol)
     if size(pred) != size(l.dataset.data)
         # Unstable trajectories / Wrong inputs
         return Inf
@@ -287,7 +289,6 @@ A struct for holding general configuration for the evaluation process
 struct EvalConfig
     metric_fns::AbstractVector{Function}
     forecast_ranges::AbstractVector{<:Integer}
-    vars::AbstractVector{<:Integer}
     labels::AbstractVector{<:AbstractString}
 end
 
@@ -392,12 +393,12 @@ function calculate_forecasts_errors(
     metrics = repeat(map(string, config.metric_fns), length(config.forecast_ranges))
     errors = reshape(
         [
-            metric_fn(pred[var, 1:days], test_dataset.data[idx, 1:days]) for
+            metric_fn(pred[idx, 1:days], test_dataset.data[idx, 1:days]) for
             metric_fn ∈ config.metric_fns, days ∈ config.forecast_ranges,
-            (idx, var) ∈ enumerate(config.vars)
+            idx ∈ 1:length(config.labels)
         ],
         length(config.metric_fns) * length(config.forecast_ranges),
-        length(config.vars),
+        length(config.labels),
     )
     df1 = DataFrame([horizons metrics], [:horizon, :metric])
     df2 = DataFrame(errors, config.labels)
@@ -426,7 +427,7 @@ function plot_forecasts(
     fig = Figure(
         resolution = (400 * length(config.forecast_ranges), 400 * length(config.labels)),
     )
-    for (i, (var, label)) ∈ enumerate(zip(config.vars, config.labels)), (j, days) ∈ enumerate(config.forecast_ranges)
+    for (i, label) ∈ enumerate(config.labels), (j, days) ∈ enumerate(config.forecast_ranges)
         ax = Axis(
             fig[i, j],
             title = "$days-day forecast",
@@ -435,7 +436,7 @@ function plot_forecasts(
         )
         vlines!(ax, [train_dataset.tspan[2]], color = :black, linestyle = :dash)
         scatter!([train_dataset.data[i, :]; test_dataset.data[i, 1:days]], label = label)
-        scatter!([fit[var, :]; pred[var, 1:days]], label = "model's prediction")
+        scatter!([fit[i, :]; pred[i, 1:days]], label = "model's prediction")
         axislegend(ax, position = :lt)
     end
     return fig
