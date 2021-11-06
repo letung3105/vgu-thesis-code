@@ -1,10 +1,38 @@
-using Dates, Statistics, Plots, CSV, DataDeps, DataFrames, DiffEqFlux, Covid19ModelVN
+using Dates, Statistics, CairoMakie, DataFrames, DataDeps, DiffEqFlux, Covid19ModelVN
 
 import Covid19ModelVN.JHUCSSEData,
     Covid19ModelVN.FacebookData,
     Covid19ModelVN.PopulationData,
     Covid19ModelVN.VnExpressData,
     Covid19ModelVN.VnCdcData
+
+BASELINE_EXPERIMENTS = [
+    "baseline.default.$loc" for loc ∈ [
+        Covid19ModelVN.LOC_CODE_VIETNAM
+        Covid19ModelVN.LOC_CODE_UNITED_STATES
+        collect(keys(Covid19ModelVN.LOC_NAMES_VN))
+        collect(keys(Covid19ModelVN.LOC_NAMES_US))
+    ]
+]
+
+FBMOBILITY1_EXPERIMENTS = [
+    "fbmobility1.default.$loc" for loc ∈ [
+        Covid19ModelVN.LOC_CODE_VIETNAM
+        Covid19ModelVN.LOC_CODE_UNITED_STATES
+        collect(keys(Covid19ModelVN.LOC_NAMES_VN))
+        collect(keys(Covid19ModelVN.LOC_NAMES_US))
+    ]
+]
+
+FBMOBILITY2_EXPERIMENTS = [
+    "fbmobility2.default.$loc" for loc ∈ [
+        collect(keys(Covid19ModelVN.LOC_NAMES_VN))
+        collect(keys(Covid19ModelVN.LOC_NAMES_US))
+    ]
+]
+
+ALL_EXPERIMENTS =
+    [BASELINE_EXPERIMENTS; FBMOBILITY1_EXPERIMENTS; FBMOBILITY2_EXPERIMENTS]
 
 function experiment_covid19_dataframe(location_code::AbstractString)
     df = get_prebuilt_covid_timeseries(location_code)
@@ -168,13 +196,18 @@ end
 
 struct Hyperparameters
     ζ::Float64
-    adam_maxiters::Int
-    adam_learning_rate::Float64
-    bfgs_maxiters::Int
-    bfgs_initial_stepnorm::Float64
+    sessions::AbstractVector{TrainSession}
+    box_constrained::Bool
+    γ_bounds::Tuple{<:Real,<:Real}
+    λ_bounds::Tuple{<:Real,<:Real}
+    α_bounds::Tuple{<:Real,<:Real}
 end
 
+Hyperparameters(ζ::Float64, sessions::AbstractVector{TrainSession}) =
+    Hyperparameters(ζ, sessions, false, (-Inf, Inf), (-Inf, Inf), (-Inf, Inf))
+
 function experiment_train_and_eval(
+    uuid::AbstractString,
     experiment_name::AbstractString,
     hyperparams::Hyperparameters;
     snapshots_dir::AbstractString = "snapshots",
@@ -186,69 +219,64 @@ function experiment_train_and_eval(
     # get model
     model, train_dataset, test_dataset, vars, labels = experiment_setup(experiment_name)
     p0 = Covid19ModelVN.initial_params(model)
-    predictor = Predictor(model, vars)
+    predictor = Predictor(model)
     # build loss function
     weights = exp.(collect(train_dataset.tsteps) .* hyperparams.ζ)
     lossfn = (ŷ, y) -> sum((log.(ŷ .+ 1) .- log.(y .+ 1)) .^ 2 .* weights')
-    train_loss = Loss(lossfn, predictor, train_dataset)
+    train_loss = Loss(lossfn, predictor, train_dataset, vars)
+
     @info "Initial loss: $(train_loss(p0))"
 
-    @info "Training model"
-    timestamp = Dates.format(now(), "yyyymmddHHMMSS")
-    # 2-stage training procedure
-    sessions = [
-        TrainSession(
-            "$timestamp.$experiment_name.adam",
-            ADAM(hyperparams.adam_learning_rate),
-            hyperparams.adam_maxiters,
-            100,
-        ),
-        TrainSession(
-            "$timestamp.$experiment_name.bfgs",
-            BFGS(initial_stepnorm = hyperparams.bfgs_initial_stepnorm),
-            hyperparams.bfgs_maxiters,
-            100,
-        ),
-    ]
-    # the minimizing parameters returned at each stage
-    minimizers = train_model(train_loss, p0, sessions, snapshots_dir = snapshots_dir)
+    minimizers = if hyperparams.box_constrained
+        # optimizing the model with box constraints (not all optimizers,
+        # support box-constrained optimization)
+        lower_bounds = [
+            hyperparams.γ_bounds[1]
+            hyperparams.λ_bounds[1]
+            hyperparams.α_bounds[1]
+            fill(-Inf, DiffEqFlux.paramlength(model.β_ann))
+        ]
+        upper_bounds = [
+            hyperparams.γ_bounds[2]
+            hyperparams.λ_bounds[2]
+            hyperparams.α_bounds[2]
+            fill(Inf, DiffEqFlux.paramlength(model.β_ann))
+        ]
+        train_model(
+            train_loss,
+            p0,
+            hyperparams.sessions,
+            lower_bounds = lower_bounds,
+            upper_bounds = upper_bounds,
+            snapshots_dir = snapshots_dir,
+        )
+    else
+        # optimizing the model without constraints
+        train_model(train_loss, p0, hyperparams.sessions, snapshots_dir = snapshots_dir)
+    end
 
     @info "Evaluating model"
     # only evaluating the last parameters
     minimizer = last(minimizers)
-    eval_config = EvalConfig([mae, mape, rmse], [7, 14, 21, 28], labels)
-
+    eval_config = EvalConfig([mae, mape, rmse], [7, 14, 21, 28], vars, labels)
     # plot the model's forecasts againts the ground truth, and calculate to model's
     # error on the test data
     forecasts_plot, df_forecasts_errors =
         evaluate_model(eval_config, minimizer, predictor, train_dataset, test_dataset)
     # save the forecasts errors
-    forecasts_errors_fpath =
-        joinpath(experiment_dir, "$timestamp.$experiment_name.errors.csv")
-    CSV.write(forecasts_errors_fpath, df_forecasts_errors)
+    save_dataframe(
+        df_forecasts_errors,
+        joinpath(snapshots_dir, "$uuid.$experiment_name.errors.csv"),
+    )
     # save the forecasts plot
-    forecasts_plot_fpath =
-        joinpath(experiment_dir, "$timestamp.$experiment_name.forecasts.png")
-    savefig(forecasts_plot, forecasts_plot_fpath)
-
+    save(joinpath(snapshots_dir, "$uuid.$experiment_name.forecasts.png"), forecasts_plot)
     # get the effective reproduction number learned by the model
-    R_effective_1 = effective_reproduction_number(
-        model,
-        minimizer,
-        train_dataset.tspan,
-        train_dataset.tsteps,
+    R_effective_plot =
+        plot_effective_reproduction_number(model, minimizer, train_dataset, test_dataset)
+    save(
+        joinpath(snapshots_dir, "$uuid.$experiment_name.R_effective.png"),
+        R_effective_plot,
     )
-    R_effective_2 = effective_reproduction_number(
-        model,
-        minimizer,
-        test_dataset.tspan,
-        test_dataset.tsteps,
-    )
-    # save the effective reproduction number plot
-    R_effective_plot = plot([R_effective_1 R_effective_2]')
-    R_effective_fpath =
-        joinpath(experiment_dir, "$timestamp.$experiment_name.R_effective.png")
-    savefig(R_effective_plot, R_effective_fpath)
 
-    return nothing
+    return forecasts_plot, df_forcasts_errors, R_effective_plot
 end
