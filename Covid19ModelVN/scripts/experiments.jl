@@ -31,8 +31,7 @@ FBMOBILITY2_EXPERIMENTS = [
     ]
 ]
 
-ALL_EXPERIMENTS =
-    [BASELINE_EXPERIMENTS; FBMOBILITY1_EXPERIMENTS; FBMOBILITY2_EXPERIMENTS]
+ALL_EXPERIMENTS = [BASELINE_EXPERIMENTS; FBMOBILITY1_EXPERIMENTS; FBMOBILITY2_EXPERIMENTS]
 
 function experiment_covid19_dataframe(location_code::AbstractString)
     df = get_prebuilt_covid_timeseries(location_code)
@@ -219,11 +218,11 @@ function experiment_train_and_eval(
     # get model
     model, train_dataset, test_dataset, vars, labels = experiment_setup(experiment_name)
     p0 = Covid19ModelVN.initial_params(model)
-    predictor = Predictor(model)
+    predictor = Predictor(model, vars)
     # build loss function
     weights = exp.(collect(train_dataset.tsteps) .* hyperparams.ζ)
     lossfn = (ŷ, y) -> sum((log.(ŷ .+ 1) .- log.(y .+ 1)) .^ 2 .* weights')
-    train_loss = Loss(lossfn, predictor, train_dataset, vars)
+    train_loss = Loss(lossfn, predictor, train_dataset)
 
     @info "Initial loss: $(train_loss(p0))"
 
@@ -258,7 +257,7 @@ function experiment_train_and_eval(
     @info "Evaluating model"
     # only evaluating the last parameters
     minimizer = last(minimizers)
-    eval_config = EvalConfig([mae, mape, rmse], [7, 14, 21, 28], vars, labels)
+    eval_config = EvalConfig([mae, mape, rmse], [7, 14, 21, 28], labels)
     # plot the model's forecasts againts the ground truth, and calculate to model's
     # error on the test data
     forecasts_plot, df_forecasts_errors =
@@ -278,5 +277,5 @@ function experiment_train_and_eval(
         R_effective_plot,
     )
 
-    return forecasts_plot, df_forcasts_errors, R_effective_plot
+    return forecasts_plot, df_forecasts_errors, R_effective_plot
 end

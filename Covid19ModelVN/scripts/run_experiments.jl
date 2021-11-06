@@ -41,8 +41,8 @@ function run01(experiment_name::AbstractString)
     )
 end
 
-batchrun01() =
-    for experiment_name ∈ ALL_EXPERIMENTS
+batchrun01(experiment_names) =
+    for experiment_name ∈ experiment_names
         run01(experiment_name)
     end
 
@@ -60,7 +60,7 @@ function run02(experiment_name::AbstractString)
         )],
         true, # use box constraints
         (1 / 5, 1 / 2), # mean incubation period is in the range of 2 to 5 days
-        (1 / 21, 1 / 7), # mean infectious period is in the range of 14 to 21 days
+        (1 / 21, 1 / 7), # mean infectious period is in the range of 7 to 21 days
         (0.01, 0.06), # fatality rate is in the range of 1% to 6%
     )
 
@@ -77,9 +77,9 @@ function run02(experiment_name::AbstractString)
     )
 end
 
-batchrun02() =
-    for experiment_name ∈ ALL_EXPERIMENTS
-        run03(experiment_name)
+batchrun02(experiment_names) =
+    for experiment_name ∈ experiment_names
+        run02(experiment_name)
     end
 
 function run03(experiment_name::AbstractString)
@@ -96,7 +96,7 @@ function run03(experiment_name::AbstractString)
         )],
         true, # use box constraints
         (1 / 5, 1 / 2), # mean incubation period is in the range of 2 to 5 days
-        (1 / 21, 1 / 7), # mean infectious period is in the range of 14 to 21 days
+        (1 / 21, 1 / 7), # mean infectious period is in the range of 7 to 21 days
         (0.01, 0.06), # fatality rate is in the range of 1% to 6%
     )
 
@@ -112,9 +112,46 @@ function run03(experiment_name::AbstractString)
     )
 end
 
-batchrun03() =
-    for experiment_name ∈ ALL_EXPERIMENTS
+batchrun03(experiment_names) =
+    for experiment_name ∈ experiment_names
         run03(experiment_name)
     end
 
-run02(first(BASELINE_EXPERIMENTS))
+function run04(experiment_name::AbstractString)
+    uuid = Dates.format(now(), "yyyymmddHHMMSS")
+    hyperparams = Hyperparameters(
+        0,
+        # single-stage training procedure with constraints on parameters' lower bounds
+        # and upper bounds
+        TrainSession[TrainSession(
+            "$uuid.$experiment_name.bfgs",
+            BFGS(initial_stepnorm = 0.01),
+            100,
+            100,
+        )],
+        true, # use box constraints
+        (1 / 5, 1 / 2), # mean incubation period is in the range of 2 to 5 days
+        (1 / 21, 1 / 7), # mean infectious period is in the range of 7 to 21 days
+        (0.01, 0.06), # fatality rate is in the range of 1% to 6%
+    )
+
+    _, loc = rsplit(experiment_name, ".", limit = 2)
+    experiment_train_and_eval(
+        uuid,
+        experiment_name,
+        hyperparams,
+        snapshots_dir = joinpath(
+            SNAPSHOTS_DIR,
+            "100bfgs-initstepnorm0.01-boxconstrained-no-weights",
+            loc,
+        ),
+    )
+end
+
+batchrun04(experiment_names) =
+    for experiment_name ∈ experiment_names
+        run04(experiment_name)
+    end
+
+
+batchrun04([FBMOBILITY1_EXPERIMENTS; FBMOBILITY2_EXPERIMENTS])
