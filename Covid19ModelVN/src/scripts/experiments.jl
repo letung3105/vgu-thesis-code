@@ -1,3 +1,9 @@
+# Activate the environment for running the script
+if isfile("Project.toml") && isfile("Manifest.toml")
+    import Pkg
+    Pkg.activate(".")
+end
+
 using Dates, Statistics, CairoMakie, DataFrames, DataDeps, DiffEqFlux, Covid19ModelVN
 
 import Covid19ModelVN.JHUCSSEData,
