@@ -47,7 +47,7 @@ function CovidModelSEIRDBaseline(u0::AbstractVector{<:Real}, tspan::Tuple{<:Real
         @inbounds begin
             # states and params
             S, E, I, _, _, _, N = u
-            γ, λ, α = abs.(@view(p[1:3]))
+            γ, λ, α = @view(p[1:3])
             # infection rate depends on time, susceptible, and infected
             β = first(β_ann([S / N; I / N], @view p[4:end]))
 
@@ -141,7 +141,7 @@ function CovidModelSEIRDFbMobility1(
             mobility = @view movement_range_data[:, Int(floor(t + 1))]
             # states and params
             S, E, I, _, _, _, N = u
-            γ, λ, α = abs.(@view(p[1:3]))
+            γ, λ, α = @view(p[1:3])
             # infection rate depends on time, susceptible, and infected
             β = first(β_ann([S / N; I / N; mobility...], @view p[4:end]))
 
@@ -243,7 +243,7 @@ function CovidModelSEIRDFbMobility2(
             proximity = @view social_proximity_data[:, time_idx]
             # states and params
             S, E, I, _, _, _, N = u
-            γ, λ, α = abs.(@view(p[1:3]))
+            γ, λ, α = @view(p[1:3])
             # infection rate depends on time, susceptible, and infected
             β = first(β_ann([S / N; I / N; mobility...; proximity...], @view p[4:end]))
 
