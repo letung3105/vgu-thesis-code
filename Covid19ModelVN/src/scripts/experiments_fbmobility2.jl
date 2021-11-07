@@ -62,8 +62,13 @@ function experiment_fbmobility2(
             100,
             100,
         )],
-        lower_bounds = [1/5; 1/21; 0.0; fill(-Inf, DiffEqFlux.paramlength(model.β_ann))],
-        upper_bounds = [1/2; 1/7; 0.06; fill(Inf, DiffEqFlux.paramlength(model.β_ann))],
+        lower_bounds = [
+            1 / 5
+            1 / 21
+            0.0
+            fill(-Inf, DiffEqFlux.paramlength(model.β_ann))
+        ],
+        upper_bounds = [1 / 2 1 / 7 0.06 fill(Inf, DiffEqFlux.paramlength(model.β_ann))],
         snapshots_dir = snapshots_dir,
     )
 
