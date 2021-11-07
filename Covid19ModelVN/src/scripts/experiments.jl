@@ -123,7 +123,7 @@ end
 
 function experiment_loss(predictor::Predictor, dataset::TimeseriesDataset, ζ::Float64)
     weights = exp.(collect(dataset.tsteps) .* ζ)
-    lossfn = (ŷ, y) -> sum(mean((ŷ .- y) .^ 2 .* weights', dims = 2))
+    lossfn = (ŷ, y) -> sum((log.(ŷ .+ 1) .- log.(y .+ 1)) .^ 2 .* weights')
     loss = Loss(lossfn, predictor, dataset)
     return loss
 end
