@@ -51,8 +51,8 @@ Construct a new default `Predictor` using the problem defined by the given model
 
 + `model`: a model containing a problem that can be solved
 """
-Predictor(model::AbstractCovidModel, save_idxs::AbstractVector{<:Integer}) = Predictor(
-    model.problem,
+Predictor(problem::SciMLBase.DEProblem, save_idxs::AbstractVector{<:Integer}) = Predictor(
+    problem,
     Tsit5(),
     InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
     1e-6,
@@ -133,7 +133,6 @@ State of the callback struct
 * `iters`: number have iterations that have been run
 * `progress`: the progress meter that keeps track of the process
 * `train_losses`: collected training losses at each interval
-* `test_losses`: collected testing losses at each interval
 * `minimizer`: current best set of parameters
 * `minimizer_loss`: loss value of the current best set of parameters
 """
@@ -141,7 +140,6 @@ mutable struct TrainCallbackState
     iters::Integer
     progress::ProgressUnknown
     train_losses::AbstractVector{<:Real}
-    test_losses::AbstractVector{<:Real}
     minimizer::AbstractVector{<:Real}
     minimizer_loss::Real
 end
@@ -154,28 +152,20 @@ and other fields set to their default values
 
 + `maxiters`: Maximum number of iterrations that the optimizer will run
 """
-TrainCallbackState() = TrainCallbackState(
-    0,
-    ProgressUnknown(showspeed = true),
-    Float64[],
-    Float64[],
-    Float64[],
-    Inf,
-)
+TrainCallbackState() =
+    TrainCallbackState(0, ProgressUnknown(showspeed = true), Float64[], Float64[], Inf)
 
 """
 Configuration of the callback struct
 
 # Fields
 
-* `test_loss_fn`: a callable for calculating the testing loss value
 * `losses_plot_fpath`: file path to the saved losses figure
 * `losses_plot_interval`: interval for collecting losses and plot the losses figure
 * `params_save_fpath`: file path to the serialized current best set of parameters
 * `params_save_interval`: interval for saving the current best set of parameters
 """
 struct TrainCallbackConfig
-    test_loss_fn::Union{Nothing,Loss}
     losses_plot_fpath::Union{Nothing,<:AbstractString}
     losses_plot_interval::Integer
     params_save_fpath::Union{Nothing,<:AbstractString}
@@ -185,8 +175,7 @@ end
 """
 Contruct a default `TrainCallbackConfig`
 """
-TrainCallbackConfig() =
-    TrainCallbackConfig(nothing, nothing, typemax(Int), nothing, typemax(Int))
+TrainCallbackConfig() = TrainCallbackConfig(nothing, typemax(Int), nothing, typemax(Int))
 
 """
 A callable struct that is used for handling callback for `sciml_train`
@@ -216,17 +205,6 @@ Call an object of type `TrainCallback`
 * `train_loss`: loss from the training step
 """
 function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
-    showvalues = Pair{Symbol,Any}[
-        :losses_plot_fpath=>cb.config.losses_plot_fpath,
-        :params_save_fpath=>cb.config.params_save_fpath,
-        :train_loss=>train_loss,
-    ]
-    test_loss = if !isnothing(cb.config.test_loss_fn)
-        loss = cb.config.test_loss_fn(params)
-        push!(showvalues, :test_loss => loss)
-        loss
-    end
-
     if train_loss < cb.state.minimizer_loss
         cb.state.minimizer_loss = train_loss
         cb.state.minimizer = params
@@ -243,10 +221,6 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
         )
         append!(cb.state.train_losses, train_loss)
         scatter!(ax, cb.state.train_losses, label = "Train loss")
-        if !isnothing(test_loss)
-            append!(cb.state.test_losses, test_loss)
-            scatter!(ax, cb.state.test_losses, label = "Test loss")
-        end
         axislegend(ax, position = :lt)
         save(cb.config.losses_plot_fpath, fig)
     end
@@ -256,6 +230,11 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
         Serialization.serialize(cb.config.params_save_fpath, cb.state.minimizer)
     end
 
+    showvalues = Pair{Symbol,Any}[
+        :losses_plot_fpath=>cb.config.losses_plot_fpath,
+        :params_save_fpath=>cb.config.params_save_fpath,
+        :train_loss=>train_loss,
+    ]
     next!(cb.state.progress, showvalues = showvalues)
     return false
 end
@@ -302,16 +281,18 @@ the initial set of parameters `params`.
 + `params`: the initial set of parameters
 + `sessions`: a collection of optimizers and settings used for training the model
 + `snapshots_dir`: a directory for saving the model parameters and training losses
-+ `test_loss`: a function for evaluating the model on out-of-sample data
 """
 function train_model(
     train_loss::Loss,
     params::AbstractVector{<:Real},
     sessions::AbstractVector{TrainSession};
-    test_loss::Union{Loss,Nothing} = nothing,
     snapshots_dir::Union{AbstractString,Nothing} = nothing,
     kwargs...,
 )
+    if !isdir(snapshots_dir)
+        mkpath(snapshots_dir)
+    end
+
     minimizers = Vector{Float64}[]
     params = copy(params)
     for sess ∈ sessions
@@ -324,7 +305,6 @@ function train_model(
             )
         cb = TrainCallback(
             TrainCallbackConfig(
-                test_loss,
                 losses_plot_fpath,
                 snapshot_and_plot_interval,
                 params_save_fpath,
@@ -362,13 +342,13 @@ Evaluate the model by calculating the errors and draw plot againts ground truth 
 """
 function evaluate_model(
     config::EvalConfig,
+    predictor::Predictor,
     params::AbstractVector{<:Real},
-    predict_fn::Predictor,
     train_dataset::TimeseriesDataset,
     test_dataset::TimeseriesDataset,
 )
-    fit = predict_fn(params, train_dataset.tspan, train_dataset.tsteps)
-    pred = predict_fn(params, test_dataset.tspan, test_dataset.tsteps)
+    fit = predictor(params, train_dataset.tspan, train_dataset.tsteps)
+    pred = predictor(params, test_dataset.tspan, test_dataset.tsteps)
     forecasts_plot = plot_forecasts(config, fit, pred, train_dataset, test_dataset)
     df_forecasts_errors = calculate_forecasts_errors(config, pred, test_dataset)
     return forecasts_plot, df_forecasts_errors
