@@ -18,83 +18,67 @@ A struct for containing the SEIRD baseline model
 # Fields
 
 * `β_ann`: an neural network that outputs the time-dependent β contact rate
-* `problem`: the ODE problem to be solved
 """
-struct CovidModelSEIRDBaseline <: AbstractCovidModel
+struct SEIRDBaseline
     β_ann::FastChain
-    problem::ODEProblem
 end
 
 """
 Construct the default SEIRD baseline model
-
-# Arguments
-
-* `u0`: the system initial conditions
-* `tspan`: the time span in which the system is considered
 """
-function CovidModelSEIRDBaseline(u0::AbstractVector{<:Real}, tspan::Tuple{<:Real,<:Real})
-    # small neural network and can be trained faster on CPU
-    β_ann =
-        FastChain(FastDense(2, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
-    # system dynamics
-    function dudt!(
-        du::AbstractVector{<:Real},
-        u::AbstractVector{<:Real},
-        p::AbstractVector{<:Real},
-        t::Real,
-    )
-        @inbounds begin
-            # states and params
-            S, E, I, _, _, _, N = u
-            γ, λ, α = @view(p[1:3])
-            # infection rate depends on time, susceptible, and infected
-            β = first(β_ann([S / N; I / N], @view p[4:end]))
+SEIRDBaseline() = SEIRDBaseline(
+    FastChain(FastDense(2, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus)),
+)
 
-            du[1] = -β * S * I / N
-            du[2] = β * S * I / N - γ * E
-            du[3] = γ * E - λ * I
-            du[4] = (1 - α) * λ * I
-            du[5] = α * λ * I
-            du[6] = γ * E
-            du[7] = -α * λ * I
-        end
-        nothing
-    end
-    prob = ODEProblem(dudt!, u0, tspan)
-    return CovidModelSEIRDBaseline(β_ann, prob)
+@inbounds function (model::SEIRDBaseline)(
+    du::AbstractVector{<:Real},
+    u::AbstractVector{<:Real},
+    p::AbstractVector{<:Real},
+    t::Real;
+    γ = p[1],
+    λ = p[2],
+    α = p[3],
+    θ = @view(p[4:4+DiffEqFlux.paramlength(model.β_ann)-1]),
+)
+    # states and params
+    S, E, I, _, _, _, N = u
+    # infection rate depends on time, susceptible, and infected
+    β = first(β_ann([S / N; I / N], θ))
+    du[1] = -β * S * I / N
+    du[2] = β * S * I / N - γ * E
+    du[3] = γ * E - λ * I
+    du[4] = (1 - α) * λ * I
+    du[5] = α * λ * I
+    du[6] = γ * E
+    du[7] = -α * λ * I
+    return nothing
 end
 
-"""
-Get the initial set of parameters of the baselien SEIRD model with Facebook movement range
-"""
-initial_params(model::CovidModelSEIRDBaseline) =
-    [1 / 3; 1 / 14; 0.025; DiffEqFlux.initial_params(model.β_ann)]
-
-function effective_reproduction_number(
-    model::CovidModelSEIRDBaseline,
+function ℜe(
+    model::SEIRDBaseline,
+    prob::ODEProblem,
     params::AbstractVector{<:Real},
     tspan::Tuple{<:Real,<:Real},
-    saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen},
+    saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen};
+    γ = p[1],
+    θ = @view(p[4:4+DiffEqFlux.paramlength(model.β_ann)-1]),
 )
-    problem = remake(model.problem, p = params, tspan = tspan)
+    prob = remake(prob, p = params, tspan = tspan)
     sol = solve(
-        problem,
+        prob,
         Tsit5(),
         saveat = saveat,
         solver = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
         abstol = 1e-6,
         reltol = 1e-6,
     )
-
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
-
     β_ann_input = [(S ./ N)'; (I ./ N)']
-    βt = model.β_ann(β_ann_input, @view params[4:end])
-    Rt = βt ./ params[1]
+    βt = model.β_ann(β_ann_input, θ)
+    Rt = βt ./ γ
     return Rt
 end
 
@@ -104,92 +88,75 @@ A struct for containing the SEIRD model with Facebook movement range
 # Fields
 
 * `β_ann`: an neural network that outputs the time-dependent β contact rate
-* `problem`: the ODE problem to be solved
+* `movement_range_data`: the matrix for the Facebook movement range timeseries data
 """
-struct CovidModelSEIRDFbMobility1 <: AbstractCovidModel
+struct SEIRDFbMobility1 <: AbstractCovidModel
     β_ann::FastChain
-    problem::ODEProblem
     movement_range_data::AbstractMatrix{<:Real}
 end
 
 """
 Construct the default SEIRD model with Facebook movement range data
 
-# Arguments
-
-* `u0`: the system initial conditions
-* `tspan`: the time span in which the system is considered
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 """
-function CovidModelSEIRDFbMobility1(
-    u0::AbstractVector{<:Real},
-    tspan::Tuple{<:Real,<:Real},
-    movement_range_data::AbstractMatrix{<:Real},
+SEIRDFbMobility1(movement_range_data::AbstractMatrix{<:Real}) = SEIRDFbMobility1(
+    FastChain(FastDense(4, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus)),
+    movement_range_data,
 )
-    # small neural network and can be trained faster on CPU
-    β_ann =
-        FastChain(FastDense(4, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
-    # system dynamics
-    function dudt!(
-        du::AbstractVector{<:Real},
-        u::AbstractVector{<:Real},
-        p::AbstractVector{<:Real},
-        t::Real,
-    )
-        @inbounds begin
-            # daily mobility
-            mobility = @view movement_range_data[:, Int(floor(t + 1))]
-            # states and params
-            S, E, I, _, _, _, N = u
-            γ, λ, α = @view(p[1:3])
-            # infection rate depends on time, susceptible, and infected
-            β = first(β_ann([S / N; I / N; mobility...], @view p[4:end]))
 
-            du[1] = -β * S * I / N
-            du[2] = β * S * I / N - γ * E
-            du[3] = γ * E - λ * I
-            du[4] = (1 - α) * λ * I
-            du[5] = α * λ * I
-            du[6] = γ * E
-            du[7] = -α * λ * I
-        end
-        return nothing
-    end
-    prob = ODEProblem(dudt!, u0, tspan)
-    return CovidModelSEIRDFbMobility1(β_ann, prob, movement_range_data)
+@inbounds function (model::SEIRDBaseline)(
+    du::AbstractVector{<:Real},
+    u::AbstractVector{<:Real},
+    p::AbstractVector{<:Real},
+    t::Real;
+    γ = p[1],
+    λ = p[2],
+    α = p[3],
+    θ = @view(p[4:4+DiffEqFlux.paramlength(model.β_ann)-1]),
+)
+    # daily mobility
+    mobility = @view movement_range_data[:, Int(floor(t + 1))]
+    # states and params
+    S, E, I, _, _, _, N = u
+    # infection rate depends on time, susceptible, and infected
+    β = first(β_ann([S / N; I / N; mobility...], θ))
+    du[1] = -β * S * I / N
+    du[2] = β * S * I / N - γ * E
+    du[3] = γ * E - λ * I
+    du[4] = (1 - α) * λ * I
+    du[5] = α * λ * I
+    du[6] = γ * E
+    du[7] = -α * λ * I
+    return nothing
 end
 
-"""
-Get the initial set of parameters of the SEIRD model with Facebook movement range
-"""
-initial_params(model::CovidModelSEIRDFbMobility1) =
-    [1 / 3; 1 / 14; 0.025; DiffEqFlux.initial_params(model.β_ann)]
-
-function effective_reproduction_number(
-    model::CovidModelSEIRDFbMobility1,
+function ℜe(
+    model::SEIRDFbMobility1,
+    prob::ODEProblem,
     params::AbstractVector{<:Real},
     tspan::Tuple{<:Real,<:Real},
-    saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen},
+    saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen};
+    γ = p[1],
+    θ = @view(p[4:4+DiffEqFlux.paramlength(model.β_ann)-1]),
 )
-    problem = remake(model.problem, p = params, tspan = tspan)
+    prob = remake(prob, p = params, tspan = tspan)
     sol = solve(
-        problem,
+        prob,
         Tsit5(),
         saveat = saveat,
         solver = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
         abstol = 1e-6,
         reltol = 1e-6,
     )
-
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
-
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility]
-    βt = model.β_ann(β_ann_input, @view params[4:end])
-    Rt = βt ./ params[1]
+    βt = model.β_ann(β_ann_input, θ)
+    Rt = βt ./ γ
     return Rt
 end
 
@@ -199,104 +166,79 @@ A struct for containing the SEIRD model with Facebook movement range
 # Fields
 
 * `β_ann`: an neural network that outputs the time-dependent β contact rate
-* `problem`: the ODE problem to be solved
+* `movement_range_data`: the matrix for the Facebook movement range timeseries data
+* `social_proximity_data`: the matrix for the social proximity to cases timeseries data
 """
-struct CovidModelSEIRDFbMobility2 <: AbstractCovidModel
+struct SEIRDFbMobility2 <: AbstractCovidModel
     β_ann::FastChain
-    problem::ODEProblem
     movement_range_data::AbstractMatrix{<:Real}
     social_proximity_data::AbstractMatrix{<:Real}
 end
 
-"""
-Construct the default SEIRD model with Facebook movement range data
-and social connectedness
-
-# Arguments
-
-* `u0`: the system initial conditions
-* `tspan`: the time span in which the system is considered
-* `movement_range_data`: the matrix for the Facebook movement range timeseries data
-* `spc_date`: the matrix for the Social Proximity to Cases Index
-"""
-function CovidModelSEIRDFbMobility2(
-    u0::AbstractVector{<:Real},
-    tspan::Tuple{<:Real,<:Real},
-    movement_range_data::AbstractMatrix{<:Real},
-    social_proximity_data::AbstractMatrix{<:Real},
+SEIRDFbMobility2(
+    movement_range_data::AbstractMatrix{<:Real}
+    social_proximity_data::AbstractMatrix{<:Real}
+) = SEIRDFbMobility2(
+    FastChain(FastDense(5, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus)),
+    movement_range_data,
+    social_proximity_data,
 )
-    # small neural network and can be trained faster on CPU
-    β_ann =
-        FastChain(FastDense(5, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
-    # system dynamics
-    function dudt!(
-        du::AbstractVector{<:Real},
-        u::AbstractVector{<:Real},
-        p::AbstractVector{<:Real},
-        t::Real,
-    )
-        @inbounds begin
-            time_idx = Int(floor(t + 1))
-            # daily mobility
-            mobility = @view movement_range_data[:, time_idx]
-            # daily social proximity to cases
-            proximity = @view social_proximity_data[:, time_idx]
-            # states and params
-            S, E, I, _, _, _, N = u
-            γ, λ, α = @view(p[1:3])
-            # infection rate depends on time, susceptible, and infected
-            β = first(β_ann([S / N; I / N; mobility...; proximity...], @view p[4:end]))
 
-            du[1] = -β * S * I / N
-            du[2] = β * S * I / N - γ * E
-            du[3] = γ * E - λ * I
-            du[4] = (1 - α) * λ * I
-            du[5] = α * λ * I
-            du[6] = γ * E
-            du[7] = -α * λ * I
-        end
-        return nothing
-    end
-    prob = ODEProblem(dudt!, u0, tspan)
-    return CovidModelSEIRDFbMobility2(
-        β_ann,
-        prob,
-        movement_range_data,
-        social_proximity_data,
-    )
+@inbounds function (model::SEIRDBaseline)(
+    du::AbstractVector{<:Real},
+    u::AbstractVector{<:Real},
+    p::AbstractVector{<:Real},
+    t::Real;
+    γ = p[1],
+    λ = p[2],
+    α = p[3],
+    θ = @view(p[4:4+DiffEqFlux.paramlength(model.β_ann)-1]),
+)
+    time_idx = Int(floor(t + 1))
+    # daily mobility
+    mobility = @view model.movement_range_data[:, time_idx]
+    # daily social proximity to cases
+    proximity = @view model.social_proximity_data[:, time_idx]
+    # states and params
+    S, E, I, _, _, _, N = u
+    # infection rate depends on time, susceptible, and infected
+    β = first(β_ann([S / N; I / N; mobility...; proximity...], θ))
+    du[1] = -β * S * I / N
+    du[2] = β * S * I / N - γ * E
+    du[3] = γ * E - λ * I
+    du[4] = (1 - α) * λ * I
+    du[5] = α * λ * I
+    du[6] = γ * E
+    du[7] = -α * λ * I
+    return nothing
 end
 
-"""
-Get the initial set of parameters of the SEIRD model with Facebook movement range
-"""
-initial_params(model::CovidModelSEIRDFbMobility2) =
-    [1 / 3; 1 / 14; 0.025; DiffEqFlux.initial_params(model.β_ann)]
-
-function effective_reproduction_number(
-    model::CovidModelSEIRDFbMobility2,
+function ℜe(
+    model::SEIRDFbMobility2,
+    prob::ODEProblem,
     params::AbstractVector{<:Real},
     tspan::Tuple{<:Real,<:Real},
-    saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen},
+    saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen};
+    γ = p[1],
+    θ = @view(p[4:4+DiffEqFlux.paramlength(model.β_ann)-1]),
 )
-    problem = remake(model.problem, p = params, tspan = tspan)
+    prob = remake(prob, p = params, tspan = tspan)
     sol = solve(
-        problem,
+        prob,
         Tsit5(),
         saveat = saveat,
         solver = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
         abstol = 1e-6,
         reltol = 1e-6,
     )
-
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
-
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
-    βt = model.β_ann(β_ann_input, @view params[4:end])
-    Rt = βt ./ params[1]
+    βt = model.β_ann(β_ann_input, θ)
+    Rt = βt ./ γ
     return Rt
 end
