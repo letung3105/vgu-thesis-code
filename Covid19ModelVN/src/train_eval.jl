@@ -11,7 +11,9 @@ export TrainSession,
     plot_effective_reproduction_number,
     plot_ℜe,
     logit,
+    hswish,
     boxconst,
+    boxconst_inv,
     mae,
     mape,
     rmse,
@@ -143,6 +145,7 @@ mutable struct TrainCallbackState
     iters::Integer
     progress::ProgressUnknown
     train_losses::AbstractVector{<:Real}
+    test_losses::AbstractVector{<:Real}
     minimizer::AbstractVector{<:Real}
     minimizer_loss::Real
 end
@@ -155,8 +158,14 @@ and other fields set to their default values
 
 + `maxiters`: Maximum number of iterrations that the optimizer will run
 """
-TrainCallbackState() =
-    TrainCallbackState(0, ProgressUnknown(showspeed = true), Float64[], Float64[], Inf)
+TrainCallbackState() = TrainCallbackState(
+    0,
+    ProgressUnknown(showspeed = true),
+    Float64[],
+    Float64[],
+    Float64[],
+    Inf,
+)
 
 """
 Configuration of the callback struct
@@ -169,8 +178,10 @@ Configuration of the callback struct
 * `params_save_interval`: interval for saving the current best set of parameters
 """
 struct TrainCallbackConfig
+    test_loss::Union{Loss,Nothing}
     losses_plot_fpath::Union{Nothing,<:AbstractString}
     losses_plot_interval::Integer
+    params_length::Integer
     params_save_fpath::Union{Nothing,<:AbstractString}
     params_save_interval::Integer
 end
@@ -178,7 +189,8 @@ end
 """
 Contruct a default `TrainCallbackConfig`
 """
-TrainCallbackConfig() = TrainCallbackConfig(nothing, typemax(Int), nothing, typemax(Int))
+TrainCallbackConfig() =
+    TrainCallbackConfig(nothing, nothing, typemax(Int), 0, nothing, typemax(Int))
 
 """
 A callable struct that is used for handling callback for `sciml_train`
@@ -213,22 +225,30 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
         :params_save_fpath=>cb.config.params_save_fpath,
         :train_loss=>train_loss,
     ]
+    test_loss = isnothing(cb.config.test_loss) ? nothing : cb.config.test_loss(params)
+    if !isnothing(test_loss)
+        push!(showvalues, :test_loss => test_loss)
+    end
     next!(cb.state.progress, showvalues = showvalues)
     cb.state.iters += 1
-    if train_loss < cb.state.minimizer_loss
+    if train_loss < cb.state.minimizer_loss && length(params) == cb.config.params_length
         cb.state.minimizer_loss = train_loss
         cb.state.minimizer = params
     end
     if cb.state.iters % cb.config.losses_plot_interval == 0 &&
        !isnothing(cb.config.losses_plot_fpath)
-        append!(cb.state.train_losses, train_loss)
         fig = Figure()
         ax = Axis(
             fig[1, 1],
             title = "Losses of the model after each iteration",
             xlabel = "Iterations",
         )
+        append!(cb.state.train_losses, train_loss)
         scatter!(ax, cb.state.train_losses, label = "Train loss")
+        if !isnothing(test_loss)
+            append!(cb.state.test_losses, test_loss)
+            scatter!(ax, cb.state.test_losses, label = "Test loss")
+        end
         axislegend(ax, position = :lt)
         save(cb.config.losses_plot_fpath, fig)
     end
@@ -288,6 +308,7 @@ function train_model(
     params::AbstractVector{<:Real},
     sessions::AbstractVector{TrainSession};
     snapshots_dir::Union{AbstractString,Nothing} = nothing,
+    test_loss::Union{Loss,Nothing} = nothing,
     kwargs...,
 )
     if !isdir(snapshots_dir)
@@ -296,17 +317,19 @@ function train_model(
     minimizers = Vector{Float64}[]
     params = copy(params)
     for sess ∈ sessions
-        snapshot_and_plot_interval = div(sess.maxiters, sess.loss_samples)
-        losses_plot_fpath, params_save_fpath =
-            isnothing(snapshots_dir) ? (nothing, nothing) :
-            get_losses_plot_fpath(snapshots_dir, sess.name),
-            get_params_save_fpath(snapshots_dir, sess.name)
+        makesnapshot = !isnothing(snapshots_dir)
+        losses_plot_fpath =
+            makesnapshot ? get_losses_plot_fpath(snapshots_dir, sess.name) : nothing
+        params_save_fpath =
+            makesnapshot ? get_params_save_fpath(snapshots_dir, sess.name) : nothing
         cb = TrainCallback(
             TrainCallbackConfig(
+                test_loss,
                 losses_plot_fpath,
-                snapshot_and_plot_interval,
+                div(sess.maxiters, sess.loss_samples),
+                length(params),
                 params_save_fpath,
-                snapshot_and_plot_interval,
+                div(sess.maxiters, sess.loss_samples),
             ),
         )
         @info "Running $(sess.name)"
@@ -485,7 +508,7 @@ function plot_effective_reproduction_number(
         label = "last training day",
     )
     scatter!(
-        vec([Re1 Re2]),
+        [Re1; Re2],
         color = :red,
         linewidth = 2,
         label = "effective reproduction number",
@@ -504,6 +527,14 @@ Transform the value of `x` to get a value that lies between `bounds[1]` and `bou
 """
 boxconst(x::Real, bounds::Tuple{<:Real,<:Real}) =
     bounds[1] + (bounds[2] - bounds[1]) * sigmoid(x)
+
+boxconst_inv(x::Real, bounds::Tuple{<:Real,<:Real}) =
+    logit((x - bounds[1]) / (bounds[2] - bounds[1]))
+
+"""
+[1] A. Howard et al., “Searching for MobileNetV3,” arXiv:1905.02244 [cs], Nov. 2019, Accessed: Oct. 09, 2021. [Online]. Available: http://arxiv.org/abs/1905.02244
+"""
+hswish(x::Real) = x * (relu6(x + 3) / 6)
 
 """
 Calculate the mean absolute error between 2 values. Note that the input arguments must be of the same size.

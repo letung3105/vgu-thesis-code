@@ -69,7 +69,7 @@ function ℜe(
     I = @view states[3, :]
     N = @view states[7, :]
     β_ann_input = [(S ./ N)'; (I ./ N)']
-    βt = model.β_ann(β_ann_input, θ)
+    βt = vec(model.β_ann(β_ann_input, θ))
     ℜe = βt ./ γ
     return ℜe
 end
@@ -147,7 +147,7 @@ function ℜe(
     N = @view states[7, :]
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility]
-    βt = model.β_ann(β_ann_input, θ)
+    βt = vec(model.β_ann(β_ann_input, θ))
     ℜe = βt ./ γ
     return ℜe
 end
@@ -230,7 +230,7 @@ function ℜe(
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
-    βt = model.β_ann(β_ann_input, θ)
+    βt = vec(model.β_ann(β_ann_input, θ))
     ℜe = βt ./ γ
     return ℜe
 end
