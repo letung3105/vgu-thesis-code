@@ -156,7 +156,3 @@ function experiment_evaluate(
     end
     return ℜe_plot, forecasts_plot, df_forecasts_errors
 end
-
-function hello() -> String
-    "Hello"
-end
