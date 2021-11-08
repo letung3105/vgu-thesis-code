@@ -430,11 +430,7 @@ Plot the effective reproduction number for the traing period and testing period
 * `ℜe_test`: the effective reproduction number of the testing period
 * `sep`: value at which the data is splitted for training and testing
 """
-function plot_ℜe(
-    ℜe_train::AbstractVector{<:Real},
-    ℜe_forecast::AbstractVector{<:Real},
-    sep::Real,
-)
+function plot_ℜe(ℜe::AbstractVector{<:Real}, sep::Real)
     R_effective_plot = Figure()
     ax = Axis(
         R_effective_plot[1, 1],
@@ -442,12 +438,7 @@ function plot_ℜe(
         xlabel = "Days since the 500th confirmed case",
     )
     vlines!(ax, [sep], color = :black, linestyle = :dash, label = "last training day")
-    scatter!(
-        [ℜe_train; ℜe_forecast],
-        color = :red,
-        linewidth = 2,
-        label = "effective reproduction number",
-    )
+    scatter!(ℜe, color = :red, linewidth = 2, label = "effective reproduction number")
     axislegend(ax, position = :lt)
     return R_effective_plot
 end

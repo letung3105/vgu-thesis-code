@@ -130,22 +130,16 @@ end
 
 function experiment_evaluate(
     sessname::AbstractString,
-    model!::AbstractCovidModel,
-    prob::ODEProblem,
     predictor::Predictor,
     minimizer::AbstractVector{<:Real},
     train_dataset::TimeseriesDataset,
     test_dataset::TimeseriesDataset,
-    labels::AbstractVector{<:AbstractString};
+    labels::AbstractVector{<:AbstractString},
+    ℜe::AbstractVector{<:Real};
     snapshots_dir::Union{<:AbstractString,Nothing} = nothing,
 )
     eval_config = EvalConfig([mae, mape, rmse], [7, 14, 21, 28], labels)
-    # get the effective reproduction number learned by the model
-    ℜe1, ℜe2 = let γ = boxconst(minimizer[1], γ_bounds)
-        ℜe(model!, prob, minimizer, train_dataset.tspan, train_dataset.tsteps, γ = γ),
-        ℜe(model!, prob, minimizer, test_dataset.tspan, test_dataset.tsteps, γ = γ)
-    end
-    ℜe_plot = plot_ℜe(vec(ℜe1), vec(ℜe2), train_dataset.tspan[2])
+    ℜe_plot = plot_ℜe(ℜe, train_dataset.tspan[2])
     # get model's evaluation
     forecasts_plot, df_forecasts_errors =
         evaluate_model(eval_config, predictor, minimizer, train_dataset, test_dataset)

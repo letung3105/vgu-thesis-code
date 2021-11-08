@@ -4,12 +4,12 @@ using OrdinaryDiffEq, DiffEqFlux, CairoMakie
 
 function setup_fbmobility1(
     loc::AbstractString,
+    ζ::Real,
     γ_bounds::Tuple{<:Real,<:Real},
     λ_bounds::Tuple{<:Real,<:Real},
-    α_bounds::Tuple{<:Real,<:Real};
-    train_range::Day = Day(32),
-    forecast_range::Day = Day(28),
-    ζ = 0.001,
+    α_bounds::Tuple{<:Real,<:Real},
+    train_range::Day,
+    forecast_range::Day,
 )
     train_dataset, test_dataset, first_date, last_date =
         experiment_covid19_data(loc, train_range, forecast_range)
@@ -42,9 +42,12 @@ end
 
 function experiment_fbmobility1(
     loc::AbstractString;
+    ζ = 0.001,
     γ_bounds::Tuple{<:Real,<:Real} = (1 / 5, 1 / 2),
     λ_bounds::Tuple{<:Real,<:Real} = (1 / 21, 1 / 14),
     α_bounds::Tuple{<:Real,<:Real} = (0.0, 0.06),
+    train_range::Day = Day(32),
+    forecast_range::Day = Day(28),
     name::AbstractString = "fbmobility1",
     savedir::AbstractString,
 )
@@ -53,7 +56,7 @@ function experiment_fbmobility1(
     sessname = "$uuid.$name.$loc"
     # get model and data
     model!, prob, predictor, loss, train_dataset, test_dataset, labels =
-        setup_fbmobility1(loc, γ_bounds, λ_bounds, α_bounds)
+        setup_fbmobility1(loc, ζ, γ_bounds, λ_bounds, α_bounds, train_range, forecast_range)
     # get initial parameters
     p0 = [
         logit((1 / 3 - γ_bounds[1]) / (γ_bounds[2] - γ_bounds[1]))
@@ -73,15 +76,19 @@ function experiment_fbmobility1(
     )
     # evaluation with estimated parameters
     minimizer = first(minimizers)
+    # get the effective reproduction number learned by the model
+    ℜe1, ℜe2 = let γ = boxconst(minimizer[1], γ_bounds)
+        ℜe(model!, prob, minimizer, train_dataset.tspan, train_dataset.tsteps, γ = γ),
+        ℜe(model!, prob, minimizer, test_dataset.tspan, test_dataset.tsteps, γ = γ)
+    end
     return experiment_evaluate(
         sessname,
-        model!,
-        prob,
         predictor,
         minimizer,
         train_dataset,
         test_dataset,
         labels,
+        [vec(ℜe1); vec(ℜe2)],
         snapshots_dir = snapshots_dir,
     )
 end
@@ -93,7 +100,7 @@ let
     loc = "hcm"
     # get model and data
     model!, prob, predictor, loss, train_dataset, test_dataset, labels =
-        setup_fbmobility1(loc, γ_bounds, λ_bounds, α_bounds)
+        setup_fbmobility1(loc, ζ, γ_bounds, λ_bounds, α_bounds, train_range, forecast_range)
     # get initial parameters
     p0 = [
         logit((1 / 3 - γ_bounds[1]) / (γ_bounds[2] - γ_bounds[1]))
