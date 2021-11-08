@@ -9,6 +9,7 @@ function setup_baseline(
     α_bounds::Tuple{<:Real,<:Real};
     train_range::Day = Day(32),
     forecast_range::Day = Day(28),
+    ζ = 0.001,
 )
     train_dataset, test_dataset = experiment_covid19_data(loc, train_range, forecast_range)
     @assert size(train_dataset.data, 2) == Dates.value(train_range)
@@ -32,7 +33,7 @@ function setup_baseline(
     # define problem and train model
     prob = ODEProblem(dudt!, u0, train_dataset.tspan)
     predictor = Predictor(prob, vars)
-    loss = experiment_loss(predictor, train_dataset, 0.01)
+    loss = experiment_loss(predictor, train_dataset, ζ)
     return model!, prob, predictor, loss, train_dataset, test_dataset, labels
 end
 

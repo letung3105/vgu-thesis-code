@@ -9,6 +9,8 @@ function setup_fbmobility2(
     α_bounds::Tuple{<:Real,<:Real};
     train_range::Day = Day(32),
     forecast_range::Day = Day(28),
+    social_proximity_lag = Day(14),
+    ζ = 0.001,
 )
     train_dataset, test_dataset, first_date, last_date =
         experiment_covid19_data(loc, train_range, forecast_range)
@@ -18,7 +20,6 @@ function setup_fbmobility2(
     movement_range_data = experiment_movement_range(loc, first_date, last_date)
     @assert size(movement_range_data, 2) == Dates.value(train_range + forecast_range)
 
-    social_proximity_lag = Day(14)
     social_proximity_data = experiment_social_proximity(
         loc,
         first_date - social_proximity_lag,
@@ -43,7 +44,7 @@ function setup_fbmobility2(
     # define problem and train model
     prob = ODEProblem(dudt!, u0, train_dataset.tspan)
     predictor = Predictor(prob, vars)
-    loss = experiment_loss(predictor, train_dataset, 0.01)
+    loss = experiment_loss(predictor, train_dataset, ζ)
     return model!, prob, predictor, loss, train_dataset, test_dataset, labels
 end
 
