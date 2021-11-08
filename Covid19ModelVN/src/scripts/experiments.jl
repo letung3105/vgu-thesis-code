@@ -4,7 +4,7 @@ if isfile("Project.toml") && isfile("Manifest.toml")
     Pkg.activate(".")
 end
 
-using Dates, Statistics, CairoMakie, DataFrames, DataDeps, DiffEqFlux, Covid19ModelVN
+using Dates, Statistics, DataFrames, Covid19ModelVN
 
 import Covid19ModelVN.JHUCSSEData,
     Covid19ModelVN.FacebookData,
@@ -126,4 +126,37 @@ function experiment_loss(predictor::Predictor, dataset::TimeseriesDataset, ζ::F
     lossfn = (ŷ, y) -> sum((log.(ŷ .+ 1) .- log.(y .+ 1)) .^ 2 .* weights')
     loss = Loss(lossfn, predictor, dataset)
     return loss
+end
+
+function experiment_evaluate(
+    sessname::AbstractString,
+    model!::AbstractCovidModel,
+    prob::ODEProblem,
+    predictor::Predictor,
+    minimizer::AbstractVector{<:Real},
+    train_dataset::TimeseriesDataset,
+    test_dataset::TimeseriesDataset,
+    labels::AbstractVector{<:AbstractString};
+    snapshots_dir::Union{<:AbstractString,Nothing} = nothing,
+)
+    eval_config = EvalConfig([mae, mape, rmse], [7, 14, 21, 28], labels)
+    # get the effective reproduction number learned by the model
+    ℜe1, ℜe2 = let γ = boxconst(minimizer[1], γ_bounds)
+        ℜe(model!, prob, minimizer, train_dataset.tspan, train_dataset.tsteps, γ = γ),
+        ℜe(model!, prob, minimizer, test_dataset.tspan, test_dataset.tsteps, γ = γ)
+    end
+    ℜe_plot = plot_ℜe(vec(ℜe1), vec(ℜe2), train_dataset.tspan[2])
+    # get model's evaluation
+    forecasts_plot, df_forecasts_errors =
+        evaluate_model(eval_config, predictor, minimizer, train_dataset, test_dataset)
+    if !isnothing(snapshots_dir)
+        save(joinpath(snapshots_dir, "$sessname.R_effective.png"), ℜe_plot)
+        save(joinpath(snapshots_dir, "$sessname.forecasts.png"), forecasts_plot)
+        save_dataframe(df_forecasts_errors, joinpath(snapshots_dir, "$sessname.errors.csv"))
+    end
+    return ℜe_plot, forecasts_plot, df_forecasts_errors
+end
+
+function hello() -> String
+    "Hello"
 end

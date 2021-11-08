@@ -1,13 +1,12 @@
-# Activate the environment for running the script
-if isfile("Project.toml") && isfile("Manifest.toml")
-    import Pkg
-    Pkg.activate(".")
-end
-
 include("experiments.jl")
 
+using OrdinaryDiffEq, DiffEqFlux, CairoMakie
+
 function setup_fbmobility1(
-    loc::AbstractString;
+    loc::AbstractString,
+    γ_bounds::Tuple{<:Real,<:Real},
+    λ_bounds::Tuple{<:Real,<:Real},
+    α_bounds::Tuple{<:Real,<:Real};
     train_range::Day = Day(32),
     forecast_range::Day = Day(28),
 )
@@ -19,58 +18,96 @@ function setup_fbmobility1(
     movement_range_data = experiment_movement_range(loc, first_date, last_date)
     @assert size(movement_range_data, 2) == Dates.value(train_range + forecast_range)
 
+    model! = SEIRDFbMobility1(movement_range_data)
     # get the initial states and available observations depending on the model type
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
-    model = CovidModelSEIRDFbMobility1(u0, train_dataset.tspan, movement_range_data)
-    return model, train_dataset, test_dataset, vars, labels
+    # augmented dynamic
+    dudt!(du, u, p, t) = model!(
+        du,
+        u,
+        p,
+        t;
+        γ = boxconst(p[1], γ_bounds),
+        λ = boxconst(p[2], λ_bounds),
+        α = boxconst(p[3], α_bounds),
+    )
+    # define problem and train model
+    prob = ODEProblem(dudt!, u0, train_dataset.tspan)
+    predictor = Predictor(prob, vars)
+    loss = experiment_loss(predictor, train_dataset, 0.01)
+    return model!, prob, predictor, loss, train_dataset, test_dataset, labels
 end
 
 function experiment_fbmobility1(
     loc::AbstractString;
-    savedir::AbstractString,
+    γ_bounds::Tuple{<:Real,<:Real} = (1 / 5, 1 / 2),
+    λ_bounds::Tuple{<:Real,<:Real} = (1 / 21, 1 / 14),
+    α_bounds::Tuple{<:Real,<:Real} = (0.0, 0.06),
     name::AbstractString = "fbmobility1",
+    savedir::AbstractString,
 )
     snapshots_dir = joinpath(savedir, loc)
     uuid = Dates.format(now(), "yyyymmddHHMMSS")
     sessname = "$uuid.$name.$loc"
-
-    model, train_dataset, test_dataset, vars, labels = setup_fbmobility1(loc)
-    predictor = Predictor(model.problem, vars)
-    loss = experiment_loss(predictor, train_dataset, 0.001)
-
-    p0 = Covid19ModelVN.initial_params(model)
+    # get model and data
+    model!, prob, predictor, loss, train_dataset, test_dataset, labels =
+        setup_fbmobility1(loc, γ_bounds, λ_bounds, α_bounds)
+    # get initial parameters
+    p0 = [
+        logit((1 / 3 - γ_bounds[1]) / (γ_bounds[2] - γ_bounds[1]))
+        logit((1 / 14 - λ_bounds[1]) / (λ_bounds[2] - λ_bounds[1]))
+        logit((0.025 - α_bounds[1]) / (α_bounds[2] - α_bounds[1]))
+        DiffEqFlux.initial_params(model!.β_ann)
+    ]
+    # parameters estimation
     minimizers = train_model(
         loss,
         p0,
-        TrainSession[TrainSession(
-            "$sessname.bfgs",
-            BFGS(initial_stepnorm = 0.01),
-            100,
-            100,
-        )],
+        TrainSession[
+            TrainSession("$sessname.adam", ADAM(0.01), 500, 100),
+            TrainSession("$sessname.bfgs", BFGS(initial_stepnorm = 0.01), 100, 100),
+        ],
         snapshots_dir = snapshots_dir,
     )
-
+    # evaluation with estimated parameters
     minimizer = first(minimizers)
-    eval_config = EvalConfig([mae, mape, rmse], [7, 14, 21, 28], labels)
-    # get the effective reproduction number learned by the model
-    R_effective_plot =
-        plot_effective_reproduction_number(model, minimizer, train_dataset, test_dataset)
-    save(joinpath(snapshots_dir, "$sessname.R_effective.png"), R_effective_plot)
-    # plot the model's forecasts againts the ground truth, and calculate to model's
-    # error on the test data
-    forecasts_plot, df_forecasts_errors =
-        evaluate_model(eval_config, predictor, minimizer, train_dataset, test_dataset)
-    save(joinpath(snapshots_dir, "$sessname.forecasts.png"), forecasts_plot)
-    save_dataframe(df_forecasts_errors, joinpath(snapshots_dir, "$sessname.errors.csv"))
-
-    return R_effective_plot, forecasts_plot, df_forecasts_errors
+    return experiment_evaluate(
+        sessname,
+        model!,
+        prob,
+        predictor,
+        minimizer,
+        train_dataset,
+        test_dataset,
+        labels,
+        snapshots_dir = snapshots_dir,
+    )
 end
 
 let
-    R_effective_plot, forecasts_plot =
-        experiment_fbmobility1("hcm", savedir = "snapshots/test")
-    display(R_effective_plot)
-    display(forecasts_plot)
+    γ_bounds::Tuple{<:Real,<:Real} = (1 / 5, 1 / 2)
+    λ_bounds::Tuple{<:Real,<:Real} = (1 / 21, 1 / 14)
+    α_bounds::Tuple{<:Real,<:Real} = (0.0, 0.06)
+    loc = "hcm"
+    # get model and data
+    model!, prob, predictor, loss, train_dataset, test_dataset, labels =
+        setup_fbmobility1(loc, γ_bounds, λ_bounds, α_bounds)
+    # get initial parameters
+    p0 = [
+        logit((1 / 3 - γ_bounds[1]) / (γ_bounds[2] - γ_bounds[1]))
+        logit((1 / 14 - λ_bounds[1]) / (λ_bounds[2] - λ_bounds[1]))
+        logit((0.025 - α_bounds[1]) / (α_bounds[2] - α_bounds[1]))
+        DiffEqFlux.initial_params(model!.β_ann)
+    ]
+    Zygote.gradient(loss, p0)
+end
+
+for loc ∈ [
+    Covid19ModelVN.LOC_CODE_VIETNAM
+    Covid19ModelVN.LOC_CODE_UNITED_STATES
+    collect(keys(Covid19ModelVN.LOC_NAMES_VN))
+    collect(keys(Covid19ModelVN.LOC_NAMES_US))
+]
+    experiment_fbmobility1(loc, savedir = "snapshots")
 end

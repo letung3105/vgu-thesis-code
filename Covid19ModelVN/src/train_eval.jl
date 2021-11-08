@@ -9,6 +9,9 @@ export TrainSession,
     calculate_forecasts_errors,
     plot_forecasts,
     plot_effective_reproduction_number,
+    plot_ℜe,
+    logit,
+    boxconst,
     mae,
     mape,
     rmse,
@@ -34,6 +37,7 @@ A struct that solves the underlying DiffEq problem and returns the solution when
 * `sensealg`: sensitivity algorithm for getting the local gradient
 * `abstol`: solver's absolute tolerant
 * `reltol`: solver's relative tolerant
++ `save_idxs`: the indices of the system's states to return
 """
 struct Predictor
     problem::SciMLBase.DEProblem
@@ -50,6 +54,7 @@ Construct a new default `Predictor` using the problem defined by the given model
 # Argument
 
 + `model`: a model containing a problem that can be solved
++ `save_idxs`: the indices of the system's states to return
 """
 Predictor(problem::SciMLBase.DEProblem, save_idxs::AbstractVector{<:Integer}) = Predictor(
     problem,
@@ -115,13 +120,11 @@ function (l::Loss)(params::AbstractVector{<:Real})
         # Unstable trajectories => hard penalize
         return Inf
     end
-
     pred = Array(sol)
     if size(pred) != size(l.dataset.data)
         # Unstable trajectories / Wrong inputs
         return Inf
     end
-
     return l.metric_fn(pred, l.dataset.data)
 end
 
@@ -205,37 +208,34 @@ Call an object of type `TrainCallback`
 * `train_loss`: loss from the training step
 """
 function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
-    if train_loss < cb.state.minimizer_loss
-        cb.state.minimizer_loss = train_loss
-        cb.state.minimizer = params
-    end
-
-    cb.state.iters += 1
-    if cb.state.iters % cb.config.losses_plot_interval == 0 &&
-       !isnothing(cb.config.losses_plot_fpath)
-        fig = Figure()
-        ax = Axis(
-            fig[1, 1],
-            title = "Losses of the model after each iteration",
-            xlabel = "Iterations",
-        )
-        append!(cb.state.train_losses, train_loss)
-        scatter!(ax, cb.state.train_losses, label = "Train loss")
-        axislegend(ax, position = :lt)
-        save(cb.config.losses_plot_fpath, fig)
-    end
-
-    if cb.state.iters % cb.config.params_save_interval == 0 &&
-       !isnothing(cb.config.params_save_fpath)
-        Serialization.serialize(cb.config.params_save_fpath, cb.state.minimizer)
-    end
-
     showvalues = Pair{Symbol,Any}[
         :losses_plot_fpath=>cb.config.losses_plot_fpath,
         :params_save_fpath=>cb.config.params_save_fpath,
         :train_loss=>train_loss,
     ]
     next!(cb.state.progress, showvalues = showvalues)
+    cb.state.iters += 1
+    if train_loss < cb.state.minimizer_loss
+        cb.state.minimizer_loss = train_loss
+        cb.state.minimizer = params
+    end
+    if cb.state.iters % cb.config.losses_plot_interval == 0 &&
+       !isnothing(cb.config.losses_plot_fpath)
+        append!(cb.state.train_losses, train_loss)
+        fig = Figure()
+        ax = Axis(
+            fig[1, 1],
+            title = "Losses of the model after each iteration",
+            xlabel = "Iterations",
+        )
+        scatter!(ax, cb.state.train_losses, label = "Train loss")
+        axislegend(ax, position = :lt)
+        save(cb.config.losses_plot_fpath, fig)
+    end
+    if cb.state.iters % cb.config.params_save_interval == 0 &&
+       !isnothing(cb.config.params_save_fpath)
+        Serialization.serialize(cb.config.params_save_fpath, cb.state.minimizer)
+    end
     return false
 end
 
@@ -281,6 +281,7 @@ the initial set of parameters `params`.
 + `params`: the initial set of parameters
 + `sessions`: a collection of optimizers and settings used for training the model
 + `snapshots_dir`: a directory for saving the model parameters and training losses
++ `kwargs`: keyword arguments that get splatted to `sciml_train`
 """
 function train_model(
     train_loss::Loss,
@@ -292,17 +293,14 @@ function train_model(
     if !isdir(snapshots_dir)
         mkpath(snapshots_dir)
     end
-
     minimizers = Vector{Float64}[]
     params = copy(params)
     for sess ∈ sessions
         snapshot_and_plot_interval = div(sess.maxiters, sess.loss_samples)
         losses_plot_fpath, params_save_fpath =
             isnothing(snapshots_dir) ? (nothing, nothing) :
-            (
-                get_losses_plot_fpath(snapshots_dir, sess.name),
-                get_params_save_fpath(snapshots_dir, sess.name),
-            )
+            get_losses_plot_fpath(snapshots_dir, sess.name),
+            get_params_save_fpath(snapshots_dir, sess.name)
         cb = TrainCallback(
             TrainCallbackConfig(
                 losses_plot_fpath,
@@ -311,17 +309,19 @@ function train_model(
                 snapshot_and_plot_interval,
             ),
         )
-
         @info "Running $(sess.name)"
-        DiffEqFlux.sciml_train(
-            train_loss,
-            params,
-            sess.optimizer;
-            cb = cb,
-            maxiters = sess.maxiters,
-            kwargs...,
-        )
-
+        try
+            DiffEqFlux.sciml_train(
+                train_loss,
+                params,
+                sess.optimizer;
+                cb = cb,
+                maxiters = sess.maxiters,
+                kwargs...,
+            )
+        catch e
+            e isa InterruptException && rethrow(e)
+        end
         push!(minimizers, cb.state.minimizer)
         params .= cb.state.minimizer
         Serialization.serialize(params_save_fpath, params)
@@ -335,8 +335,8 @@ Evaluate the model by calculating the errors and draw plot againts ground truth 
 # Arguments
 
 + `config`: the configuration for the evalution process
++ `predictor`: the function that produce the model's prediction
 + `params`: the parameters used for making the predictions
-+ `predict_fn`: the function that produce the model's prediction
 + `train_dataset`: ground truth data on which the model was trained
 + `test_dataset`: ground truth data that the model has not seen
 """
@@ -356,13 +356,13 @@ end
 
 """
 Calculate the forecast error based on the model prediction and the ground truth data
-for that day
+for each forecasting horizon
 
 # Arguments
 
+* `config`: configuration for evaluation
 * `pred`: prediction made by the model
 * `test_dataset`: ground truth data for the forecasted period
-* `config`: configuration for evaluation
 """
 function calculate_forecasts_errors(
     config::EvalConfig,
@@ -386,16 +386,15 @@ function calculate_forecasts_errors(
 end
 
 """
-Plot the forecasted values produced by `predict_fn` against the ground truth data and calculated the error for each
-forecasted value using `metric_fn`.
+Plot the forecasted values produced by against the ground truth data.
 
 # Arguments
 
+* `config`: configuration for evaluation
 * `fit`: the solution returned by the model on the fit data
 * `pred`: prediction made by the model
 * `train_dataset`: the data that was used to train the model
 * `test_dataset`: ground truth data for the forecasted period
-* `config`: configuration for evaluation
 """
 function plot_forecasts(
     config::EvalConfig,
@@ -420,6 +419,37 @@ function plot_forecasts(
         axislegend(ax, position = :lt)
     end
     return fig
+end
+
+"""
+Plot the effective reproduction number for the traing period and testing period
+
+# Arguments
+
+* `ℜe_train`: the effective reproduction number of the training period
+* `ℜe_test`: the effective reproduction number of the testing period
+* `sep`: value at which the data is splitted for training and testing
+"""
+function plot_ℜe(
+    ℜe_train::AbstractVector{<:Real},
+    ℜe_forecast::AbstractVector{<:Real},
+    sep::Real,
+)
+    R_effective_plot = Figure()
+    ax = Axis(
+        R_effective_plot[1, 1],
+        title = "Effective reproduction number learned by the model",
+        xlabel = "Days since the 500th confirmed case",
+    )
+    vlines!(ax, [sep], color = :black, linestyle = :dash, label = "last training day")
+    scatter!(
+        [ℜe_train; ℜe_forecast],
+        color = :red,
+        linewidth = 2,
+        label = "effective reproduction number",
+    )
+    axislegend(ax, position = :lt)
+    return R_effective_plot
 end
 
 """
@@ -472,6 +502,17 @@ function plot_effective_reproduction_number(
     axislegend(ax, position = :lt)
     return fig
 end
+
+"""
+Calculate the inverse of the sigmoid function
+"""
+logit(x::Real) = log(x / (1 - x))
+
+"""
+Transform the value of `x` to get a value that lies between `bounds[1]` and `bounds[2]`.
+"""
+boxconst(x::Real, bounds::Tuple{<:Real,<:Real}) =
+    bounds[1] + (bounds[2] - bounds[1]) * sigmoid(x)
 
 """
 Calculate the mean absolute error between 2 values. Note that the input arguments must be of the same size.

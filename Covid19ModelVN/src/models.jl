@@ -1,12 +1,4 @@
-export AbstractCovidModel,
-    CovidModelSEIRDBaseline,
-    CovidModelSEIRDFbMobility1,
-    CovidModelSEIRDFbMobility2,
-    initial_params,
-    effective_reproduction_number,
-    DataConfig,
-    MobilityConfig,
-    setup_model
+export AbstractCovidModel, SEIRDBaseline, SEIRDFbMobility1, SEIRDFbMobility2, ℜe
 
 using OrdinaryDiffEq, DiffEqFlux
 
@@ -43,7 +35,7 @@ SEIRDBaseline() = SEIRDBaseline(
     # states and params
     S, E, I, _, _, _, N = u
     # infection rate depends on time, susceptible, and infected
-    β = first(β_ann([S / N; I / N], θ))
+    β = first(model.β_ann([S / N; I / N], θ))
     du[1] = -β * S * I / N
     du[2] = β * S * I / N - γ * E
     du[3] = γ * E - λ * I
@@ -60,8 +52,8 @@ function ℜe(
     params::AbstractVector{<:Real},
     tspan::Tuple{<:Real,<:Real},
     saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen};
-    γ = p[1],
-    θ = @view(p[4:4+DiffEqFlux.paramlength(model.β_ann)-1]),
+    γ = params[1],
+    θ = @view(params[4:4+DiffEqFlux.paramlength(model.β_ann)-1]),
 )
     prob = remake(prob, p = params, tspan = tspan)
     sol = solve(
@@ -78,8 +70,8 @@ function ℜe(
     N = @view states[7, :]
     β_ann_input = [(S ./ N)'; (I ./ N)']
     βt = model.β_ann(β_ann_input, θ)
-    Rt = βt ./ γ
-    return Rt
+    ℜe = βt ./ γ
+    return ℜe
 end
 
 """
@@ -105,7 +97,7 @@ SEIRDFbMobility1(movement_range_data::AbstractMatrix{<:Real}) = SEIRDFbMobility1
     movement_range_data,
 )
 
-@inbounds function (model::SEIRDBaseline)(
+@inbounds function (model::SEIRDFbMobility1)(
     du::AbstractVector{<:Real},
     u::AbstractVector{<:Real},
     p::AbstractVector{<:Real},
@@ -116,11 +108,11 @@ SEIRDFbMobility1(movement_range_data::AbstractMatrix{<:Real}) = SEIRDFbMobility1
     θ = @view(p[4:4+DiffEqFlux.paramlength(model.β_ann)-1]),
 )
     # daily mobility
-    mobility = @view movement_range_data[:, Int(floor(t + 1))]
+    mobility = @view model.movement_range_data[:, Int(floor(t + 1))]
     # states and params
     S, E, I, _, _, _, N = u
     # infection rate depends on time, susceptible, and infected
-    β = first(β_ann([S / N; I / N; mobility...], θ))
+    β = first(model.β_ann([S / N; I / N; mobility...], θ))
     du[1] = -β * S * I / N
     du[2] = β * S * I / N - γ * E
     du[3] = γ * E - λ * I
@@ -137,8 +129,8 @@ function ℜe(
     params::AbstractVector{<:Real},
     tspan::Tuple{<:Real,<:Real},
     saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen};
-    γ = p[1],
-    θ = @view(p[4:4+DiffEqFlux.paramlength(model.β_ann)-1]),
+    γ = params[1],
+    θ = @view(params[4:4+DiffEqFlux.paramlength(model.β_ann)-1]),
 )
     prob = remake(prob, p = params, tspan = tspan)
     sol = solve(
@@ -156,8 +148,8 @@ function ℜe(
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility]
     βt = model.β_ann(β_ann_input, θ)
-    Rt = βt ./ γ
-    return Rt
+    ℜe = βt ./ γ
+    return ℜe
 end
 
 """
@@ -176,15 +168,15 @@ struct SEIRDFbMobility2 <: AbstractCovidModel
 end
 
 SEIRDFbMobility2(
-    movement_range_data::AbstractMatrix{<:Real}
-    social_proximity_data::AbstractMatrix{<:Real}
+    movement_range_data::AbstractMatrix{<:Real},
+    social_proximity_data::AbstractMatrix{<:Real},
 ) = SEIRDFbMobility2(
     FastChain(FastDense(5, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus)),
     movement_range_data,
     social_proximity_data,
 )
 
-@inbounds function (model::SEIRDBaseline)(
+@inbounds function (model::SEIRDFbMobility2)(
     du::AbstractVector{<:Real},
     u::AbstractVector{<:Real},
     p::AbstractVector{<:Real},
@@ -202,7 +194,7 @@ SEIRDFbMobility2(
     # states and params
     S, E, I, _, _, _, N = u
     # infection rate depends on time, susceptible, and infected
-    β = first(β_ann([S / N; I / N; mobility...; proximity...], θ))
+    β = first(model.β_ann([S / N; I / N; mobility...; proximity...], θ))
     du[1] = -β * S * I / N
     du[2] = β * S * I / N - γ * E
     du[3] = γ * E - λ * I
@@ -219,8 +211,8 @@ function ℜe(
     params::AbstractVector{<:Real},
     tspan::Tuple{<:Real,<:Real},
     saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen};
-    γ = p[1],
-    θ = @view(p[4:4+DiffEqFlux.paramlength(model.β_ann)-1]),
+    γ = params[1],
+    θ = @view(params[4:4+DiffEqFlux.paramlength(model.β_ann)-1]),
 )
     prob = remake(prob, p = params, tspan = tspan)
     sol = solve(
@@ -239,6 +231,6 @@ function ℜe(
     proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
     βt = model.β_ann(β_ann_input, θ)
-    Rt = βt ./ γ
-    return Rt
+    ℜe = βt ./ γ
+    return ℜe
 end

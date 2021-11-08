@@ -13,6 +13,17 @@ export TimeseriesDataset,
 
 using Dates, Statistics, CSV, DataFrames
 
+"""
+A wrapper round `AbstractDataFrame` that contains additional information for the names
+of the columns that contain the timeseries data and the column that contains the timestamps
+of the data points
+
+# Arguments
+
+* `df`: the dataframe
+* `date_col`: name of the column that contains the timestamps
+* `data_cols`: names of the columns that contains the timeseries data
+"""
 struct TimeseriesConfig
     df::AbstractDataFrame
     date_col::Union{Symbol,<:AbstractString}
@@ -24,6 +35,16 @@ struct TimeseriesConfig
     }
 end
 
+"""
+Read the timeseries given by `config` and returns a matrix that contains the timeseries
+data whose timestamps lie between `first_date` and `last_date`
+
+# Arguments
+
+* `config`: configuration for the timeseries data
+* `first_date`: earliest date allowed in the timeseries
+* `last_date`: latest date allowed in the timeseries
+"""
 function load_timeseries(config::TimeseriesConfig, first_date::Date, last_date::Date)
     df = bound(config.df, config.date_col, first_date, last_date, view = true)
     data = Array(df[!, Cols(config.data_cols)])
@@ -45,6 +66,17 @@ struct TimeseriesDataset
     tsteps::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen}
 end
 
+"""
+Split the timeseries data into 2 parts where the first contains data points whose timestamps
+lie between `[first_date, split_date]` and the second contains data points whose timestamps
+lie between `(split_date, last_date]`
+
+# Arguments
+* `config`: configuration for the timeseries data
+* `first_date`: earliest date allowed in the first returned timeseries
+* `split_date`: latest date allowed in the first returned timeseries
+* `last_date`: latest date allowed in the second returned timeseries
+"""
 function train_test_split(
     config::TimeseriesConfig,
     first_date::Date,
