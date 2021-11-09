@@ -128,25 +128,31 @@ function experiment_loss(predictor::Predictor, dataset::TimeseriesDataset, ζ::F
     return loss
 end
 
-function experiment_evaluate(
-    sessname::AbstractString,
-    predictor::Predictor,
-    minimizer::AbstractVector{<:Real},
-    train_dataset::TimeseriesDataset,
-    test_dataset::TimeseriesDataset,
-    labels::AbstractVector{<:AbstractString},
-    ℜe::AbstractVector{<:Real};
-    snapshots_dir::Union{<:AbstractString,Nothing} = nothing,
+function experiment_run(
+    uuid::AbstractString,
+    configs::AbstractVector{TrainConfig},
+    setup::Function;
+    snapshots_dir::AbstractString,
 )
+    # get model and data
+    predictor, train_loss, p0, train_dataset, test_dataset, labels, ℜe_augmented = setup()
+    # check if AD works
+    dLdθ = Zygote.gradient(train_loss, p0)
+    @info "Initial gradients $dLdθ"
+
+    @info "Start training"
+    test_loss = Loss(rmse, predictor, test_dataset)
+    minimizers = train_model(uuid, train_loss, p0, configs; test_loss, snapshots_dir)
+    minimizer = last(minimizers)
+
+    @info "Evaluate model"
     eval_config = EvalConfig([mae, mape, rmse], [7, 14, 21, 28], labels)
-    ℜe_plot = plot_ℜe(ℜe, train_dataset.tspan[2])
-    # get model's evaluation
     forecasts_plot, df_forecasts_errors =
         evaluate_model(eval_config, predictor, minimizer, train_dataset, test_dataset)
-    if !isnothing(snapshots_dir)
-        save(joinpath(snapshots_dir, "$sessname.R_effective.png"), ℜe_plot)
-        save(joinpath(snapshots_dir, "$sessname.forecasts.png"), forecasts_plot)
-        save_dataframe(df_forecasts_errors, joinpath(snapshots_dir, "$sessname.errors.csv"))
-    end
+    save(joinpath(snapshots_dir, "$uuid.forecasts.png"), forecasts_plot)
+    save_dataframe(df_forecasts_errors, joinpath(snapshots_dir, "$uuid.errors.csv"))
+    ℜe_plot = plot_ℜe(ℜe_augmented(minimizer), train_dataset.tspan[2])
+    save(joinpath(snapshots_dir, "$uuid.R_effective.png"), ℜe_plot)
+
     return ℜe_plot, forecasts_plot, df_forecasts_errors
 end

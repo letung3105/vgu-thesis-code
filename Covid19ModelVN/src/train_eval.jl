@@ -1,4 +1,4 @@
-export TrainSession,
+export TrainConfig,
     EvalConfig,
     Predictor,
     Loss,
@@ -295,20 +295,17 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
 end
 
 """
-Specifications for a model tranining session
+Specifications for a model tranining
 
 # Arguments
 
-+ `name`: Session name
 + `optimizer`: The optimizer that will run in the session
 + `maxiters`: Maximum number of iterations to run the optimizer
-+ `loss_samples`: Number of times to collect the training losses and testing losses
 """
-struct TrainSession{Opt}
+struct TrainConfig{Opt}
     name::AbstractString
     optimizer::Opt
     maxiters::Integer
-    loss_samples::Integer
 end
 
 """
@@ -332,49 +329,56 @@ the initial set of parameters `params`.
 
 # Arguments
 
++ `uuid`: unique id for the training session
 + `train_loss`: a function that will be minimized
-+ `params`: the initial set of parameters
-+ `sessions`: a collection of optimizers and settings used for training the model
++ `p0`: the initial set of parameters
++ `configs`: a collection of optimizers and settings used for training the model
++ `loss_samples`: number of params and losses samples to take
++ `test_loss`: optional loss function used for evaluation
 + `snapshots_dir`: a directory for saving the model parameters and training losses
 + `kwargs`: keyword arguments that get splatted to `sciml_train`
 """
 function train_model(
+    uuid::AbstractString,
     train_loss::Loss,
-    params::AbstractVector{<:Real},
-    sessions::AbstractVector{TrainSession};
-    snapshots_dir::Union{AbstractString,Nothing} = nothing,
+    p0::AbstractVector{<:Real},
+    configs::AbstractVector{TrainConfig};
+    loss_samples::Integer = 100,
     test_loss::Union{Loss,Nothing} = nothing,
+    snapshots_dir::Union{AbstractString,Nothing} = nothing,
     kwargs...,
 )
-    if !isdir(snapshots_dir)
+    if !isnothing(snapshots_dir) && !isdir(snapshots_dir)
         mkpath(snapshots_dir)
     end
     minimizers = Vector{Float64}[]
-    params = copy(params)
-    for sess ∈ sessions
+    params = copy(p0)
+    @info "Running $uuid"
+    for conf ∈ configs
         makesnapshot = !isnothing(snapshots_dir)
+        sessname = "$uuid.$(conf.name)"
         losses_plot_fpath =
-            makesnapshot ? get_losses_plot_fpath(snapshots_dir, sess.name) : nothing
+            makesnapshot ? get_losses_plot_fpath(snapshots_dir, sessname) : nothing
         params_save_fpath =
-            makesnapshot ? get_params_save_fpath(snapshots_dir, sess.name) : nothing
+            makesnapshot ? get_params_save_fpath(snapshots_dir, sessname) : nothing
+        save_interval = div(conf.maxiters, loss_samples)
         cb = TrainCallback(
             TrainCallbackConfig(
                 test_loss,
                 losses_plot_fpath,
-                div(sess.maxiters, sess.loss_samples),
+                save_interval,
                 length(params),
                 params_save_fpath,
-                div(sess.maxiters, sess.loss_samples),
+                save_interval,
             ),
         )
-        @info "Running $(sess.name)"
         params .= try
             res = DiffEqFlux.sciml_train(
                 train_loss,
                 params,
-                sess.optimizer;
+                conf.optimizer;
                 cb = cb,
-                maxiters = sess.maxiters,
+                maxiters = conf.maxiters,
                 kwargs...,
             )
             res.minimizer
