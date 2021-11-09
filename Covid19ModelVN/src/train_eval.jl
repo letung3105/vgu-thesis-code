@@ -45,9 +45,9 @@ struct Predictor
     problem::SciMLBase.DEProblem
     solver::SciMLBase.DEAlgorithm
     sensealg::SciMLBase.AbstractSensitivityAlgorithm
-    abstol::Real
-    reltol::Real
-    save_idxs::AbstractVector{<:Integer}
+    abstol::Float64
+    reltol::Float64
+    save_idxs::Vector{Int}
 end
 
 """
@@ -58,7 +58,7 @@ Construct a new default `Predictor` using the problem defined by the given model
 + `model`: a model containing a problem that can be solved
 + `save_idxs`: the indices of the system's states to return
 """
-Predictor(problem::SciMLBase.DEProblem, save_idxs::AbstractVector{<:Integer}) = Predictor(
+Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int}) = Predictor(
     problem,
     Tsit5(),
     InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
@@ -103,8 +103,8 @@ A callable struct that uses `metric_fn` to calculate the loss between the output
 * `predict_fn`: the time span that the ODE solver will be run on
 * `dataset`: the dataset that contains the ground truth data
 """
-struct Loss
-    metric_fn::Function
+struct Loss{F<:Function}
+    metric_fn::F
     predict_fn::Predictor
     dataset::TimeseriesDataset
 end
@@ -141,13 +141,13 @@ State of the callback struct
 * `minimizer`: current best set of parameters
 * `minimizer_loss`: loss value of the current best set of parameters
 """
-mutable struct TrainCallbackState
-    iters::Integer
+mutable struct TrainCallbackState{R<:Real}
+    iters::Int
     progress::ProgressUnknown
-    train_losses::AbstractVector{<:Real}
-    test_losses::AbstractVector{<:Real}
-    minimizer::AbstractVector{<:Real}
-    minimizer_loss::Real
+    train_losses::Vector{R}
+    test_losses::Vector{R}
+    minimizer::Vector{R}
+    minimizer_loss::R
 end
 
 """
@@ -158,13 +158,13 @@ and other fields set to their default values
 
 + `maxiters`: Maximum number of iterrations that the optimizer will run
 """
-TrainCallbackState() = TrainCallbackState(
+TrainCallbackState(T::Type{R}) where R{<:Real} = TrainCallbackState{T}(
     0,
     ProgressUnknown(showspeed = true),
-    Float64[],
-    Float64[],
-    Float64[],
-    Inf,
+    T[],
+    T[],
+    T[],
+    typemax(T),
 )
 
 """
@@ -178,19 +178,13 @@ Configuration of the callback struct
 * `params_save_interval`: interval for saving the current best set of parameters
 """
 struct TrainCallbackConfig
-    test_loss::Union{Loss,Nothing}
-    losses_plot_fpath::Union{Nothing,<:AbstractString}
-    losses_plot_interval::Integer
-    params_length::Integer
-    params_save_fpath::Union{Nothing,<:AbstractString}
-    params_save_interval::Integer
+    test_loss::Loss
+    losses_plot_fpath::String
+    losses_plot_interval::Int
+    params_length::Int
+    params_save_fpath::String
+    params_save_interval::Int
 end
-
-"""
-Contruct a default `TrainCallbackConfig`
-"""
-TrainCallbackConfig() =
-    TrainCallbackConfig(nothing, nothing, typemax(Int), 0, nothing, typemax(Int))
 
 """
 A callable struct that is used for handling callback for `sciml_train`
@@ -208,7 +202,7 @@ Create a callback for `sciml_train`
 * `maxiters`: max number of iterations the optimizer will run
 * `config`: callback configurations
 """
-TrainCallback(config::TrainCallbackConfig = TrainCallbackConfig()) =
+TrainCallback(config::TrainCallbackConfig) =
     TrainCallback(TrainCallbackState(), config)
 
 function plot_losses(
@@ -303,9 +297,9 @@ Specifications for a model tranining
 + `maxiters`: Maximum number of iterations to run the optimizer
 """
 struct TrainConfig{Opt}
-    name::AbstractString
+    name::String
     optimizer::Opt
-    maxiters::Integer
+    maxiters::Int
 end
 
 """
@@ -318,9 +312,9 @@ A struct for holding general configuration for the evaluation process
 + `labels`: names of the evaluated model's states
 """
 struct EvalConfig
-    metric_fns::AbstractVector{Function}
-    forecast_ranges::AbstractVector{<:Integer}
-    labels::AbstractVector{<:AbstractString}
+    metric_fns::Vector{Function}
+    forecast_ranges::Vector{Int}
+    labels::Vector{String}
 end
 
 """

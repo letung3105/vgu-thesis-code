@@ -82,9 +82,9 @@ A struct for containing the SEIRD model with Facebook movement range
 * `β_ann`: an neural network that outputs the time-dependent β contact rate
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 """
-struct SEIRDFbMobility1 <: AbstractCovidModel
+struct SEIRDFbMobility1{R<:Real} <: AbstractCovidModel
     β_ann::FastChain
-    movement_range_data::AbstractMatrix{<:Real}
+    movement_range_data::Matrix{R}
 end
 
 """
@@ -92,7 +92,7 @@ Construct the default SEIRD model with Facebook movement range data
 
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 """
-SEIRDFbMobility1(movement_range_data::AbstractMatrix{<:Real}) = SEIRDFbMobility1(
+SEIRDFbMobility1(movement_range_data::Matrix{R}) where {R<:Real} = SEIRDFbMobility1(
     FastChain(FastDense(4, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus)),
     movement_range_data,
 )
@@ -161,16 +161,16 @@ A struct for containing the SEIRD model with Facebook movement range
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
 """
-struct SEIRDFbMobility2 <: AbstractCovidModel
+struct SEIRDFbMobility2{R<:Real} <: AbstractCovidModel
     β_ann::FastChain
-    movement_range_data::AbstractMatrix{<:Real}
-    social_proximity_data::AbstractMatrix{<:Real}
+    movement_range_data::Matrix{R}
+    social_proximity_data::Matrix{R}
 end
 
 SEIRDFbMobility2(
-    movement_range_data::AbstractMatrix{<:Real},
-    social_proximity_data::AbstractMatrix{<:Real},
-) = SEIRDFbMobility2(
+    movement_range_data::Matrix{R},
+    social_proximity_data::Matrixc{R},
+) where {R<:Real} = SEIRDFbMobility2(
     FastChain(FastDense(5, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus)),
     movement_range_data,
     social_proximity_data,
