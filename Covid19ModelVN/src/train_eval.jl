@@ -211,6 +211,49 @@ Create a callback for `sciml_train`
 TrainCallback(config::TrainCallbackConfig = TrainCallbackConfig()) =
     TrainCallback(TrainCallbackState(), config)
 
+function plot_losses(
+    train_losses::AbstractVector{<:Real},
+    test_losses::AbstractVector{<:Real},
+)
+    elems = []
+    labels = String[]
+    fig = Figure()
+    # train losses axis
+    ax1 = Axis(
+        fig[1, 1],
+        title = "Losses of the model after each iteration",
+        xlabel = "Iterations",
+        yticklabelcolor = Makie.ColorSchemes.tab10[1],
+    )
+    sca1 = scatter!(ax1, train_losses, color = Makie.ColorSchemes.tab10[1])
+    push!(elems, sca1)
+    push!(labels, "Train loss")
+    if !isempty(test_losses)
+        # test losses axis
+        ax2 = Axis(
+            fig[1, 1],
+            yaxisposition = :right,
+            yticklabelcolor = Makie.ColorSchemes.tab10[2],
+        )
+        hidespines!(ax2)
+        hidexdecorations!(ax2)
+        sca2 = scatter!(ax2, test_losses, color = Makie.ColorSchemes.tab10[2])
+        push!(elems, sca2)
+        push!(labels, "Test loss")
+    end
+    Legend(
+        fig[1, 1],
+        elems,
+        labels,
+        margin = (10, 10, 10, 10),
+        tellheight = false,
+        tellwidth = false,
+        halign = :left,
+        valign = :top,
+    )
+    return fig
+end
+
 """
 Call an object of type `TrainCallback`
 
@@ -237,19 +280,11 @@ function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
     end
     if cb.state.iters % cb.config.losses_plot_interval == 0 &&
        !isnothing(cb.config.losses_plot_fpath)
-        fig = Figure()
-        ax = Axis(
-            fig[1, 1],
-            title = "Losses of the model after each iteration",
-            xlabel = "Iterations",
-        )
-        append!(cb.state.train_losses, train_loss)
-        scatter!(ax, cb.state.train_losses, label = "Train loss")
+        push!(cb.state.train_losses, train_loss)
         if !isnothing(test_loss)
-            append!(cb.state.test_losses, test_loss)
-            scatter!(ax, cb.state.test_losses, label = "Test loss")
+            push!(cb.state.test_losses, test_loss)
         end
-        axislegend(ax, position = :lt)
+        fig = plot_losses(cb.state.train_losses, cb.state.test_losses)
         save(cb.config.losses_plot_fpath, fig)
     end
     if cb.state.iters % cb.config.params_save_interval == 0 &&
@@ -333,8 +368,8 @@ function train_model(
             ),
         )
         @info "Running $(sess.name)"
-        try
-            DiffEqFlux.sciml_train(
+        params .= try
+            res = DiffEqFlux.sciml_train(
                 train_loss,
                 params,
                 sess.optimizer;
@@ -342,11 +377,13 @@ function train_model(
                 maxiters = sess.maxiters,
                 kwargs...,
             )
+            res.minimizer
         catch e
             e isa InterruptException && rethrow(e)
+            @warn e
+            cb.state.minimizer
         end
-        push!(minimizers, cb.state.minimizer)
-        params .= cb.state.minimizer
+        push!(minimizers, params)
         Serialization.serialize(params_save_fpath, params)
     end
     return minimizers
