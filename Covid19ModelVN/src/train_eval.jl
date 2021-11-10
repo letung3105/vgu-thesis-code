@@ -59,7 +59,7 @@ Construct a new default `Predictor` using the problem defined by the given model
 
 # Argument
 
-+ `model`: a model containing a problem that can be solved
+* `problem`: the problem that will be solved
 + `save_idxs`: the indices of the system's states to return
 """
 Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int}) = Predictor(
@@ -107,11 +107,7 @@ A callable struct that uses `metric_fn` to calculate the loss between the output
 * `predict_fn`: the time span that the ODE solver will be run on
 * `dataset`: the dataset that contains the ground truth data
 """
-struct Loss{
-    F<:Function,
-    P<:Predictor,
-    D<:TimeseriesDataset,
-}
+struct Loss{F<:Function,P<:Predictor,D<:TimeseriesDataset}
     metric_fn::F
     predict_fn::P
     dataset::D
@@ -146,6 +142,7 @@ State of the callback struct
 * `iters`: number have iterations that have been run
 * `progress`: the progress meter that keeps track of the process
 * `train_losses`: collected training losses at each interval
+* `train_losses`: collected testing losses at each interval
 * `minimizer`: current best set of parameters
 * `minimizer_loss`: loss value of the current best set of parameters
 """
@@ -164,7 +161,7 @@ and other fields set to their default values
 
 # Arguments
 
-+ `maxiters`: Maximum number of iterrations that the optimizer will run
++ `T`: type of the losses and parameters
 """
 TrainCallbackState(T::Type{R}) where {R<:Real} =
     TrainCallbackState{T}(0, ProgressUnknown(showspeed = true), T[], T[], T[], typemax(T))
@@ -174,8 +171,10 @@ Configuration of the callback struct
 
 # Fields
 
+* `test_loss`: loss function on the test dataset
 * `losses_plot_fpath`: file path to the saved losses figure
 * `losses_plot_interval`: interval for collecting losses and plot the losses figure
+* `params_length`: number of parameters that the system has
 * `params_save_fpath`: file path to the serialized current best set of parameters
 * `params_save_interval`: interval for saving the current best set of parameters
 """
@@ -201,12 +200,20 @@ Create a callback for `sciml_train`
 
 # Arguments
 
-* `maxiters`: max number of iterations the optimizer will run
++ `T`: type of the losses and parameters
 * `config`: callback configurations
 """
 TrainCallback(T::Type{R}, config::TrainCallbackConfig{L}) where {R<:Real,L<:Loss} =
     TrainCallback{T,L}(TrainCallbackState(T), config)
 
+"""
+Illustrate the training andd testing losses using a twinaxis plot
+
+# Arguments
+
+*`train_losses`: the training losses to be plotted
+*`test_losses`: the testing losses to be plotted
+"""
 function plot_losses(
     train_losses::AbstractVector{R},
     test_losses::AbstractVector{R},
@@ -281,6 +288,7 @@ Specifications for a model tranining
 
 # Arguments
 
++ `name`: name of the configurationj
 + `optimizer`: The optimizer that will run in the session
 + `maxiters`: Maximum number of iterations to run the optimizer
 """
@@ -313,10 +321,10 @@ the initial set of parameters `params`.
 
 + `uuid`: unique id for the training session
 + `train_loss`: a function that will be minimized
++ `test_loss`: a loss function used for evaluation
 + `p0`: the initial set of parameters
 + `configs`: a collection of optimizers and settings used for training the model
 + `loss_samples`: number of params and losses samples to take
-+ `test_loss`: optional loss function used for evaluation
 + `snapshots_dir`: a directory for saving the model parameters and training losses
 + `kwargs`: keyword arguments that get splatted to `sciml_train`
 """
@@ -473,8 +481,7 @@ Plot the effective reproduction number for the traing period and testing period
 
 # Arguments
 
-* `ℜe_train`: the effective reproduction number of the training period
-* `ℜe_test`: the effective reproduction number of the testing period
+* `ℜe`: the effective reproduction number
 * `sep`: value at which the data is splitted for training and testing
 """
 function plot_ℜe(ℜe::AbstractVector{R}, sep::R) where {R<:Real}
