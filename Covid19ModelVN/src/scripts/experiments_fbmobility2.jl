@@ -67,8 +67,8 @@ let
     ]
 
     for loc ∈ [
-        first(collect(keys(Covid19ModelVN.LOC_NAMES_VN))),
-        #collect(keys(Covid19ModelVN.LOC_NAMES_US))
+        collect(keys(Covid19ModelVN.LOC_NAMES_VN))
+        collect(keys(Covid19ModelVN.LOC_NAMES_US))
     ]
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         plt1, plt2, df_errors = experiment_run(
@@ -76,7 +76,7 @@ let
             loc,
             configs,
             () -> setup_fbmobility2(loc, hyperparams),
-            snapshots_dir = joinpath(savedir, loc),
+            joinpath(savedir, loc),
         )
         display(plt1)
         display(plt2)

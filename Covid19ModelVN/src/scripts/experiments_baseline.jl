@@ -47,10 +47,10 @@ let
     ]
 
     for loc ∈ [
-        Covid19ModelVN.LOC_CODE_VIETNAM,
-        # Covid19ModelVN.LOC_CODE_UNITED_STATES
-        # collect(keys(Covid19ModelVN.LOC_NAMES_VN))
-        # collect(keys(Covid19ModelVN.LOC_NAMES_US))
+        Covid19ModelVN.LOC_CODE_VIETNAM
+        Covid19ModelVN.LOC_CODE_UNITED_STATES
+        collect(keys(Covid19ModelVN.LOC_NAMES_VN))
+        collect(keys(Covid19ModelVN.LOC_NAMES_US))
     ]
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         plt1, plt2, df_errors = experiment_run(
@@ -58,7 +58,7 @@ let
             loc,
             configs,
             () -> setup_baseline(loc, hyperparams),
-            snapshots_dir = joinpath(savedir, loc),
+            joinpath(savedir, loc),
         )
         display(plt1)
         display(plt2)

@@ -333,24 +333,23 @@ function train_model(
     train_loss::Loss,
     test_loss::Loss,
     p0::AbstractVector{<:Real},
-    configs::AbstractVector{TrainConfig};
+    configs::AbstractVector{TrainConfig},
+    snapshots_dir::AbstractString;
     loss_samples::Integer = 100,
-    snapshots_dir::Union{AbstractString,Nothing} = nothing,
     kwargs...,
 )
-    if !isnothing(snapshots_dir) && !isdir(snapshots_dir)
+    if !isdir(snapshots_dir)
         mkpath(snapshots_dir)
     end
+
     minimizers = Vector{typeof(p0)}()
     params = copy(p0)
+
     @info "Running $uuid"
     for conf ∈ configs
-        makesnapshot = !isnothing(snapshots_dir)
         sessname = "$uuid.$(conf.name)"
-        losses_plot_fpath =
-            makesnapshot ? get_losses_plot_fpath(snapshots_dir, sessname) : nothing
-        params_save_fpath =
-            makesnapshot ? get_params_save_fpath(snapshots_dir, sessname) : nothing
+        losses_plot_fpath = get_losses_plot_fpath(snapshots_dir, sessname)
+        params_save_fpath = get_params_save_fpath(snapshots_dir, sessname)
         save_interval = div(conf.maxiters, loss_samples)
         cb = TrainCallback(
             eltype(p0),
