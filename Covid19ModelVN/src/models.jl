@@ -2,16 +2,6 @@ export AbstractCovidModel, SEIRDBaseline, SEIRDFbMobility1, SEIRDFbMobility2, �
 
 using OrdinaryDiffEq, DiffEqFlux
 
-"""
-System of differential equations for the standard SEIRD model
-
-# Arguments
-
-* `du`: the current dynamics
-* `u`: the current states
-* `p`: the current parameters
-* `t`: the current time step
-"""
 @inbounds function SEIRD!(du, u, p, t)
     S, E, I, _, _, _, N = u
     β, γ, λ, α = p
@@ -68,9 +58,6 @@ function SEIRDBaseline(
     SEIRDBaseline(β_ann, DiffEqFlux.paramlength(β_ann), γ_bounds, λ_bounds, α_bounds)
 end
 
-"""
-The augmented SEIRD dynamics
-"""
 @inbounds function (model::SEIRDBaseline)(du, u, p, t)
     # states and params
     S, _, I, _, _, _, N = u
@@ -189,9 +176,6 @@ function SEIRDFbMobility1(
     )
 end
 
-"""
-The augmented SEIRD dynamics
-"""
 @inbounds function (model::SEIRDFbMobility1)(du, u, p, t)
     # daily mobility
     mobility = @view model.movement_range_data[:, Int(floor(t + 1))]
@@ -319,9 +303,6 @@ function SEIRDFbMobility2(
     )
 end
 
-"""
-The augmented SEIRD dynamics
-"""
 @inbounds function (model::SEIRDFbMobility2)(du, u, p, t)
     time_idx = Int(floor(t + 1))
     # daily mobility
