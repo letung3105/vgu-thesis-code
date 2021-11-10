@@ -61,7 +61,7 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
     @info [first_date; split_date; last_date]
     # smooth out weekly seasonality
     moving_average!(df, cols, 7)
-    conf = TimeseriesConfig(df, :date, cols)
+    conf = TimeseriesConfig(df, "date", cols)
     # split data into 2 parts for training and testing
     train_dataset, test_dataset = train_test_split(conf, first_date, split_date, last_date)
 
@@ -70,17 +70,17 @@ end
 
 function experiment_movement_range(loc::AbstractString, first_date::Date, last_date::Date)
     df = get_prebuilt_movement_range(loc)
-    cols = [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users]
+    cols = ["all_day_bing_tiles_visited_relative_change", "all_day_ratio_single_tile_users"]
     # smooth out weekly seasonality
     moving_average!(df, cols, 7)
-    return load_timeseries(TimeseriesConfig(df, :ds, cols), first_date, last_date)
+    return load_timeseries(TimeseriesConfig(df, "ds", cols), first_date, last_date)
 end
 
 function experiment_social_proximity(loc::AbstractString, first_date::Date, last_date::Date)
     df, col = get_prebuilt_social_proximity(loc)
     # smooth out weekly seasonality
     moving_average!(df, col, 7)
-    return load_timeseries(TimeseriesConfig(df, :date, col), first_date, last_date)
+    return load_timeseries(TimeseriesConfig(df, "date", [col]), first_date, last_date)
 end
 
 function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVector{<:Real})
@@ -121,32 +121,47 @@ function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVect
     return u0, vars, labels
 end
 
-function experiment_loss(predictor::Predictor, dataset::TimeseriesDataset, ζ::Float64)
-    weights = exp.(collect(dataset.tsteps) .* ζ)
+function experiment_loss(tsteps::Ts, ζ::Float64) where {Ts}
+    weights = exp.(collect(tsteps) .* ζ)
     lossfn = (ŷ, y) -> sum((log.(ŷ .+ 1) .- log.(y .+ 1)) .^ 2 .* weights')
-    loss = Loss(lossfn, predictor, dataset)
-    return loss
+    return lossfn
 end
 
-function experiment_evaluate(
-    sessname::AbstractString,
-    predictor::Predictor,
-    minimizer::AbstractVector{<:Real},
-    train_dataset::TimeseriesDataset,
-    test_dataset::TimeseriesDataset,
-    labels::AbstractVector{<:AbstractString},
-    ℜe::AbstractVector{<:Real};
-    snapshots_dir::Union{<:AbstractString,Nothing} = nothing,
+function experiment_run(
+    uuid::AbstractString,
+    loc::AbstractString,
+    configs::AbstractVector{TrainConfig},
+    setup::Function;
+    snapshots_dir::AbstractString,
 )
+    # get model and data
+    model, lossfn, p0, train_dataset, test_dataset = setup()
+    # get the initial states and available observations depending on the model type
+    # and the considered location
+    u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
+    # create a prediction model and loss function
+    prob = ODEProblem(model, u0, train_dataset.tspan)
+    predictor = Predictor(prob, vars)
+    train_loss = Loss(lossfn, predictor, train_dataset)
+    test_loss = Loss(rmse, predictor, test_dataset)
+    # check if AD works
+    dLdθ = Zygote.gradient(train_loss, p0)
+    @info "Initial gradients $dLdθ"
+
+    @info "Start training"
+    minimizers = train_model(uuid, train_loss, test_loss, p0, configs, snapshots_dir)
+    minimizer = last(minimizers)
+
+    @info "Evaluate model"
     eval_config = EvalConfig([mae, mape, rmse], [7, 14, 21, 28], labels)
-    ℜe_plot = plot_ℜe(ℜe, train_dataset.tspan[2])
-    # get model's evaluation
     forecasts_plot, df_forecasts_errors =
         evaluate_model(eval_config, predictor, minimizer, train_dataset, test_dataset)
-    if !isnothing(snapshots_dir)
-        save(joinpath(snapshots_dir, "$sessname.R_effective.png"), ℜe_plot)
-        save(joinpath(snapshots_dir, "$sessname.forecasts.png"), forecasts_plot)
-        save_dataframe(df_forecasts_errors, joinpath(snapshots_dir, "$sessname.errors.csv"))
-    end
+    save(joinpath(snapshots_dir, "$uuid.forecasts.png"), forecasts_plot)
+    save_dataframe(df_forecasts_errors, joinpath(snapshots_dir, "$uuid.errors.csv"))
+    ℜe1 = ℜe(model, u0, minimizer, train_dataset.tspan, train_dataset.tsteps)
+    ℜe2 = ℜe(model, u0, minimizer, test_dataset.tspan, test_dataset.tsteps)
+    ℜe_plot = plot_ℜe([ℜe1; ℜe2], train_dataset.tspan[2])
+    save(joinpath(snapshots_dir, "$uuid.R_effective.png"), ℜe_plot)
+
     return ℜe_plot, forecasts_plot, df_forecasts_errors
 end

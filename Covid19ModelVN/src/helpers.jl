@@ -24,15 +24,10 @@ of the data points
 * `date_col`: name of the column that contains the timestamps
 * `data_cols`: names of the columns that contains the timeseries data
 """
-struct TimeseriesConfig
-    df::AbstractDataFrame
-    date_col::Union{Symbol,<:AbstractString}
-    data_cols::Union{
-        Symbol,
-        <:AbstractString,
-        <:AbstractVector{Symbol},
-        <:AbstractVector{<:AbstractString},
-    }
+struct TimeseriesConfig{DF<:AbstractDataFrame}
+    df::DF
+    date_col::String
+    data_cols::Vector{String}
 end
 
 """
@@ -60,10 +55,10 @@ This contains the minimum required information for a timeseriese dataset that is
 * `tspan`: the first and last time coordinates of the timeseries data
 * `tsteps`: collocations points
 """
-struct TimeseriesDataset
-    data::AbstractMatrix{<:Real}
-    tspan::Tuple{<:Real,<:Real}
-    tsteps::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen}
+struct TimeseriesDataset{R<:Real,DS<:AbstractMatrix{R},TS}
+    data::DS
+    tspan::Tuple{R,R}
+    tsteps::TS
 end
 
 """
@@ -161,7 +156,7 @@ Select a subset of the dataframe `df` such that values in `col` remain between `
 """
 bound(
     df::AbstractDataFrame,
-    col::Union{Symbol,<:AbstractString},
+    col::Union{Symbol,AbstractString},
     first::Any,
     last::Any;
     kwargs...,
@@ -179,7 +174,7 @@ Filter the dataframe `df` such that values in `col` remain between `start_date` 
 """
 bound!(
     df::AbstractDataFrame,
-    col::Union{Symbol,<:AbstractString},
+    col::Union{Symbol,AbstractString},
     first::Any,
     last::Any;
     kwargs...,
@@ -209,9 +204,9 @@ moving_average!(
     df::AbstractDataFrame,
     cols::Union{
         Symbol,
-        <:AbstractString,
-        <:AbstractVector{Symbol},
-        <:AbstractVector{<:AbstractString},
+        AbstractString,
+        AbstractVector{Symbol},
+        AbstractVector{<:AbstractString},
     },
     n::Integer,
 ) = transform!(df, names(df, Cols(cols)) .=> x -> moving_average(x, n), renamecols = false)

@@ -1,4 +1,4 @@
-export TrainSession,
+export TrainConfig,
     EvalConfig,
     Predictor,
     Loss,
@@ -11,7 +11,9 @@ export TrainSession,
     plot_effective_reproduction_number,
     plot_ℜe,
     logit,
+    hswish,
     boxconst,
+    boxconst_inv,
     mae,
     mape,
     rmse,
@@ -39,13 +41,17 @@ A struct that solves the underlying DiffEq problem and returns the solution when
 * `reltol`: solver's relative tolerant
 + `save_idxs`: the indices of the system's states to return
 """
-struct Predictor
-    problem::SciMLBase.DEProblem
-    solver::SciMLBase.DEAlgorithm
-    sensealg::SciMLBase.AbstractSensitivityAlgorithm
-    abstol::Real
-    reltol::Real
-    save_idxs::AbstractVector{<:Integer}
+struct Predictor{
+    P<:SciMLBase.DEProblem,
+    SO<:SciMLBase.DEAlgorithm,
+    SE<:SciMLBase.AbstractSensitivityAlgorithm,
+}
+    problem::P
+    solver::SO
+    sensealg::SE
+    abstol::Float64
+    reltol::Float64
+    save_idxs::Vector{Int}
 end
 
 """
@@ -53,10 +59,10 @@ Construct a new default `Predictor` using the problem defined by the given model
 
 # Argument
 
-+ `model`: a model containing a problem that can be solved
+* `problem`: the problem that will be solved
 + `save_idxs`: the indices of the system's states to return
 """
-Predictor(problem::SciMLBase.DEProblem, save_idxs::AbstractVector{<:Integer}) = Predictor(
+Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int}) = Predictor(
     problem,
     Tsit5(),
     InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
@@ -75,10 +81,10 @@ Call an object of struct `CovidModelPredict` to solve the underlying DiffEq prob
 * `saveat`: the collocation coordinates
 """
 function (p::Predictor)(
-    params::AbstractVector{<:Real},
-    tspan::Tuple{<:Real,<:Real},
-    saveat::Union{<:Real,AbstractVector{<:Real},StepRange,StepRangeLen},
-)
+    params::VT,
+    tspan::Tuple{T,T},
+    saveat::TS,
+) where {T<:Real,VT<:AbstractVector{T},TS}
     problem = remake(p.problem, p = params, tspan = tspan)
     return solve(
         problem,
@@ -101,10 +107,10 @@ A callable struct that uses `metric_fn` to calculate the loss between the output
 * `predict_fn`: the time span that the ODE solver will be run on
 * `dataset`: the dataset that contains the ground truth data
 """
-struct Loss
-    metric_fn::Function
-    predict_fn::Predictor
-    dataset::TimeseriesDataset
+struct Loss{F<:Function,P<:Predictor,D<:TimeseriesDataset}
+    metric_fn::F
+    predict_fn::P
+    dataset::D
 end
 
 """
@@ -114,7 +120,7 @@ Call an object of the `Loss` struct on a set of parameters to get the loss scala
 
 * `params`: the set of parameters of the model
 """
-function (l::Loss)(params::AbstractVector{<:Real})
+function (l::Loss)(params::VT) where {VT<:AbstractVector{<:Real}}
     sol = l.predict_fn(params, l.dataset.tspan, l.dataset.tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
@@ -136,15 +142,17 @@ State of the callback struct
 * `iters`: number have iterations that have been run
 * `progress`: the progress meter that keeps track of the process
 * `train_losses`: collected training losses at each interval
+* `train_losses`: collected testing losses at each interval
 * `minimizer`: current best set of parameters
 * `minimizer_loss`: loss value of the current best set of parameters
 """
-mutable struct TrainCallbackState
-    iters::Integer
+mutable struct TrainCallbackState{R<:Real}
+    iters::Int
     progress::ProgressUnknown
-    train_losses::AbstractVector{<:Real}
-    minimizer::AbstractVector{<:Real}
-    minimizer_loss::Real
+    train_losses::Vector{R}
+    test_losses::Vector{R}
+    minimizer::Vector{R}
+    minimizer_loss::R
 end
 
 """
@@ -153,39 +161,38 @@ and other fields set to their default values
 
 # Arguments
 
-+ `maxiters`: Maximum number of iterrations that the optimizer will run
++ `T`: type of the losses and parameters
 """
-TrainCallbackState() =
-    TrainCallbackState(0, ProgressUnknown(showspeed = true), Float64[], Float64[], Inf)
+TrainCallbackState(T::Type{R}) where {R<:Real} =
+    TrainCallbackState{T}(0, ProgressUnknown(showspeed = true), T[], T[], T[], typemax(T))
 
 """
 Configuration of the callback struct
 
 # Fields
 
+* `test_loss`: loss function on the test dataset
 * `losses_plot_fpath`: file path to the saved losses figure
 * `losses_plot_interval`: interval for collecting losses and plot the losses figure
+* `params_length`: number of parameters that the system has
 * `params_save_fpath`: file path to the serialized current best set of parameters
 * `params_save_interval`: interval for saving the current best set of parameters
 """
-struct TrainCallbackConfig
-    losses_plot_fpath::Union{Nothing,<:AbstractString}
-    losses_plot_interval::Integer
-    params_save_fpath::Union{Nothing,<:AbstractString}
-    params_save_interval::Integer
+struct TrainCallbackConfig{L<:Loss}
+    test_loss::L
+    losses_plot_fpath::String
+    losses_plot_interval::Int
+    params_length::Int
+    params_save_fpath::String
+    params_save_interval::Int
 end
-
-"""
-Contruct a default `TrainCallbackConfig`
-"""
-TrainCallbackConfig() = TrainCallbackConfig(nothing, typemax(Int), nothing, typemax(Int))
 
 """
 A callable struct that is used for handling callback for `sciml_train`
 """
-mutable struct TrainCallback
-    state::TrainCallbackState
-    config::TrainCallbackConfig
+mutable struct TrainCallback{R<:Real,L<:Loss}
+    state::TrainCallbackState{R}
+    config::TrainCallbackConfig{L}
 end
 
 """
@@ -193,11 +200,54 @@ Create a callback for `sciml_train`
 
 # Arguments
 
-* `maxiters`: max number of iterations the optimizer will run
++ `T`: type of the losses and parameters
 * `config`: callback configurations
 """
-TrainCallback(config::TrainCallbackConfig = TrainCallbackConfig()) =
-    TrainCallback(TrainCallbackState(), config)
+TrainCallback(T::Type{R}, config::TrainCallbackConfig{L}) where {R<:Real,L<:Loss} =
+    TrainCallback{T,L}(TrainCallbackState(T), config)
+
+"""
+Illustrate the training andd testing losses using a twinaxis plot
+
+# Arguments
+
+*`train_losses`: the training losses to be plotted
+*`test_losses`: the testing losses to be plotted
+"""
+function plot_losses(
+    train_losses::AbstractVector{R},
+    test_losses::AbstractVector{R},
+) where {R<:Real}
+    fig = Figure()
+    # train losses axis
+    ax1 = Axis(
+        fig[1, 1],
+        title = "Losses of the model after each iteration",
+        xlabel = "Iterations",
+        yticklabelcolor = Makie.ColorSchemes.tab10[1],
+    )
+    # test losses axis
+    ax2 = Axis(
+        fig[1, 1],
+        yaxisposition = :right,
+        yticklabelcolor = Makie.ColorSchemes.tab10[2],
+    )
+    hidespines!(ax2)
+    hidexdecorations!(ax2)
+    sca1 = scatter!(ax1, train_losses, color = Makie.ColorSchemes.tab10[1])
+    sca2 = scatter!(ax2, test_losses, color = Makie.ColorSchemes.tab10[2])
+    Legend(
+        fig[1, 1],
+        [sca1, sca2],
+        ["Train loss", "Test loss"],
+        margin = (10, 10, 10, 10),
+        tellheight = false,
+        tellwidth = false,
+        halign = :left,
+        valign = :top,
+    )
+    return fig
+end
 
 """
 Call an object of type `TrainCallback`
@@ -207,53 +257,45 @@ Call an object of type `TrainCallback`
 * `params`: the model's parameters
 * `train_loss`: loss from the training step
 """
-function (cb::TrainCallback)(params::AbstractVector{<:Real}, train_loss::Real)
+function (cb::TrainCallback)(params::AbstractVector{R}, train_loss::R) where {R<:Real}
+    test_loss = cb.config.test_loss(params)
     showvalues = Pair{Symbol,Any}[
         :losses_plot_fpath=>cb.config.losses_plot_fpath,
         :params_save_fpath=>cb.config.params_save_fpath,
         :train_loss=>train_loss,
+        :test_loss=>test_loss,
     ]
     next!(cb.state.progress, showvalues = showvalues)
     cb.state.iters += 1
-    if train_loss < cb.state.minimizer_loss
+    if train_loss < cb.state.minimizer_loss && length(params) == cb.config.params_length
         cb.state.minimizer_loss = train_loss
         cb.state.minimizer = params
     end
-    if cb.state.iters % cb.config.losses_plot_interval == 0 &&
-       !isnothing(cb.config.losses_plot_fpath)
-        append!(cb.state.train_losses, train_loss)
-        fig = Figure()
-        ax = Axis(
-            fig[1, 1],
-            title = "Losses of the model after each iteration",
-            xlabel = "Iterations",
-        )
-        scatter!(ax, cb.state.train_losses, label = "Train loss")
-        axislegend(ax, position = :lt)
+    if cb.state.iters % cb.config.losses_plot_interval == 0
+        push!(cb.state.train_losses, train_loss)
+        push!(cb.state.test_losses, test_loss)
+        fig = plot_losses(cb.state.train_losses, cb.state.test_losses)
         save(cb.config.losses_plot_fpath, fig)
     end
-    if cb.state.iters % cb.config.params_save_interval == 0 &&
-       !isnothing(cb.config.params_save_fpath)
+    if cb.state.iters % cb.config.params_save_interval == 0
         Serialization.serialize(cb.config.params_save_fpath, cb.state.minimizer)
     end
     return false
 end
 
 """
-Specifications for a model tranining session
+Specifications for a model tranining
 
 # Arguments
 
-+ `name`: Session name
++ `name`: name of the configurationj
 + `optimizer`: The optimizer that will run in the session
 + `maxiters`: Maximum number of iterations to run the optimizer
-+ `loss_samples`: Number of times to collect the training losses and testing losses
 """
-struct TrainSession{Opt}
-    name::AbstractString
+struct TrainConfig{Opt}
+    name::String
     optimizer::Opt
-    maxiters::Integer
-    loss_samples::Integer
+    maxiters::Int
 end
 
 """
@@ -266,9 +308,9 @@ A struct for holding general configuration for the evaluation process
 + `labels`: names of the evaluated model's states
 """
 struct EvalConfig
-    metric_fns::AbstractVector{Function}
-    forecast_ranges::AbstractVector{<:Integer}
-    labels::AbstractVector{<:AbstractString}
+    metric_fns::Vector{Function}
+    forecast_ranges::Vector{Int}
+    labels::Vector{String}
 end
 
 """
@@ -277,53 +319,65 @@ the initial set of parameters `params`.
 
 # Arguments
 
++ `uuid`: unique id for the training session
 + `train_loss`: a function that will be minimized
-+ `params`: the initial set of parameters
-+ `sessions`: a collection of optimizers and settings used for training the model
++ `test_loss`: a loss function used for evaluation
++ `p0`: the initial set of parameters
++ `configs`: a collection of optimizers and settings used for training the model
++ `loss_samples`: number of params and losses samples to take
 + `snapshots_dir`: a directory for saving the model parameters and training losses
 + `kwargs`: keyword arguments that get splatted to `sciml_train`
 """
 function train_model(
+    uuid::AbstractString,
     train_loss::Loss,
-    params::AbstractVector{<:Real},
-    sessions::AbstractVector{TrainSession};
-    snapshots_dir::Union{AbstractString,Nothing} = nothing,
+    test_loss::Loss,
+    p0::AbstractVector{<:Real},
+    configs::AbstractVector{TrainConfig},
+    snapshots_dir::AbstractString;
+    loss_samples::Integer = 100,
     kwargs...,
 )
     if !isdir(snapshots_dir)
         mkpath(snapshots_dir)
     end
-    minimizers = Vector{Float64}[]
-    params = copy(params)
-    for sess ∈ sessions
-        snapshot_and_plot_interval = div(sess.maxiters, sess.loss_samples)
-        losses_plot_fpath, params_save_fpath =
-            isnothing(snapshots_dir) ? (nothing, nothing) :
-            get_losses_plot_fpath(snapshots_dir, sess.name),
-            get_params_save_fpath(snapshots_dir, sess.name)
+
+    minimizers = Vector{typeof(p0)}()
+    params = copy(p0)
+
+    @info "Running $uuid"
+    for conf ∈ configs
+        sessname = "$uuid.$(conf.name)"
+        losses_plot_fpath = get_losses_plot_fpath(snapshots_dir, sessname)
+        params_save_fpath = get_params_save_fpath(snapshots_dir, sessname)
+        save_interval = div(conf.maxiters, loss_samples)
         cb = TrainCallback(
+            eltype(p0),
             TrainCallbackConfig(
+                test_loss,
                 losses_plot_fpath,
-                snapshot_and_plot_interval,
+                save_interval,
+                length(p0),
                 params_save_fpath,
-                snapshot_and_plot_interval,
+                save_interval,
             ),
         )
-        @info "Running $(sess.name)"
-        try
-            DiffEqFlux.sciml_train(
+        params .= try
+            res = DiffEqFlux.sciml_train(
                 train_loss,
                 params,
-                sess.optimizer;
+                conf.optimizer;
                 cb = cb,
-                maxiters = sess.maxiters,
+                maxiters = conf.maxiters,
                 kwargs...,
             )
+            res.minimizer
         catch e
             e isa InterruptException && rethrow(e)
+            @warn e
+            cb.state.minimizer
         end
-        push!(minimizers, cb.state.minimizer)
-        params .= cb.state.minimizer
+        push!(minimizers, params)
         Serialization.serialize(params_save_fpath, params)
     end
     return minimizers
@@ -426,11 +480,10 @@ Plot the effective reproduction number for the traing period and testing period
 
 # Arguments
 
-* `ℜe_train`: the effective reproduction number of the training period
-* `ℜe_test`: the effective reproduction number of the testing period
+* `ℜe`: the effective reproduction number
 * `sep`: value at which the data is splitted for training and testing
 """
-function plot_ℜe(ℜe::AbstractVector{<:Real}, sep::Real)
+function plot_ℜe(ℜe::AbstractVector{R}, sep::R) where {R<:Real}
     R_effective_plot = Figure()
     ax = Axis(
         R_effective_plot[1, 1],
@@ -444,57 +497,6 @@ function plot_ℜe(ℜe::AbstractVector{<:Real}, sep::Real)
 end
 
 """
-Get the effective reproduction number of the model and produce a plot from the data
-
-# Arguments
-* `model`: the Covid-19 model
-* `minimizer`: the parameters to be used as the model's input
-* `train_dataset`: the timeseries dataset for the training period
-* `test_dataset`: the timeseries dataset for the testing period
-"""
-function plot_effective_reproduction_number(
-    model::AbstractCovidModel,
-    minimizer::AbstractVector{<:Real},
-    train_dataset::TimeseriesDataset,
-    test_dataset::TimeseriesDataset,
-)
-    # get the effective reproduction number learned by the model
-    Re1 = effective_reproduction_number(
-        model,
-        minimizer,
-        train_dataset.tspan,
-        train_dataset.tsteps,
-    )
-    Re2 = effective_reproduction_number(
-        model,
-        minimizer,
-        test_dataset.tspan,
-        test_dataset.tsteps,
-    )
-    fig = Figure()
-    ax = Axis(
-        fig[1, 1],
-        title = "Effective reproduction number learned by the model",
-        xlabel = "Days since the 500th confirmed case",
-    )
-    vlines!(
-        ax,
-        [train_dataset.tspan[2]],
-        color = :black,
-        linestyle = :dash,
-        label = "last training day",
-    )
-    scatter!(
-        vec([Re1 Re2]),
-        color = :red,
-        linewidth = 2,
-        label = "effective reproduction number",
-    )
-    axislegend(ax, position = :lt)
-    return fig
-end
-
-"""
 Calculate the inverse of the sigmoid function
 """
 logit(x::Real) = log(x / (1 - x))
@@ -502,8 +504,16 @@ logit(x::Real) = log(x / (1 - x))
 """
 Transform the value of `x` to get a value that lies between `bounds[1]` and `bounds[2]`.
 """
-boxconst(x::Real, bounds::Tuple{<:Real,<:Real}) =
+boxconst(x::Real, bounds::Tuple{R,R}) where {R<:Real} =
     bounds[1] + (bounds[2] - bounds[1]) * sigmoid(x)
+
+boxconst_inv(x::Real, bounds::Tuple{R,R}) where {R<:Real} =
+    logit((x - bounds[1]) / (bounds[2] - bounds[1]))
+
+"""
+[1] A. Howard et al., “Searching for MobileNetV3,” arXiv:1905.02244 [cs], Nov. 2019, Accessed: Oct. 09, 2021. [Online]. Available: http://arxiv.org/abs/1905.02244
+"""
+hswish(x::Real) = x * (relu6(x + 3) / 6)
 
 """
 Calculate the mean absolute error between 2 values. Note that the input arguments must be of the same size.
