@@ -149,7 +149,7 @@ function experiment_run(
     @info "Initial gradients $dLdθ"
 
     @info "Start training"
-    minimizers = train_model(uuid, train_loss, test_loss, p0, configs; snapshots_dir)
+    minimizers = train_model(uuid, train_loss, test_loss, p0, configs, snapshots_dir)
     minimizer = last(minimizers)
 
     @info "Evaluate model"

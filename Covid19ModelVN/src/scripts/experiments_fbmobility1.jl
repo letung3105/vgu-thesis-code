@@ -67,7 +67,7 @@ let
             loc,
             configs,
             () -> setup_fbmobility1(loc, hyperparams),
-            joinpath(savedir, loc),
+            snapshots_dir = joinpath(savedir, loc),
         )
         display(plt1)
         display(plt2)
