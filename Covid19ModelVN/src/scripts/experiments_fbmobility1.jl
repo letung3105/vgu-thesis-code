@@ -38,7 +38,7 @@ function setup_fbmobility1(loc::AbstractString, hyperparams::SEIRDFbMobility1Hyp
 end
 
 let
-    savedir = "testsnapshots/default"
+    savedir = "snapshots/default"
     hyperparams = (
         ζ = 0.01,
         γ0 = 1 / 3,
