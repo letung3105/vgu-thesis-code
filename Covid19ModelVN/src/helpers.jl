@@ -24,8 +24,8 @@ of the data points
 * `date_col`: name of the column that contains the timestamps
 * `data_cols`: names of the columns that contains the timeseries data
 """
-struct TimeseriesConfig{Df<:AbstractDataFrame}
-    df::Df
+struct TimeseriesConfig{DF<:AbstractDataFrame}
+    df::DF
     date_col::String
     data_cols::Vector{String}
 end
@@ -55,10 +55,10 @@ This contains the minimum required information for a timeseriese dataset that is
 * `tspan`: the first and last time coordinates of the timeseries data
 * `tsteps`: collocations points
 """
-struct TimeseriesDataset{R<:Real,Ts}
-    data::Matrix{R}
+struct TimeseriesDataset{R<:Real,DS<:AbstractMatrix{R},TS}
+    data::DS
     tspan::Tuple{R,R}
-    tsteps::Ts
+    tsteps::TS
 end
 
 """

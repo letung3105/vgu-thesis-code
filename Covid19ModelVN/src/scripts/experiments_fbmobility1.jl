@@ -26,43 +26,19 @@ function setup_fbmobility1(loc::AbstractString, hyperparams::SEIRDFbMobility1Hyp
             Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
 
     # initialize the model
-    model = SEIRDFbMobility1(movement_range_data)
-    # augmented dynamic
-    dudt(du, u, p, t) = model(
-        du,
-        u,
-        p,
-        t;
-        γ = boxconst(p[1], hyperparams.γ_bounds),
-        λ = boxconst(p[2], hyperparams.λ_bounds),
-        α = boxconst(p[3], hyperparams.α_bounds),
+    model = SEIRDFbMobility1(
+        hyperparams.γ_bounds,
+        hyperparams.λ_bounds,
+        hyperparams.α_bounds,
+        movement_range_data,
     )
-    # get the initial states and available observations depending on the model type
-    # and the considered location
-    u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
-    # create a prediction model and loss function
-    prob = ODEProblem(dudt, u0, train_dataset.tspan)
-    predictor = Predictor(prob, vars)
-    loss = experiment_loss(predictor, train_dataset, hyperparams.ζ)
-    # get initial parameters
-    p0 = [
-        boxconst_inv(hyperparams.γ0, hyperparams.γ_bounds)
-        boxconst_inv(hyperparams.λ0, hyperparams.λ_bounds)
-        boxconst_inv(hyperparams.α0, hyperparams.α_bounds)
-        DiffEqFlux.initial_params(model.β_ann)
-    ]
-    # function for getting the effective reproduction number
-    ℜe_augmented = function (minimizer)
-        γ = boxconst(minimizer[1], hyperparams.γ_bounds)
-        ℜe1 = ℜe(model, prob, minimizer, train_dataset.tspan, train_dataset.tsteps; γ)
-        ℜe2 = ℜe(model, prob, minimizer, test_dataset.tspan, test_dataset.tsteps; γ)
-        return [ℜe1; ℜe2]
-    end
-    return predictor, loss, p0, train_dataset, test_dataset, labels, ℜe_augmented
+    lossfn = experiment_loss(train_dataset.tsteps, hyperparams.ζ)
+    p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
+    return model, lossfn, p0, train_dataset, test_dataset
 end
 
 let
-    savedir = "snapshots/default"
+    savedir = "testsnapshots/default"
     hyperparams = (
         ζ = 0.01,
         γ0 = 1 / 3,
@@ -80,14 +56,15 @@ let
     ]
 
     for loc ∈ [
-        Covid19ModelVN.LOC_CODE_VIETNAM
-        Covid19ModelVN.LOC_CODE_UNITED_STATES
-        collect(keys(Covid19ModelVN.LOC_NAMES_VN))
-        collect(keys(Covid19ModelVN.LOC_NAMES_US))
+        Covid19ModelVN.LOC_CODE_VIETNAM,
+        # Covid19ModelVN.LOC_CODE_UNITED_STATES
+        # collect(keys(Covid19ModelVN.LOC_NAMES_VN))
+        # collect(keys(Covid19ModelVN.LOC_NAMES_US))
     ]
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         plt1, plt2, df_errors = experiment_run(
             "$timestamp.fbmobility1.$loc",
+            loc,
             configs,
             () -> setup_fbmobility1(loc, hyperparams),
             snapshots_dir = joinpath(savedir, loc),
