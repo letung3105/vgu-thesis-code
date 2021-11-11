@@ -131,8 +131,9 @@ function experiment_run(
     uuid::AbstractString,
     loc::AbstractString,
     configs::AbstractVector{TrainConfig},
-    setup::Function;
-    snapshots_dir::AbstractString,
+    setup::Function,
+    snapshots_dir::AbstractString;
+    kwargs...,
 )
     # get model and data
     model, lossfn, p0, train_dataset, test_dataset = setup()
@@ -149,7 +150,8 @@ function experiment_run(
     @info "Initial gradients $dLdθ"
 
     @info "Start training"
-    minimizers = train_model(uuid, train_loss, test_loss, p0, configs, snapshots_dir)
+    minimizers =
+        train_model(uuid, train_loss, test_loss, p0, configs, snapshots_dir; kwargs...)
     minimizer = last(minimizers)
 
     @info "Evaluate model"

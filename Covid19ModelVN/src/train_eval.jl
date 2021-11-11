@@ -162,8 +162,9 @@ and other fields set to their default values
 # Arguments
 
 + `T`: type of the losses and parameters
++ `show_progress`: control whether to show a running progress bar
 """
-TrainCallbackState(T::Type{R}; show_progress::Bool) where {R<:Real} = TrainCallbackState{T}(
+TrainCallbackState(T::Type{R}, show_progress::Bool) where {R<:Real} = TrainCallbackState{T}(
     0,
     ProgressUnknown(showspeed = true, enabled = show_progress),
     T[],
@@ -177,6 +178,7 @@ Configuration of the callback struct
 
 # Fields
 
+* `show_progress`: control whether to show a running progress bar
 * `test_loss`: loss function on the test dataset
 * `losses_plot_fpath`: file path to the saved losses figure
 * `losses_plot_interval`: interval for collecting losses and plot the losses figure
@@ -211,7 +213,7 @@ Create a callback for `sciml_train`
 * `config`: callback configurations
 """
 TrainCallback(T::Type{R}, config::TrainCallbackConfig{L}) where {R<:Real,L<:Loss} =
-    TrainCallback{T,L}(TrainCallbackState(T, show_progress = config.show_progres), config)
+    TrainCallback{T,L}(TrainCallbackState(T, config.show_progress), config)
 
 """
 Illustrate the training andd testing losses using a twinaxis plot

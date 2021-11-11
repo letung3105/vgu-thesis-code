@@ -58,7 +58,7 @@ let
             loc,
             configs,
             () -> setup_baseline(loc, hyperparams),
-            snapshots_dir = joinpath(savedir, loc),
+            joinpath(savedir, loc),
         )
         display(plt1)
         display(plt2)
