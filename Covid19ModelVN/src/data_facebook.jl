@@ -53,19 +53,23 @@ function calculate_social_proximity_to_cases(
     # fips code
     getloc(id::Float64) = subset(df_population, :ID_1 => x -> x .== id, view = true)
 
-    locs_with_confirmed = Set(names(df_covid_timeseries_confirmed))
-
+    # initialize the dataframe with dates and zeros
     df_spc = DataFrame()
     df_spc.date = df_covid_timeseries_confirmed.date
-
+    for locid ∈ unique(df_social_connectedness.user_loc)
+        loc = getloc(locid)
+        loc = isempty(loc) ? continue : first(loc)
+        df_spc[!, loc.NAME_1] .= 0
+    end
+    # names of all locations that have confirmed cases
+    locs_with_confirmed = Set(names(df_covid_timeseries_confirmed))
     # go through each dataframe that is grouped by the first location
-    for (key, df_group) ∈ pairs(groupby(df_social_connectedness, :user_loc))
+    Threads.@threads for (key, df_group) ∈
+                         collect(pairs(groupby(df_social_connectedness, :user_loc)))
         # check if population data for the first location is available, skip if not
         first_loc = getloc(key.user_loc)
         first_loc = isempty(first_loc) ? continue : first(first_loc)
-
         sum_sci = sum(df_group.scaled_sci)
-        df_spc[!, first_loc.NAME_1] .= 0
         # go through each location that is connected with the first location
         for row ∈ eachrow(df_group)
             # check if population data for the second location is available, skip if not
@@ -169,7 +173,7 @@ function save_region_average_movement_range(
     @info "Reading '$fpath_movement_range'"
     df_movement_range = FacebookData.read_movement_range(fpath_movement_range)
 
-    for f ∈ files
+    Threads.@threads for f ∈ files
         if isfile(f.path) && !recreate
             continue
         end
@@ -247,7 +251,7 @@ function save_inter_province_social_connectedness(
     @info "Reading '$fpath_social_connectedness'"
     df_social_connectedness = read_social_connectedness(fpath_social_connectedness)
 
-    for f ∈ files
+    Threads.@threads for f ∈ files
         if isfile(f.path) && !recreate
             continue
         end

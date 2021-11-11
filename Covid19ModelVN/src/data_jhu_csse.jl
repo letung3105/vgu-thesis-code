@@ -126,7 +126,7 @@ function save_country_level_timeseries(
     df_recovered = CSV.read(fpath_recovered, DataFrame)
     df_deaths = CSV.read(fpath_deaths, DataFrame)
 
-    for f ∈ files
+    Threads.@threads for f ∈ files
         if isfile(f.path) && !recreate
             continue
         end
@@ -184,7 +184,7 @@ function save_us_county_level_timeseries(
     df_confirmed = CSV.read(fpath_confirmed, DataFrame)
     df_deaths = CSV.read(fpath_deaths, DataFrame)
 
-    for f ∈ files
+    Threads.@threads for f ∈ files
         if isfile(f.path) && !recreate
             continue
         end
