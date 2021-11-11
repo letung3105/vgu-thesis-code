@@ -163,8 +163,14 @@ and other fields set to their default values
 
 + `T`: type of the losses and parameters
 """
-TrainCallbackState(T::Type{R}) where {R<:Real} =
-    TrainCallbackState{T}(0, ProgressUnknown(showspeed = true), T[], T[], T[], typemax(T))
+TrainCallbackState(T::Type{R}; show_progress::Bool) where {R<:Real} = TrainCallbackState{T}(
+    0,
+    ProgressUnknown(showspeed = true, enabled = show_progress),
+    T[],
+    T[],
+    T[],
+    typemax(T),
+)
 
 """
 Configuration of the callback struct
@@ -179,6 +185,7 @@ Configuration of the callback struct
 * `params_save_interval`: interval for saving the current best set of parameters
 """
 struct TrainCallbackConfig{L<:Loss}
+    show_progress::Bool
     test_loss::L
     losses_plot_fpath::String
     losses_plot_interval::Int
@@ -204,7 +211,7 @@ Create a callback for `sciml_train`
 * `config`: callback configurations
 """
 TrainCallback(T::Type{R}, config::TrainCallbackConfig{L}) where {R<:Real,L<:Loss} =
-    TrainCallback{T,L}(TrainCallbackState(T), config)
+    TrainCallback{T,L}(TrainCallbackState(T, show_progress = config.show_progres), config)
 
 """
 Illustrate the training andd testing losses using a twinaxis plot
@@ -335,6 +342,7 @@ function train_model(
     p0::AbstractVector{<:Real},
     configs::AbstractVector{TrainConfig},
     snapshots_dir::AbstractString;
+    show_progress::Bool = true,
     loss_samples::Integer = 100,
     kwargs...,
 )
@@ -354,6 +362,7 @@ function train_model(
         cb = TrainCallback(
             eltype(p0),
             TrainCallbackConfig(
+                show_progress,
                 test_loss,
                 losses_plot_fpath,
                 save_interval,
@@ -468,8 +477,12 @@ function plot_forecasts(
             ylabel = "Cases",
         )
         vlines!(ax, [train_dataset.tspan[2]], color = :black, linestyle = :dash)
-        scatter!([train_dataset.data[i, :]; test_dataset.data[i, 1:days]], label = label)
-        scatter!([fit[i, :]; pred[i, 1:days]], label = "model's prediction")
+        scatter!(
+            ax,
+            [train_dataset.data[i, :]; test_dataset.data[i, 1:days]],
+            label = label,
+        )
+        scatter!(ax, [fit[i, :]; pred[i, 1:days]], label = "model's prediction")
         axislegend(ax, position = :lt)
     end
     return fig
@@ -491,7 +504,7 @@ function plot_ℜe(ℜe::AbstractVector{R}, sep::R) where {R<:Real}
         xlabel = "Days since the 500th confirmed case",
     )
     vlines!(ax, [sep], color = :black, linestyle = :dash, label = "last training day")
-    scatter!(ℜe, color = :red, linewidth = 2, label = "effective reproduction number")
+    scatter!(ax, ℜe, color = :red, linewidth = 2, label = "effective reproduction number")
     axislegend(ax, position = :lt)
     return R_effective_plot
 end
