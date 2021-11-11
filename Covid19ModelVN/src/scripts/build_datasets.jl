@@ -198,4 +198,4 @@ function build_datasets_main(dir::AbstractString = "")
     end
 end
 
-build_datasets_main()
+build_datasets_main(".cache")
