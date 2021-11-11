@@ -99,6 +99,8 @@ function get_prebuilt_covid_timeseries(location_code::AbstractString)
     else
         throw("Unsupported location code '$location_code'!")
     end
+
+    df[!, :date] .= Date.(df[!, :date])
     return df
 end
 
@@ -140,7 +142,10 @@ function get_prebuilt_movement_range(location_code::AbstractString)
     if location_code ∉ keys(data)
         throw("Unsupported location code '$location_code'!")
     end
-    return CSV.read(data[location_code], DataFrame)
+
+    df = CSV.read(data[location_code], DataFrame)
+    df[!, :ds] .= Date.(df[!, :ds])
+    return df
 end
 
 function get_prebuilt_social_proximity(location_code::AbstractString)
@@ -156,5 +161,6 @@ function get_prebuilt_social_proximity(location_code::AbstractString)
 
     df = CSV.read(fpath, DataFrame)
     df = df[!, ["date", locname]]
+    df[!, :date] .= Date.(df[!, :date])
     return df, locname
 end
