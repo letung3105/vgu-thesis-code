@@ -47,41 +47,25 @@ function setup_fbmobility3(loc::AbstractString, hyperparams::SEIRDFbMobility3Hyp
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
-let
-    savedir = "snapshots/default"
-    hyperparams = (
+experiment_run(
+    "fbmobility3",
+    setup_fbmobility3,
+    [
+        collect(keys(Covid19ModelVN.LOC_NAMES_VN))
+        collect(keys(Covid19ModelVN.LOC_NAMES_US))
+    ],
+    (
         ζ = 0.01,
         γ0 = 1 / 3,
         λ0 = 1 / 14,
+        α0 = 0.025,
         γ_bounds = (1 / 5, 1 / 2),
         λ_bounds = (1 / 21, 1 / 7),
         α_bounds = (0.0, 0.06),
         train_range = Day(32),
         forecast_range = Day(28),
         social_proximity_lag = Day(14),
-    )
-    configs = TrainConfig[
-        TrainConfig("500ADAM", ADAM(), 500),
-        TrainConfig("500LBFGS", LBFGS(), 500),
-    ]
-
-    lk_evaluation = ReentrantLock()
-    Threads.@threads for loc ∈ [
-        collect(keys(Covid19ModelVN.LOC_NAMES_VN))
-        collect(keys(Covid19ModelVN.LOC_NAMES_US))
-    ]
-        timestamp = Dates.format(now(), "yyyymmddHHMMSS")
-        uuid = "$timestamp.fbmobility3.$loc"
-        setup = () -> setup_fbmobility3(loc, hyperparams)
-        snapshots_dir = joinpath(savedir, loc)
-
-        experiment_train(uuid, setup, configs, snapshots_dir, show_progress = false)
-        # program crashes when multiple threads trying to plot at the same time
-        lock(lk_evaluation)
-        try
-            experiment_eval(uuid, setup, snapshots_dir)
-        finally
-            unlock(lk_evaluation)
-        end
-    end
-end
+    ),
+    TrainConfig[TrainConfig("500ADAM", ADAM(), 500), TrainConfig("500LBFGS", LBFGS(), 500)],
+    savedir = "snapshots/default",
+)

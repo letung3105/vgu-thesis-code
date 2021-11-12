@@ -201,3 +201,29 @@ function experiment_eval(
 
     return nothing
 end
+
+function experiment_run(
+    model_name::AbstractString,
+    model_setup::Function,
+    locations::AbstractVector{<:AbstractString},
+    hyperparams::NamedTuple,
+    train_configs::AbstractVector{<:TrainConfig};
+    savedir::AbstractString,
+)
+    lk_evaluation = ReentrantLock()
+    Threads.@threads for loc ∈ locations
+        timestamp = Dates.format(now(), "yyyymmddHHMMSS")
+        uuid = "$timestamp.$model_name.$loc"
+        setup = () -> model_setup(loc, hyperparams)
+        snapshots_dir = joinpath(savedir, loc)
+
+        experiment_train(uuid, setup, train_configs, snapshots_dir, show_progress = false)
+        # program crashes when multiple threads trying to plot at the same time
+        lock(lk_evaluation)
+        try
+            experiment_eval(uuid, setup, snapshots_dir)
+        finally
+            unlock(lk_evaluation)
+        end
+    end
+end

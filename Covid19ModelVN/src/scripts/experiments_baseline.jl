@@ -29,9 +29,16 @@ function setup_baseline(loc::AbstractString, hyperparams::SEIRDBaselineHyperpara
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
-let
-    savedir = "snapshots/default"
-    hyperparams = (
+experiment_run(
+    "baseline",
+    setup_baseline,
+    [
+        Covid19ModelVN.LOC_CODE_VIETNAM
+        Covid19ModelVN.LOC_CODE_UNITED_STATES
+        collect(keys(Covid19ModelVN.LOC_NAMES_VN))
+        collect(keys(Covid19ModelVN.LOC_NAMES_US))
+    ],
+    (
         ζ = 0.01,
         γ0 = 1 / 3,
         λ0 = 1 / 14,
@@ -41,31 +48,7 @@ let
         α_bounds = (0.0, 0.06),
         train_range = Day(32),
         forecast_range = Day(28),
-    )
-    configs = TrainConfig[
-        TrainConfig("500ADAM", ADAM(), 500),
-        TrainConfig("500LBFGS", LBFGS(), 500),
-    ]
-
-    lk_evaluation = ReentrantLock()
-    Threads.@threads for loc ∈ [
-        Covid19ModelVN.LOC_CODE_VIETNAM
-        Covid19ModelVN.LOC_CODE_UNITED_STATES
-        collect(keys(Covid19ModelVN.LOC_NAMES_VN))
-        collect(keys(Covid19ModelVN.LOC_NAMES_US))
-    ]
-        timestamp = Dates.format(now(), "yyyymmddHHMMSS")
-        uuid = "$timestamp.baseline.$loc"
-        setup = () -> setup_baseline(loc, hyperparams)
-        snapshots_dir = joinpath(savedir, loc)
-
-        experiment_train(uuid, setup, configs, snapshots_dir, show_progress = false)
-        # program crashes when multiple threads trying to plot at the same time
-        lock(lk_evaluation)
-        try
-            experiment_eval(uuid, setup, snapshots_dir)
-        finally
-            unlock(lk_evaluation)
-        end
-    end
-end
+    ),
+    TrainConfig[TrainConfig("500ADAM", ADAM(), 500), TrainConfig("500LBFGS", LBFGS(), 500)],
+    savedir = "snapshots/default",
+)
