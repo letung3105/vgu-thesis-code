@@ -4,7 +4,7 @@ export TimeseriesDataset,
     load_timeseries,
     save_dataframe,
     lookup_saved_params,
-    get_losses_plot_fpath,
+    get_losses_save_fpath,
     get_params_save_fpath,
     bound,
     bound!,
@@ -118,8 +118,7 @@ Get the file paths and uuids of all the saved parameters of an experiment
 function lookup_saved_params(dir::AbstractString)
     params_files = filter(x -> endswith(x, ".jls"), readdir(dir))
     fpaths = map(f -> joinpath(dir, f), params_files)
-    uuids = map(f -> first(rsplit(f, ".", limit = 3)), params_files)
-    return fpaths, uuids
+    return fpaths
 end
 
 """
@@ -130,8 +129,8 @@ Get default losses figure file path
 * `fdir`: the root directory of the file
 * `uuid`: the file unique identifier
 """
-get_losses_plot_fpath(fdir::AbstractString, uuid::AbstractString) =
-    joinpath(fdir, "$uuid.losses.png")
+get_losses_save_fpath(fdir::AbstractString, uuid::AbstractString) =
+    joinpath(fdir, "$uuid.losses.jls")
 
 """
 Get default file path for saved parameters

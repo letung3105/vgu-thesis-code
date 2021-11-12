@@ -7,6 +7,7 @@ export TrainConfig,
     train_model,
     evaluate_model,
     calculate_forecasts_errors,
+    plot_losses,
     plot_forecasts,
     plot_effective_reproduction_number,
     plot_ℜe,
@@ -142,7 +143,7 @@ State of the callback struct
 * `iters`: number have iterations that have been run
 * `progress`: the progress meter that keeps track of the process
 * `train_losses`: collected training losses at each interval
-* `train_losses`: collected testing losses at each interval
+* `test_losses`: collected testing losses at each interval
 * `minimizer`: current best set of parameters
 * `minimizer_loss`: loss value of the current best set of parameters
 """
@@ -178,22 +179,20 @@ Configuration of the callback struct
 
 # Fields
 
-* `show_progress`: control whether to show a running progress bar
 * `test_loss`: loss function on the test dataset
-* `losses_plot_fpath`: file path to the saved losses figure
-* `losses_plot_interval`: interval for collecting losses and plot the losses figure
+* `show_progress`: control whether to show a running progress bar
 * `params_length`: number of parameters that the system has
+* `save_interval`: interval for saving the current best set of parameters and losses
+* `losses_save_fpath`: file path to the saved losses figure
 * `params_save_fpath`: file path to the serialized current best set of parameters
-* `params_save_interval`: interval for saving the current best set of parameters
 """
 struct TrainCallbackConfig{L<:Loss}
-    show_progress::Bool
     test_loss::L
-    losses_plot_fpath::String
-    losses_plot_interval::Int
+    show_progress::Bool
     params_length::Int
+    save_interval::Int
+    losses_save_fpath::String
     params_save_fpath::String
-    params_save_interval::Int
 end
 
 """
@@ -269,7 +268,7 @@ Call an object of type `TrainCallback`
 function (cb::TrainCallback)(params::AbstractVector{R}, train_loss::R) where {R<:Real}
     test_loss = cb.config.test_loss(params)
     showvalues = Pair{Symbol,Any}[
-        :losses_plot_fpath=>cb.config.losses_plot_fpath,
+        :losses_save_fpath=>cb.config.losses_save_fpath,
         :params_save_fpath=>cb.config.params_save_fpath,
         :train_loss=>train_loss,
         :test_loss=>test_loss,
@@ -280,13 +279,13 @@ function (cb::TrainCallback)(params::AbstractVector{R}, train_loss::R) where {R<
         cb.state.minimizer_loss = train_loss
         cb.state.minimizer = params
     end
-    if cb.state.iters % cb.config.losses_plot_interval == 0
+    if cb.state.iters % cb.config.save_interval == 0
         push!(cb.state.train_losses, train_loss)
         push!(cb.state.test_losses, test_loss)
-        fig = plot_losses(cb.state.train_losses, cb.state.test_losses)
-        save(cb.config.losses_plot_fpath, fig)
-    end
-    if cb.state.iters % cb.config.params_save_interval == 0
+        Serialization.serialize(
+            cb.config.losses_save_fpath,
+            (cb.state.train_losses, cb.state.test_losses),
+        )
         Serialization.serialize(cb.config.params_save_fpath, cb.state.minimizer)
     end
     return false
@@ -356,21 +355,19 @@ function train_model(
     params = copy(p0)
 
     @info "Running $uuid"
+    params_save_fpath = get_params_save_fpath(snapshots_dir, uuid)
     for conf ∈ configs
-        sessname = "$uuid.$(conf.name)"
-        losses_plot_fpath = get_losses_plot_fpath(snapshots_dir, sessname)
-        params_save_fpath = get_params_save_fpath(snapshots_dir, sessname)
         save_interval = div(conf.maxiters, loss_samples)
+        losses_save_fpath = get_losses_save_fpath(snapshots_dir, "$uuid.$(conf.name)")
         cb = TrainCallback(
             eltype(p0),
             TrainCallbackConfig(
-                show_progress,
                 test_loss,
-                losses_plot_fpath,
-                save_interval,
+                show_progress,
                 length(p0),
-                params_save_fpath,
                 save_interval,
+                losses_save_fpath,
+                params_save_fpath,
             ),
         )
         params .= try

@@ -129,17 +129,13 @@ end
 
 function experiment_run(
     uuid::AbstractString,
-    loc::AbstractString,
-    configs::AbstractVector{TrainConfig},
     setup::Function,
+    configs::AbstractVector{TrainConfig},
     snapshots_dir::AbstractString;
     kwargs...,
 )
     # get model and data
-    model, lossfn, p0, train_dataset, test_dataset = setup()
-    # get the initial states and available observations depending on the model type
-    # and the considered location
-    u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
+    model, u0, p0, lossfn, train_dataset, test_dataset, vars, _ = setup()
     # create a prediction model and loss function
     prob = ODEProblem(model, u0, train_dataset.tspan)
     predictor = Predictor(prob, vars)
@@ -147,23 +143,58 @@ function experiment_run(
     test_loss = Loss(rmse, predictor, test_dataset)
     # check if AD works
     dLdθ = Zygote.gradient(train_loss, p0)
-    @info "Initial gradients $dLdθ"
+    @assert !isnothing(dLdθ[1]) # gradient is computable
+    @assert any(dLdθ[1] .!= 0.0) # not all gradients are 0
 
     @info "Start training"
     minimizers =
         train_model(uuid, train_loss, test_loss, p0, configs, snapshots_dir; kwargs...)
     minimizer = last(minimizers)
+    return minimizer
+end
+
+function experiment_eval(
+    uuid::AbstractString,
+    setup::Function,
+    snapshots_dir::AbstractString,
+)
+    # get model and data
+    model, u0, _, _, train_dataset, test_dataset, vars, labels = setup()
+    # create a prediction model
+    prob = ODEProblem(model, u0, train_dataset.tspan)
+    predictor = Predictor(prob, vars)
 
     @info "Evaluate model"
     eval_config = EvalConfig([mae, mape, rmse], [7, 14, 21, 28], labels)
-    forecasts_plot, df_forecasts_errors =
-        evaluate_model(eval_config, predictor, minimizer, train_dataset, test_dataset)
-    save(joinpath(snapshots_dir, "$uuid.forecasts.png"), forecasts_plot)
-    save_dataframe(df_forecasts_errors, joinpath(snapshots_dir, "$uuid.errors.csv"))
-    ℜe1 = ℜe(model, u0, minimizer, train_dataset.tspan, train_dataset.tsteps)
-    ℜe2 = ℜe(model, u0, minimizer, test_dataset.tspan, test_dataset.tsteps)
-    ℜe_plot = plot_ℜe([ℜe1; ℜe2], train_dataset.tspan[2])
-    save(joinpath(snapshots_dir, "$uuid.R_effective.png"), ℜe_plot)
+    for fpath ∈ lookup_saved_params(snapshots_dir)
+        dataname, datatype, _ = rsplit(basename(fpath), ".", limit = 3)
+        if !startswith(dataname, uuid)
+            continue
+        end
 
-    return ℜe_plot, forecasts_plot, df_forecasts_errors
+        if datatype == "losses"
+            train_losses, test_losses = Serialization.deserialize(fpath)
+            fig = plot_losses(train_losses, test_losses)
+            save(joinpath(snapshots_dir, "$dataname.losses.png"), fig)
+
+        elseif datatype == "params"
+            minimizer = Serialization.deserialize(fpath)
+            fig_forecasts, df_errors = evaluate_model(
+                eval_config,
+                predictor,
+                minimizer,
+                train_dataset,
+                test_dataset,
+            )
+            save(joinpath(snapshots_dir, "$dataname.forecasts.png"), fig_forecasts)
+            save_dataframe(df_errors, joinpath(snapshots_dir, "$dataname.errors.csv"))
+
+            ℜe1 = ℜe(model, u0, minimizer, train_dataset.tspan, train_dataset.tsteps)
+            ℜe2 = ℜe(model, u0, minimizer, test_dataset.tspan, test_dataset.tsteps)
+            fig_ℜe = plot_ℜe([ℜe1; ℜe2], train_dataset.tspan[2])
+            save(joinpath(snapshots_dir, "$uuid.R_effective.png"), fig_ℜe)
+        end
+    end
+
+    return nothing
 end
