@@ -349,22 +349,17 @@ function build_social_proximity(
         end
 
         @info "Reading social connectedness index dataset"
-        t_read_sci = @async FacebookData.read_social_connectedness(
+        df_sci = FacebookData.read_social_connectedness(
             datadep"facebook/gadm1_nuts2_gadm1_nuts2.tsv",
         )
+        df_sci_vn = FacebookData.inter_province_social_connectedness(df_sci, "VNM")
         @info "Reading population data"
-        t_read_population = @async CSV.read(fpath_population_vn, DataFrame)
+        df_population = CSV.read(fpath_population_vn, DataFrame)
         @info "Reading Covid-19 timeseries"
-        t_read_covid = CSV.read(
+        df_covid = CSV.read(
             datadep"vnexpress/timeseries-vietnam-provinces-confirmed.csv",
             DataFrame,
         )
-
-        df_sci = fetch(t_read_sci)
-        df_sci_vn = FacebookData.inter_province_social_connectedness(df_sci, "VNM")
-
-        df_population = fetch(t_read_population)
-        df_covid = fetch(t_read_covid)
 
         @info "Calculating social proximity to cases index"
         df_scp_vn = FacebookData.calculate_social_proximity_to_cases(
@@ -382,19 +377,15 @@ function build_social_proximity(
         end
 
         @info "Reading social connectedness index dataset"
-        t_read_sci = @async FacebookData.read_social_connectedness(
+        df_sci_counties = FacebookData.read_social_connectedness(
             datadep"facebook/county_county.tsv",
         )
         @info "Reading population data"
-        t_read_population = @async CSV.read(fpath_population_us, DataFrame)
+        df_population = CSV.read(fpath_population_us, DataFrame)
         @info "Reading Covid-19 timeseries"
-        t_read_covid = @async JHUCSSEData.get_us_counties_timeseries_confirmed(
+        df_covid = JHUCSSEData.get_us_counties_timeseries_confirmed(
             CSV.read(datadep"jhu-csse/time_series_covid19_confirmed_US.csv", DataFrame),
         )
-
-        df_sci_counties = fetch(t_read_sci)
-        df_population = fetch(t_read_population)
-        df_covid = fetch(t_read_covid)
 
         @info "Calculating social proximity to cases index"
         df_scp_us = FacebookData.calculate_social_proximity_to_cases(

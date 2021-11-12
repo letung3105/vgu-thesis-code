@@ -124,13 +124,9 @@ function save_country_level_timeseries(
     end
 
     @info "Reading '$fpath_confirmed', '$fpath_recovered', and '$fpath_deaths'"
-    t_read_confirmed = @async CSV.read(fpath_confirmed, DataFrame)
-    t_read_recovered = @async CSV.read(fpath_recovered, DataFrame)
-    t_read_deaths = @async CSV.read(fpath_deaths, DataFrame)
-
-    df_confirmed = fetch(t_read_confirmed)
-    df_recovered = fetch(t_read_recovered)
-    df_deaths = fetch(t_read_deaths)
+    df_confirmed = CSV.read(fpath_confirmed, DataFrame)
+    df_recovered = CSV.read(fpath_recovered, DataFrame)
+    df_deaths = CSV.read(fpath_deaths, DataFrame)
 
     Threads.@threads for f ∈ files
         if isfile(f.path) && !recreate
@@ -190,11 +186,8 @@ function save_us_county_level_timeseries(
     end
 
     @info "Reading '$fpath_confirmed' and '$fpath_deaths'"
-    t_read_confirmed = @async CSV.read(fpath_confirmed, DataFrame)
-    t_read_deaths = @async CSV.read(fpath_deaths, DataFrame)
-
-    df_confirmed = fetch(t_read_confirmed)
-    df_deaths = fetch(t_read_deaths)
+    df_confirmed = CSV.read(fpath_confirmed, DataFrame)
+    df_deaths = CSV.read(fpath_deaths, DataFrame)
 
     Threads.@threads for f ∈ files
         if isfile(f.path) && !recreate
