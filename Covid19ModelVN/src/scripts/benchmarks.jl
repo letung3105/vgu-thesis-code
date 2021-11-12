@@ -27,7 +27,6 @@ function benchmarks_compute_loss_gradient_with_different_sensealg_zygote(
     benchmark_zygote_gradient = function (sensealg)
         predictor = Predictor(model.problem, solver, sensealg, abstol, reltol, vars)
         loss = Loss(rmse, predictor, train_dataset)
-        @info "Compute gradient with sensealg = ForwardDiffSensitivity()"
         display(@benchmark Zygote.gradient($loss, $params))
     end
 
