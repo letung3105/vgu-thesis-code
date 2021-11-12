@@ -13,4 +13,4 @@ function build_datasets_main(dir::AbstractString = ""; recreate::Bool = false)
     build_social_proximity(dir; recreate)
 end
 
-build_datasets_main(".cache", recreate = true)
+build_datasets_main(".cache")

@@ -103,8 +103,11 @@ function save_vietnam_province_level_gadm_and_gso_population(
     end
 
     @info "Reading '$fpath_gadm' and '$fpath_population'"
-    df_gadm = GeoDataFrames.read(fpath_gadm, 1)
-    df_population = CSV.read(fpath_population, DataFrame)
+    t_read_gadm = @async GeoDataFrames.read(fpath_gadm, 1)
+    t_read_population = @async CSV.read(fpath_population, DataFrame)
+
+    df_gadm = fetch(t_read_gadm)
+    df_population = fetch(t_read_population)
 
     @info "Generating '$fpath_output'"
     df_combined =
