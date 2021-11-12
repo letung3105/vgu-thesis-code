@@ -377,9 +377,8 @@ function build_social_proximity(
         end
 
         @info "Reading social connectedness index dataset"
-        df_sci_counties = FacebookData.read_social_connectedness(
-            datadep"facebook/county_county.tsv",
-        )
+        df_sci_counties =
+            FacebookData.read_social_connectedness(datadep"facebook/county_county.tsv")
         @info "Reading population data"
         df_population = CSV.read(fpath_population_us, DataFrame)
         @info "Reading Covid-19 timeseries"

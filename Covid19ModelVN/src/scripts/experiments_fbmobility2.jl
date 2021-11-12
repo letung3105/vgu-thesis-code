@@ -67,6 +67,9 @@ experiment_run(
         forecast_range = Day(28),
         social_proximity_lag = Day(14),
     ),
-    TrainConfig[TrainConfig("500ADAM", ADAM(), 500), TrainConfig("500LBFGS", LBFGS(), 500)],
+    TrainConfig[
+        TrainConfig("500ADAM", ADAM(0.01), 500),
+        TrainConfig("500LBFGS", LBFGS(), 500),
+    ],
     savedir = "snapshots/default",
 )
