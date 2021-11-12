@@ -1,8 +1,8 @@
 include("experiments.jl")
 
 experiment_run(
-    "baseline",
-    setup_baseline,
+    "fbmobility1A",
+    setup_fbmobility1,
     [
         Covid19ModelVN.LOC_CODE_VIETNAM
         Covid19ModelVN.LOC_CODE_UNITED_STATES
@@ -10,7 +10,7 @@ experiment_run(
         collect(keys(Covid19ModelVN.LOC_NAMES_US))
     ],
     (
-        ζ = 0.01,
+        ζ = 0.005,
         γ0 = 1 / 3,
         λ0 = 1 / 14,
         α0 = 0.025,
