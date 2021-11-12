@@ -6,11 +6,11 @@ end
 
 using Covid19ModelVN
 
-function build_datasets_main(dir::AbstractString = "")
-    build_population(dir)
-    build_covid_timeseries(dir)
-    build_movement_range(dir)
-    build_social_proximity(dir)
+function build_datasets_main(dir::AbstractString = ""; recreate::Bool = false)
+    build_population(dir; recreate)
+    build_covid_timeseries(dir; recreate)
+    build_movement_range(dir; recreate)
+    build_social_proximity(dir; recreate)
 end
 
-build_datasets_main(".cache")
+build_datasets_main(".cache", recreate = true)

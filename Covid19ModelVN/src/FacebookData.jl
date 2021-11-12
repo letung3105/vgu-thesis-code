@@ -1,4 +1,6 @@
-using DataDeps, Dates, DataFrames, DelimitedFiles, Statistics, Covid19ModelVN
+module FacebookData
+
+using DataDeps, Dates, DataFrames, DelimitedFiles, Statistics, CSV
 
 function __init__()
     register(
@@ -177,6 +179,9 @@ function save_region_average_movement_range(
         if isfile(f.path) && !recreate
             continue
         end
+        if !isdir(dirname(f.path))
+            mkpath(dirname(f.path))
+        end
 
         @info "Generating '$(f.path)'"
         df_region_movement_range = FacebookData.region_average_movement_range(
@@ -184,7 +189,7 @@ function save_region_average_movement_range(
             f.country,
             f.subdivision,
         )
-        save_dataframe(df_region_movement_range, f.path)
+        CSV.write(f.path, df_region_movement_range)
     end
 
     return nothing
@@ -255,12 +260,17 @@ function save_inter_province_social_connectedness(
         if isfile(f.path) && !recreate
             continue
         end
+        if !isdir(dirname(f.path))
+            mkpath(dirname(f.path))
+        end
 
         @info "Generating '$(f.path)'"
         df_country_social_connectedness =
             inter_province_social_connectedness(df_social_connectedness, f.country)
-        save_dataframe(df_country_social_connectedness, f.path)
+        CSV.write(f.path, df_country_social_connectedness)
     end
 
     return nothing
+end
+
 end

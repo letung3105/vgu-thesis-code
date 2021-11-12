@@ -1,35 +1,3 @@
-export TrainConfig,
-    EvalConfig,
-    Predictor,
-    Loss,
-    TrainCallback,
-    TrainCallbackConfig,
-    train_model,
-    evaluate_model,
-    calculate_forecasts_errors,
-    plot_losses,
-    plot_forecasts,
-    plot_effective_reproduction_number,
-    plot_ℜe,
-    logit,
-    hswish,
-    boxconst,
-    boxconst_inv,
-    mae,
-    mape,
-    rmse,
-    rmsle
-
-using Serialization,
-    Statistics,
-    ProgressMeter,
-    CairoMakie,
-    DataFrames,
-    CSV,
-    OrdinaryDiffEq,
-    DiffEqFlux,
-    Covid19ModelVN
-
 """
 A struct that solves the underlying DiffEq problem and returns the solution when it is called
 
@@ -354,7 +322,6 @@ function train_model(
     minimizers = Vector{typeof(p0)}()
     params = copy(p0)
 
-    @info "Running $uuid"
     params_save_fpath = get_params_save_fpath(snapshots_dir, uuid)
     for conf ∈ configs
         save_interval = div(conf.maxiters, loss_samples)

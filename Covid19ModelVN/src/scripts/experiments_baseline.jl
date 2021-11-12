@@ -1,7 +1,5 @@
 include("experiments.jl")
 
-using OrdinaryDiffEq, DiffEqFlux, CairoMakie
-
 SEIRDBaselineHyperparams = @NamedTuple begin
     ζ::Float64
     γ0::Float64
@@ -23,9 +21,12 @@ function setup_baseline(loc::AbstractString, hyperparams::SEIRDBaselineHyperpara
 
     # initialize the model
     model = SEIRDBaseline(hyperparams.γ_bounds, hyperparams.λ_bounds, hyperparams.α_bounds)
-    lossfn = experiment_loss(train_dataset.tsteps, hyperparams.ζ)
+    # get the initial states and available observations depending on the model type
+    # and the considered location
+    u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
-    return model, lossfn, p0, train_dataset, test_dataset
+    lossfn = experiment_loss(train_dataset.tsteps, hyperparams.ζ)
+    return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
 let
@@ -46,22 +47,25 @@ let
         TrainConfig("500LBFGS", LBFGS(), 500),
     ]
 
-    for loc ∈ [
+    lk_evaluation = ReentrantLock()
+    Threads.@threads for loc ∈ [
         Covid19ModelVN.LOC_CODE_VIETNAM
         Covid19ModelVN.LOC_CODE_UNITED_STATES
         collect(keys(Covid19ModelVN.LOC_NAMES_VN))
         collect(keys(Covid19ModelVN.LOC_NAMES_US))
     ]
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
-        plt1, plt2, df_errors = experiment_run(
-            "$timestamp.baseline.$loc",
-            loc,
-            configs,
-            () -> setup_baseline(loc, hyperparams),
-            joinpath(savedir, loc),
-        )
-        display(plt1)
-        display(plt2)
-        display(df_errors)
+        uuid = "$timestamp.baseline.$loc"
+        setup = () -> setup_baseline(loc, hyperparams)
+        snapshots_dir = joinpath(savedir, loc)
+
+        experiment_train(uuid, setup, configs, snapshots_dir, show_progress = false)
+        # program crashes when multiple threads trying to plot at the same time
+        lock(lk_evaluation)
+        try
+            experiment_eval(uuid, setup, snapshots_dir)
+        finally
+            unlock(lk_evaluation)
+        end
     end
 end

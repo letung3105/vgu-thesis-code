@@ -1,3 +1,5 @@
+module VnCdcData
+
 using DataDeps, DataFrames, Dates
 import JSON
 
@@ -66,4 +68,6 @@ function read_timeseries_confirmed_and_deaths(fpath::AbstractString)
     )
 
     return df
+end
+
 end

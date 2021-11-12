@@ -1,8 +1,3 @@
-export AbstractCovidModel,
-    SEIRDBaseline, SEIRDFbMobility1, SEIRDFbMobility2, SEIRDFbMobility3, ℜe, initparams
-
-using OrdinaryDiffEq, DiffEqFlux
-
 @inbounds function SEIRD!(du, u, p, t)
     S, E, I, _, _, _, N = u
     β, γ, λ, α = p

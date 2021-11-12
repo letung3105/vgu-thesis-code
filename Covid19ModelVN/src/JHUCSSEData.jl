@@ -1,4 +1,6 @@
-using CSV, Dates, DataDeps, DataFrames, Covid19ModelVN
+module JHUCSSEData
+
+using CSV, Dates, DataDeps, DataFrames
 
 function __init__()
     register(
@@ -130,6 +132,9 @@ function save_country_level_timeseries(
         if isfile(f.path) && !recreate
             continue
         end
+        if !isdir(dirname(f.path))
+            mkpath(dirname(f.path))
+        end
 
         @info "Generating '$(f.path)'"
         df_combined = combine_country_level_timeseries(
@@ -138,7 +143,7 @@ function save_country_level_timeseries(
             df_deaths,
             f.country,
         )
-        save_dataframe(df_combined, f.path)
+        CSV.write(f.path, df_combined)
     end
 
     return nothing
@@ -188,11 +193,15 @@ function save_us_county_level_timeseries(
         if isfile(f.path) && !recreate
             continue
         end
+        # create containing folder if not exists
+        if !isdir(dirname(f.path))
+            mkpath(dirname(f.path))
+        end
 
         @info "Generating '$(f.path)'"
         df_combined =
             combine_us_county_level_timeseries(df_confirmed, df_deaths, f.state, f.county)
-        save_dataframe(df_combined, f.path)
+        CSV.write(f.path, df_combined)
     end
 
     return nothing
@@ -341,20 +350,24 @@ Extract counties population data from JHU deaths time series
 + `recreate`: the existing file will be ovewritten if this is true
 """
 function save_us_counties_population(
-    fpath_output::AbstractString,
+    fpath_output::AbstractString;
     fpath_deaths::AbstractString = datadep"jhu-csse/time_series_covid19_deaths_US.csv",
     recreate::Bool = false,
 )
     if isfile(fpath_output) && !recreate
         return nothing
     end
+    if !isdir(dirname(fpath_output))
+        mkpath(dirname(fpath_output))
+    end
 
     @info "Reading '$fpath_deaths'"
     df_deaths = CSV.read(fpath_deaths, DataFrame)
-
     @info "Generating '$fpath_output'"
     df_population = get_us_counties_population(df_deaths)
-    save_dataframe(df_population, fpath_output)
+    CSV.write(fpath_output, df_population)
 
     return nothing
+end
+
 end

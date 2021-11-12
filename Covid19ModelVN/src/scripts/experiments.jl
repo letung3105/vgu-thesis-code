@@ -4,7 +4,11 @@ if isfile("Project.toml") && isfile("Manifest.toml")
     Pkg.activate(".")
 end
 
-using Dates, Statistics, DataFrames, Covid19ModelVN
+using Dates, Statistics, Serialization
+using OrdinaryDiffEq, DiffEqFlux
+using CairoMakie
+using DataFrames
+using Covid19ModelVN
 
 import Covid19ModelVN.JHUCSSEData,
     Covid19ModelVN.FacebookData,
@@ -127,7 +131,7 @@ function experiment_loss(tsteps::Ts, ζ::Float64) where {Ts}
     return lossfn
 end
 
-function experiment_run(
+function experiment_train(
     uuid::AbstractString,
     setup::Function,
     configs::AbstractVector{TrainConfig},
@@ -146,11 +150,10 @@ function experiment_run(
     @assert !isnothing(dLdθ[1]) # gradient is computable
     @assert any(dLdθ[1] .!= 0.0) # not all gradients are 0
 
-    @info "Start training"
+    @info "Training $uuid"
     minimizers =
         train_model(uuid, train_loss, test_loss, p0, configs, snapshots_dir; kwargs...)
-    minimizer = last(minimizers)
-    return minimizer
+    return minimizers
 end
 
 function experiment_eval(
@@ -164,7 +167,6 @@ function experiment_eval(
     prob = ODEProblem(model, u0, train_dataset.tspan)
     predictor = Predictor(prob, vars)
 
-    @info "Evaluate model"
     eval_config = EvalConfig([mae, mape, rmse], [7, 14, 21, 28], labels)
     for fpath ∈ lookup_saved_params(snapshots_dir)
         dataname, datatype, _ = rsplit(basename(fpath), ".", limit = 3)
@@ -195,6 +197,7 @@ function experiment_eval(
             save(joinpath(snapshots_dir, "$uuid.R_effective.png"), fig_ℜe)
         end
     end
+    @info "Evaluated $uuid"
 
     return nothing
 end

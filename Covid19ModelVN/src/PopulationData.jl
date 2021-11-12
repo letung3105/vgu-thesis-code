@@ -1,4 +1,6 @@
-using CSV, DataDeps, DataFrames, Covid19ModelVN
+module PopulationData
+
+using CSV, DataDeps, DataFrames
 import GeoDataFrames
 
 function __init__()
@@ -96,6 +98,9 @@ function save_vietnam_province_level_gadm_and_gso_population(
     if isfile(fpath_output) && !recreate
         return nothing
     end
+    if !isdir(dirname(fpath_output))
+        mkpath(dirname(fpath_output))
+    end
 
     @info "Reading '$fpath_gadm' and '$fpath_population'"
     df_gadm = GeoDataFrames.read(fpath_gadm, 1)
@@ -104,7 +109,9 @@ function save_vietnam_province_level_gadm_and_gso_population(
     @info "Generating '$fpath_output'"
     df_combined =
         combine_vietnam_province_level_gadm_and_gso_population(df_gadm, df_population)
-    save_dataframe(df_combined, fpath_output)
+    CSV.write(fpath_output, df_combined)
 
     return nothing
+end
+
 end
