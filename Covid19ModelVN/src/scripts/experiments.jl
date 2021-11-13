@@ -412,7 +412,7 @@ function experiment_run(
     hyperparams::NamedTuple,
     train_configs::AbstractVector{<:TrainConfig};
     savedir::AbstractString,
-    kwargs...
+    kwargs...,
 )
     lk_evaluation = ReentrantLock()
     Threads.@threads for loc ∈ locations
