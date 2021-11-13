@@ -1,3 +1,3 @@
 include("cmd.jl")
 
-runcmd(["baseline", "baseline"])
+runcmd(ARGS)

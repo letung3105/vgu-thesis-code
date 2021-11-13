@@ -2,7 +2,7 @@ using ArgParse
 
 include("experiments.jl")
 
-function runcmd(args = ARGS)
+function runcmd(args)
     parsed_args = parse_commandline(args)
     if parsed_args[:_COMMAND_] == :baseline
         cmd_baseline(parsed_args)
