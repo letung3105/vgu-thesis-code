@@ -121,7 +121,7 @@ function get_prebuilt_covid_timeseries(location_code::AbstractString)
     return df
 end
 
-function build_covid_timeseries(dir::AbstractString; recreate::Bool = false)
+function make_covid_timeseries(dir::AbstractString; recreate::Bool = false)
     JHUCSSEData.save_country_level_timeseries(
         [
             JHUCSSEData.CountryCovidTimeseriesFile(
@@ -184,7 +184,7 @@ function get_prebuilt_population(location_code::AbstractString)
     return population
 end
 
-function build_population(dir::AbstractString; recreate::Bool = false)
+function make_population(dir::AbstractString; recreate::Bool = false)
     PopulationData.save_vietnam_province_level_gadm_and_gso_population(
         joinpath(dir, FNAME_AVERAGE_POPULATION_VN_PROVINCES);
         recreate,
@@ -228,7 +228,7 @@ function get_prebuilt_movement_range(location_code::AbstractString)
     return df
 end
 
-function build_movement_range(dir::AbstractString; recreate::Bool = false)
+function make_movement_range(dir::AbstractString; recreate::Bool = false)
     FacebookData.save_region_average_movement_range(
         [
             FacebookData.RegionMovementRangeFile(
@@ -336,7 +336,7 @@ function get_prebuilt_social_proximity(location_code::AbstractString)
     return df, locname
 end
 
-function build_social_proximity(
+function make_social_proximity(
     dir::AbstractString;
     recreate::Bool = false,
     fpath_population_vn = joinpath(dir, FNAME_AVERAGE_POPULATION_VN_PROVINCES),
