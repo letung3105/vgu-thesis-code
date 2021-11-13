@@ -37,6 +37,7 @@ function cmd_baseline(parsed_args)
         ),
         get_train_configs(parsed_args),
         savedir = parsed_args[:savedir],
+        show_progress = parsed_args[:show_progress],
     )
 end
 
@@ -58,6 +59,7 @@ function cmd_fbmobility1(parsed_args)
         ),
         get_train_configs(parsed_args),
         savedir = parsed_args[:savedir],
+        show_progress = parsed_args[:show_progress],
     )
 end
 
@@ -80,6 +82,7 @@ function cmd_fbmobility2(parsed_args)
         ),
         get_train_configs(parsed_args),
         savedir = parsed_args[:savedir],
+        show_progress = parsed_args[:show_progress],
     )
 end
 
@@ -101,6 +104,7 @@ function cmd_fbmobility3(parsed_args)
         ),
         get_train_configs(parsed_args),
         savedir = parsed_args[:savedir],
+        show_progress = parsed_args[:show_progress],
     )
 end
 
@@ -122,6 +126,7 @@ function cmd_fbmobility4(parsed_args)
         ),
         get_train_configs(parsed_args),
         savedir = parsed_args[:savedir],
+        show_progress = parsed_args[:show_progress],
     )
 end
 
@@ -186,6 +191,10 @@ function parse_commandline(args)
         help = "path to the directory where the model outputs are saved"
         arg_type = String
         default = "./snapshots"
+
+        "--show_progress"
+        help = "show a progress meter that keeps track of the training sessions"
+        action = :store_true
 
         "--adam_maxiters"
         help = "max number of iterations used to run the ADAM optimizer"

@@ -412,6 +412,7 @@ function experiment_run(
     hyperparams::NamedTuple,
     train_configs::AbstractVector{<:TrainConfig};
     savedir::AbstractString,
+    kwargs...
 )
     lk_evaluation = ReentrantLock()
     Threads.@threads for loc ∈ locations
@@ -420,7 +421,7 @@ function experiment_run(
         setup = () -> model_setup(loc, hyperparams)
         snapshots_dir = joinpath(savedir, loc)
 
-        experiment_train(uuid, setup, train_configs, snapshots_dir, show_progress = false)
+        experiment_train(uuid, setup, train_configs, snapshots_dir; kwargs...)
         # program crashes when multiple threads trying to plot at the same time
         lock(lk_evaluation)
         try
