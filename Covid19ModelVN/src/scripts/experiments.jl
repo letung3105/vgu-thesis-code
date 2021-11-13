@@ -363,6 +363,7 @@ SEIRDFbMobility5Hyperparams = @NamedTuple begin
     ζ::Float64
     γ0::Float64
     λ0::Float64
+    β_bounds::Tuple{Float64,Float64}
     γ_bounds::Tuple{Float64,Float64}
     λ_bounds::Tuple{Float64,Float64}
     α_bounds::Tuple{Float64,Float64}
@@ -392,6 +393,7 @@ function setup_fbmobility5(loc::AbstractString, hyperparams::SEIRDFbMobility5Hyp
 
     # build the model
     model = SEIRDFbMobility5(
+        hyperparams.β_bounds,
         hyperparams.γ_bounds,
         hyperparams.λ_bounds,
         hyperparams.α_bounds,

@@ -141,6 +141,7 @@ function cmd_fbmobility5(parsed_args)
             ζ = parsed_args[:zeta],
             γ0 = parsed_args[:gamma0],
             λ0 = parsed_args[:lambda0],
+            β_bounds = (parsed_args[:beta_bounds][1], parsed_args[:beta_bounds][2]),
             γ_bounds = (parsed_args[:gamma_bounds][1], parsed_args[:gamma_bounds][2]),
             λ_bounds = (parsed_args[:lambda_bounds][1], parsed_args[:lambda_bounds][2]),
             α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
@@ -278,6 +279,12 @@ function parse_commandline(args)
         help = "the fatality rate"
         arg_type = Float64
         default = 0.025
+
+        "--beta_bounds"
+        help = "lower and upper bounds contraints for the average contact rate"
+        nargs = 2
+        arg_type = Float64
+        default = [0.0, 3.34] # ℜe ∈ [0.0; 6.68]
 
         "--gamma_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean incubation period"

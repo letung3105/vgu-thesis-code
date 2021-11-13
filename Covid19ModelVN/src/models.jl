@@ -679,6 +679,7 @@ time-/covariate-dependent whose values are determined by 2 separate neural netwo
 * `β_ann_paramlength`: number of parameters used by the network
 * `α_ann`: an neural network that outputs the time-dependent α fatality rate
 * `α_ann_paramlength`: number of parameters used by the network
+* `β_bounds`: lower and upper bounds of the α parameter
 * `γ_bounds`: lower and upper bounds of the γ parameter
 * `λ_bounds`: lower and upper bounds of the λ parameter
 * `α_bounds`: lower and upper bounds of the α parameter
@@ -691,6 +692,7 @@ struct SEIRDFbMobility5{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
     α_ann::ANN2
     β_ann_paramlength::Int
     α_ann_paramlength::Int
+    β_bounds::Tuple{T,T}
     γ_bounds::Tuple{T,T}
     λ_bounds::Tuple{T,T}
     α_bounds::Tuple{T,T}
@@ -703,6 +705,7 @@ Construct the SEIRDFbMobility5 model
 
 # Arguments
 
+* `β_bounds`: lower and upper bounds of the β parameter
 * `γ_bounds`: lower and upper bounds of the γ parameter
 * `λ_bounds`: lower and upper bounds of the λ parameter
 * `α_bounds`: lower and upper bounds of the α parameter
@@ -710,6 +713,7 @@ Construct the SEIRDFbMobility5 model
 * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
 """
 function SEIRDFbMobility5(
+    β_bounds::Tuple{T,T},
     γ_bounds::Tuple{T,T},
     λ_bounds::Tuple{T,T},
     α_bounds::Tuple{T,T},
@@ -720,7 +724,7 @@ function SEIRDFbMobility5(
         FastDense(6, 8, hswish),
         FastDense(8, 8, hswish),
         FastDense(8, 8, hswish),
-        FastDense(8, 1, softplus),
+        FastDense(8, 1, x -> boxconst(x, β_bounds)),
     )
     α_ann = FastChain(
         FastDense(4, 8, hswish),
@@ -733,6 +737,7 @@ function SEIRDFbMobility5(
         α_ann,
         DiffEqFlux.paramlength(β_ann),
         DiffEqFlux.paramlength(α_ann),
+        β_bounds,
         γ_bounds,
         λ_bounds,
         α_bounds,
