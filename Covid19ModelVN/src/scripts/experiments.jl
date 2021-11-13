@@ -359,6 +359,54 @@ function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyp
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
+SEIRDFbMobility5Hyperparams = @NamedTuple begin
+    ζ::Float64
+    γ0::Float64
+    λ0::Float64
+    γ_bounds::Tuple{Float64,Float64}
+    λ_bounds::Tuple{Float64,Float64}
+    α_bounds::Tuple{Float64,Float64}
+    train_range::Day
+    forecast_range::Day
+    social_proximity_lag::Day
+end
+
+function setup_fbmobility5(loc::AbstractString, hyperparams::SEIRDFbMobility5Hyperparams)
+    # get data for model
+    train_dataset, test_dataset, first_date, last_date =
+        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
+    @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
+    @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
+
+    movement_range_data = experiment_movement_range(loc, first_date, last_date)
+    @assert size(movement_range_data, 2) ==
+            Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
+
+    social_proximity_data = experiment_social_proximity(
+        loc,
+        first_date - hyperparams.social_proximity_lag,
+        last_date - hyperparams.social_proximity_lag,
+    )
+    @assert size(social_proximity_data, 2) ==
+            Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
+
+    # build the model
+    model = SEIRDFbMobility5(
+        hyperparams.γ_bounds,
+        hyperparams.λ_bounds,
+        hyperparams.α_bounds,
+        movement_range_data,
+        social_proximity_data,
+    )
+    # get the initial states and available observations depending on the model type
+    # and the considered location
+    u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
+    p0 = initparams(model, hyperparams.γ0, hyperparams.λ0)
+    lossfn = experiment_loss(train_dataset.tsteps, hyperparams.ζ)
+    return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
+end
+
+
 function experiment_eval(
     uuid::AbstractString,
     setup::Function,
@@ -405,6 +453,8 @@ function experiment_eval(
     return nothing
 end
 
+const LK_EVALUATION = ReentrantLock()
+
 function experiment_run(
     model_name::AbstractString,
     model_setup::Function,
@@ -414,7 +464,6 @@ function experiment_run(
     savedir::AbstractString,
     kwargs...,
 )
-    lk_evaluation = ReentrantLock()
     Threads.@threads for loc ∈ locations
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         uuid = "$timestamp.$model_name.$loc"
@@ -423,11 +472,11 @@ function experiment_run(
 
         experiment_train(uuid, setup, train_configs, snapshots_dir; kwargs...)
         # program crashes when multiple threads trying to plot at the same time
-        lock(lk_evaluation)
+        lock(LK_EVALUATION)
         try
             experiment_eval(uuid, setup, snapshots_dir)
         finally
-            unlock(lk_evaluation)
+            unlock(LK_EVALUATION)
         end
     end
 end
