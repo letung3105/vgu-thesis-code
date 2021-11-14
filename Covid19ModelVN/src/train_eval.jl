@@ -473,7 +473,12 @@ function plot_forecasts(
             label = label,
             linewidth = 4,
         )
-        lines!(ax, [fit[i, :]; pred[i, 1:days]], label = "model's prediction", linewidth = 4)
+        lines!(
+            ax,
+            [fit[i, :]; pred[i, 1:days]],
+            label = "model's prediction",
+            linewidth = 4,
+        )
         axislegend(ax, position = :lt)
     end
     return fig
@@ -495,7 +500,7 @@ function plot_ℜe(ℜe::AbstractVector{R}, sep::R) where {R<:Real}
         xlabel = "Days since the 500th confirmed case",
     )
     vlines!(ax, [sep], color = :black, linestyle = :dash, label = "last training day")
-    lines!(ax, ℜe, color = :red, linewidth = 2, label = "effective reproduction number", linewidth = 3)
+    lines!(ax, ℜe, color = :red, label = "effective reproduction number", linewidth = 3)
     axislegend(ax, position = :lt)
     return R_effective_plot
 end
