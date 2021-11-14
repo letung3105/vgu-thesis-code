@@ -166,7 +166,7 @@ end
 """
 A callable struct that is used for handling callback for `sciml_train`
 """
-mutable struct TrainCallback{R<:Real,L<:Loss}
+struct TrainCallback{R<:Real,L<:Loss}
     state::TrainCallbackState{R}
     config::TrainCallbackConfig{L}
 end
@@ -225,6 +225,27 @@ function plot_losses(
     return fig
 end
 
+function plot_losses(train_losses::AbstractVector{R}) where {R<:Real}
+    fig = Figure()
+    ax = Axis(
+        fig[1, 1],
+        title = "Losses of the model after each iteration",
+        xlabel = "Iterations",
+    )
+    sca = scatter!(ax, train_losses, color = Makie.ColorSchemes.tab10[1])
+    Legend(
+        fig[1, 1],
+        sca,
+        ["Train loss"],
+        margin = (10, 10, 10, 10),
+        tellheight = false,
+        tellwidth = false,
+        halign = :left,
+        valign = :top,
+    )
+    return fig
+end
+
 """
 Call an object of type `TrainCallback`
 
@@ -242,14 +263,14 @@ function (cb::TrainCallback)(params::AbstractVector{R}, train_loss::R) where {R<
         :test_loss=>test_loss,
     ]
     next!(cb.state.progress, showvalues = showvalues)
+    push!(cb.state.train_losses, train_loss)
+    push!(cb.state.test_losses, test_loss)
     cb.state.iters += 1
     if train_loss < cb.state.minimizer_loss && length(params) == cb.config.params_length
         cb.state.minimizer_loss = train_loss
         cb.state.minimizer = params
     end
     if cb.state.iters % cb.config.save_interval == 0
-        push!(cb.state.train_losses, train_loss)
-        push!(cb.state.test_losses, test_loss)
         Serialization.serialize(
             cb.config.losses_save_fpath,
             (cb.state.train_losses, cb.state.test_losses),
