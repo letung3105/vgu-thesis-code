@@ -147,7 +147,8 @@ function experiment_train(
     @info "Training $uuid"
     minimizers =
         train_model(uuid, train_loss, test_loss, p0, configs, snapshots_dir; kwargs...)
-    return minimizers, train_loss(last(minimizers))
+    minimizer = last(minimizers)
+    return minimizer, train_loss(minimizer)
 end
 
 SEIRDBaselineHyperparams = @NamedTuple begin
@@ -466,13 +467,28 @@ function experiment_run(
     savedir::AbstractString,
     kwargs...,
 )
+    minimizers = Vector{Float64}[]
+    final_losses = Float64[]
+    lk = ReentrantLock()
+
     Threads.@threads for loc ∈ locations
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         uuid = "$timestamp.$model_name.$loc"
         setup = () -> model_setup(loc, hyperparams)
         snapshots_dir = joinpath(savedir, loc)
 
-        experiment_train(uuid, setup, train_configs, snapshots_dir; kwargs...)
+        minimizer, final_loss =
+            experiment_train(uuid, setup, train_configs, snapshots_dir; kwargs...)
+
+        # access shared arrays
+        lock(lk)
+        try
+            push!(minimizers, minimizer)
+            push!(final_losses, final_loss)
+        finally
+            unlock(lk)
+        end
+
         # program crashes when multiple threads trying to plot at the same time
         lock(LK_EVALUATION)
         try
@@ -481,4 +497,6 @@ function experiment_run(
             unlock(LK_EVALUATION)
         end
     end
+
+    return minimizers, final_losses
 end
