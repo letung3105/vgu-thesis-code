@@ -201,20 +201,22 @@ function plot_losses(
         title = "Losses of the model after each iteration",
         xlabel = "Iterations",
         yticklabelcolor = Makie.ColorSchemes.tab10[1],
+        yscale = log10,
     )
     # test losses axis
     ax2 = Axis(
         fig[1, 1],
         yaxisposition = :right,
         yticklabelcolor = Makie.ColorSchemes.tab10[2],
+        yscale = log10,
     )
     hidespines!(ax2)
     hidexdecorations!(ax2)
-    sca1 = scatter!(ax1, train_losses, color = Makie.ColorSchemes.tab10[1])
-    sca2 = scatter!(ax2, test_losses, color = Makie.ColorSchemes.tab10[2])
+    ln1 = lines!(ax1, train_losses, color = Makie.ColorSchemes.tab10[1], linewidth = 3)
+    ln2 = lines!(ax2, test_losses, color = Makie.ColorSchemes.tab10[2], linewidth = 3)
     Legend(
         fig[1, 1],
-        [sca1, sca2],
+        [ln1, ln2],
         ["Train loss", "Test loss"],
         margin = (10, 10, 10, 10),
         tellheight = false,
@@ -231,11 +233,12 @@ function plot_losses(train_losses::AbstractVector{R}) where {R<:Real}
         fig[1, 1],
         title = "Losses of the model after each iteration",
         xlabel = "Iterations",
+        yscale = log10,
     )
-    sca = scatter!(ax, train_losses, color = Makie.ColorSchemes.tab10[1])
+    ln = lines!(ax, train_losses, color = Makie.ColorSchemes.tab10[1], linewidth = 3)
     Legend(
         fig[1, 1],
-        sca,
+        [ln],
         ["Train loss"],
         margin = (10, 10, 10, 10),
         tellheight = false,
@@ -464,12 +467,13 @@ function plot_forecasts(
             ylabel = "Cases",
         )
         vlines!(ax, [train_dataset.tspan[2]], color = :black, linestyle = :dash)
-        scatter!(
+        lines!(
             ax,
             [train_dataset.data[i, :]; test_dataset.data[i, 1:days]],
             label = label,
+            linewidth = 4,
         )
-        scatter!(ax, [fit[i, :]; pred[i, 1:days]], label = "model's prediction")
+        lines!(ax, [fit[i, :]; pred[i, 1:days]], label = "model's prediction", linewidth = 4)
         axislegend(ax, position = :lt)
     end
     return fig
@@ -491,7 +495,7 @@ function plot_ℜe(ℜe::AbstractVector{R}, sep::R) where {R<:Real}
         xlabel = "Days since the 500th confirmed case",
     )
     vlines!(ax, [sep], color = :black, linestyle = :dash, label = "last training day")
-    scatter!(ax, ℜe, color = :red, linewidth = 2, label = "effective reproduction number")
+    lines!(ax, ℜe, color = :red, linewidth = 2, label = "effective reproduction number", linewidth = 3)
     axislegend(ax, position = :lt)
     return R_effective_plot
 end
