@@ -721,15 +721,15 @@ function SEIRDFbMobility5(
     social_proximity_data::DS,
 ) where {T<:Real,DS<:AbstractMatrix{T}}
     β_ann = FastChain(
-        FastDense(6, 8, hswish),
-        FastDense(8, 8, hswish),
-        FastDense(8, 8, hswish),
+        FastDense(5, 8, gelu),
+        FastDense(8, 8, gelu),
+        FastDense(8, 8, gelu),
         FastDense(8, 1, x -> boxconst(x, β_bounds)),
     )
     α_ann = FastChain(
-        FastDense(4, 8, hswish),
-        FastDense(8, 8, hswish),
-        FastDense(8, 8, hswish),
+        FastDense(3, 8, gelu),
+        FastDense(8, 8, gelu),
+        FastDense(8, 8, gelu),
         FastDense(8, 1, x -> boxconst(x, α_bounds)),
     )
     return SEIRDFbMobility5(
@@ -757,8 +757,8 @@ end
     mobility = @view model.movement_range_data[:, time_idx]
     proximity = @view model.social_proximity_data[:, time_idx]
     # infection rate depends on time, susceptible, and infected
-    β = first(model.β_ann([t; S / N; I / N; mobility...; proximity...], θ1))
-    α = first(model.α_ann([t; I / N; R / N; D / N], θ2))
+    β = first(model.β_ann([S / N; I / N; mobility...; proximity...], θ1))
+    α = first(model.α_ann([I / N; R / N; D / N], θ2))
     Covid19ModelVN.SEIRD!(du, u, [β, γ, λ, α], t)
     return nothing
 end
@@ -810,7 +810,7 @@ function ℜe(
     N = @view states[7, :]
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
-    β_ann_input = [collect(saveat)'; (S ./ N)'; (I ./ N)'; mobility; proximity]
+    β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
     θ = @view(params[3:3+model.β_ann_paramlength-1])
     βt = vec(model.β_ann(β_ann_input, θ))
     γ = boxconst(params[1], model.γ_bounds)
