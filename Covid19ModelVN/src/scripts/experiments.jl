@@ -147,7 +147,7 @@ function experiment_train(
     @info "Training $uuid"
     minimizers =
         train_model(uuid, train_loss, test_loss, p0, configs, snapshots_dir; kwargs...)
-    return minimizers
+    return minimizers, train_loss(last(minimizers))
 end
 
 SEIRDBaselineHyperparams = @NamedTuple begin
