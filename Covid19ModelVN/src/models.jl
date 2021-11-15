@@ -395,12 +395,11 @@ time-/covariate-dependent whose values are determined by 2 separate neural netwo
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
 """
-struct SEIRDFbMobility3{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <:
+struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <:
        AbstractCovidModel
-    β_ann::ANN1
-    α_ann::ANN2
+    β_ann::ANN
     β_ann_paramlength::Int
-    α_ann_paramlength::Int
+    β_bounds::Tuple{T,T}
     γ_bounds::Tuple{T,T}
     λ_bounds::Tuple{T,T}
     α_bounds::Tuple{T,T}
@@ -420,6 +419,7 @@ Construct the SEIRDFbMobility3 model
 * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
 """
 function SEIRDFbMobility3(
+    β_bounds::Tuple{T,T},
     γ_bounds::Tuple{T,T},
     λ_bounds::Tuple{T,T},
     α_bounds::Tuple{T,T},
@@ -430,19 +430,12 @@ function SEIRDFbMobility3(
         FastDense(5, 8, relu),
         FastDense(8, 8, relu),
         FastDense(8, 8, relu),
-        FastDense(8, 1, softplus),
-    )
-    α_ann = FastChain(
-        FastDense(3, 8, relu),
-        FastDense(8, 8, relu),
-        FastDense(8, 8, relu),
-        FastDense(8, 1, x -> boxconst(x, α_bounds)),
+        FastDense(8, 1, x -> boxconst(x, β_bounds)),
     )
     return SEIRDFbMobility3(
         β_ann,
-        α_ann,
         DiffEqFlux.paramlength(β_ann),
-        DiffEqFlux.paramlength(α_ann),
+        β_bounds,
         γ_bounds,
         λ_bounds,
         α_bounds,
@@ -452,19 +445,20 @@ function SEIRDFbMobility3(
 end
 
 @inbounds function (model::SEIRDFbMobility3)(du, u, p, t)
-    S, _, I, R, D, _, N = u
+    time_idx = Int(floor(t + 1))
+    # daily mobility
+    mobility = @view model.movement_range_data[:, time_idx]
+    # daily social proximity to cases
+    proximity = @view model.social_proximity_data[:, time_idx]
+    # states and params
+    S, _, I, _, _, _, N = u
     γ = boxconst(p[1], model.γ_bounds)
     λ = boxconst(p[2], model.λ_bounds)
-    θ1 = @view(p[3:3+model.β_ann_paramlength-1])
-    θ2 = @view(p[end-model.α_ann_paramlength:end])
-    # daily mobility
-    time_idx = Int(floor(t + 1))
-    mobility = @view model.movement_range_data[:, time_idx]
-    proximity = @view model.social_proximity_data[:, time_idx]
+    α = boxconst(p[3], model.α_bounds)
+    θ = @view(p[4:4+model.β_ann_paramlength-1])
     # infection rate depends on time, susceptible, and infected
-    β = first(model.β_ann([S / N; I / N; mobility...; proximity...], θ1))
-    α = first(model.α_ann([I / N; R / N; D / N], θ2))
-    Covid19ModelVN.SEIRD!(du, u, [β, γ, λ, α], t)
+    β = first(model.β_ann([S / N; I / N; mobility...; proximity...], θ))
+    SEIRD!(du, u, [β, γ, λ, α], t)
     return nothing
 end
 
@@ -477,11 +471,11 @@ Get the initial values for the trainable parameters
 * `γ0`: initial mean incubation period
 * `λ0`: initial mean infectious period
 """
-initparams(model::SEIRDFbMobility3, γ0::R, λ0::R) where {R<:Real} = [
+initparams(model::SEIRDFbMobility3, γ0::R, λ0::R, α0::R) where {R<:Real} = [
     boxconst_inv(γ0, model.γ_bounds)
     boxconst_inv(λ0, model.λ_bounds)
+    boxconst_inv(α0, model.α_bounds)
     DiffEqFlux.initial_params(model.β_ann)
-    DiffEqFlux.initial_params(model.α_ann)
 ]
 
 """
@@ -516,7 +510,7 @@ function ℜe(
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
-    θ = @view(params[3:3+model.β_ann_paramlength-1])
+    θ = @view(params[4:4+model.β_ann_paramlength-1])
     βt = vec(model.β_ann(β_ann_input, θ))
     γ = boxconst(params[1], model.γ_bounds)
     ℜe = βt ./ γ
@@ -534,6 +528,7 @@ time-/covariate-dependent whose values are determined by 2 separate neural netwo
 * `β_ann_paramlength`: number of parameters used by the network
 * `α_ann`: an neural network that outputs the time-dependent α fatality rate
 * `α_ann_paramlength`: number of parameters used by the network
+* `β_bounds`: lower and upper bounds of the α parameter
 * `γ_bounds`: lower and upper bounds of the γ parameter
 * `λ_bounds`: lower and upper bounds of the λ parameter
 * `α_bounds`: lower and upper bounds of the α parameter
@@ -546,6 +541,7 @@ struct SEIRDFbMobility4{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
     α_ann::ANN2
     β_ann_paramlength::Int
     α_ann_paramlength::Int
+    β_bounds::Tuple{T,T}
     γ_bounds::Tuple{T,T}
     λ_bounds::Tuple{T,T}
     α_bounds::Tuple{T,T}
@@ -558,6 +554,7 @@ Construct the SEIRDFbMobility4 model
 
 # Arguments
 
+* `β_bounds`: lower and upper bounds of the β parameter
 * `γ_bounds`: lower and upper bounds of the γ parameter
 * `λ_bounds`: lower and upper bounds of the λ parameter
 * `α_bounds`: lower and upper bounds of the α parameter
@@ -565,6 +562,7 @@ Construct the SEIRDFbMobility4 model
 * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
 """
 function SEIRDFbMobility4(
+    β_bounds::Tuple{T,T},
     γ_bounds::Tuple{T,T},
     λ_bounds::Tuple{T,T},
     α_bounds::Tuple{T,T},
@@ -572,22 +570,23 @@ function SEIRDFbMobility4(
     social_proximity_data::DS,
 ) where {T<:Real,DS<:AbstractMatrix{T}}
     β_ann = FastChain(
-        FastDense(6, 8, relu),
-        FastDense(8, 8, relu),
-        FastDense(8, 8, relu),
-        FastDense(8, 1, softplus),
+        FastDense(5, 4, gelu),
+        FastDense(4, 4, gelu),
+        FastDense(4, 4, gelu),
+        FastDense(4, 1, x -> boxconst(x, β_bounds)),
     )
     α_ann = FastChain(
-        FastDense(4, 8, relu),
-        FastDense(8, 8, relu),
-        FastDense(8, 8, relu),
-        FastDense(8, 1, x -> boxconst(x, α_bounds)),
+        FastDense(3, 4, gelu),
+        FastDense(4, 4, gelu),
+        FastDense(4, 4, gelu),
+        FastDense(4, 1, x -> boxconst(x, α_bounds)),
     )
     return SEIRDFbMobility4(
         β_ann,
         α_ann,
         DiffEqFlux.paramlength(β_ann),
         DiffEqFlux.paramlength(α_ann),
+        β_bounds,
         γ_bounds,
         λ_bounds,
         α_bounds,
@@ -597,19 +596,21 @@ function SEIRDFbMobility4(
 end
 
 @inbounds function (model::SEIRDFbMobility4)(du, u, p, t)
+    time_idx = Int(floor(t + 1))
+    # daily mobility
+    mobility = @view model.movement_range_data[:, time_idx]
+    # daily social proximity to cases
+    proximity = @view model.social_proximity_data[:, time_idx]
+    # states and params
     S, _, I, R, D, _, N = u
     γ = boxconst(p[1], model.γ_bounds)
     λ = boxconst(p[2], model.λ_bounds)
     θ1 = @view(p[3:3+model.β_ann_paramlength-1])
     θ2 = @view(p[end-model.α_ann_paramlength:end])
-    # daily mobility
-    time_idx = Int(floor(t + 1))
-    mobility = @view model.movement_range_data[:, time_idx]
-    proximity = @view model.social_proximity_data[:, time_idx]
     # infection rate depends on time, susceptible, and infected
-    β = first(model.β_ann([t; S / N; I / N; mobility...; proximity...], θ1))
-    α = first(model.α_ann([t; I / N; R / N; D / N], θ2))
-    Covid19ModelVN.SEIRD!(du, u, [β, γ, λ, α], t)
+    β = first(model.β_ann([S / N; I / N; mobility...; proximity...], θ1))
+    α = first(model.α_ann([I / N; R / N; D / N], θ2))
+    SEIRD!(du, u, [β, γ, λ, α], t)
     return nothing
 end
 
@@ -642,156 +643,6 @@ Get the effective reproduction rate calculated from the model
 """
 function ℜe(
     model::SEIRDFbMobility4,
-    u0::AbstractVector{T},
-    params::AbstractVector{T},
-    tspan::Tuple{T,T},
-    saveat::Ts,
-) where {T<:Real,Ts}
-    prob = ODEProblem(model, u0, tspan, params)
-    sol = solve(
-        prob,
-        Tsit5(),
-        saveat = saveat,
-        solver = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
-    )
-    states = Array(sol)
-    S = @view states[1, :]
-    I = @view states[3, :]
-    N = @view states[7, :]
-    mobility = @view model.movement_range_data[:, Int.(saveat).+1]
-    proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
-    β_ann_input = [collect(saveat)'; (S ./ N)'; (I ./ N)'; mobility; proximity]
-    θ = @view(params[3:3+model.β_ann_paramlength-1])
-    βt = vec(model.β_ann(β_ann_input, θ))
-    γ = boxconst(params[1], model.γ_bounds)
-    ℜe = βt ./ γ
-    return ℜe
-end
-
-"""
-A struct for containing the SEIRD model that uses Facebook movement range maps dataset
-and Facebook social connectedness index dataset. In the model, both the β and α are
-time-/covariate-dependent whose values are determined by 2 separate neural networks
-
-# Fields
-
-* `β_ann`: an neural network that outputs the time-dependent β contact rate
-* `β_ann_paramlength`: number of parameters used by the network
-* `α_ann`: an neural network that outputs the time-dependent α fatality rate
-* `α_ann_paramlength`: number of parameters used by the network
-* `β_bounds`: lower and upper bounds of the α parameter
-* `γ_bounds`: lower and upper bounds of the γ parameter
-* `λ_bounds`: lower and upper bounds of the λ parameter
-* `α_bounds`: lower and upper bounds of the α parameter
-* `movement_range_data`: the matrix for the Facebook movement range timeseries data
-* `social_proximity_data`: the matrix for the social proximity to cases timeseries data
-"""
-struct SEIRDFbMobility5{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <:
-       AbstractCovidModel
-    β_ann::ANN1
-    α_ann::ANN2
-    β_ann_paramlength::Int
-    α_ann_paramlength::Int
-    β_bounds::Tuple{T,T}
-    γ_bounds::Tuple{T,T}
-    λ_bounds::Tuple{T,T}
-    α_bounds::Tuple{T,T}
-    movement_range_data::DS
-    social_proximity_data::DS
-end
-
-"""
-Construct the SEIRDFbMobility5 model
-
-# Arguments
-
-* `β_bounds`: lower and upper bounds of the β parameter
-* `γ_bounds`: lower and upper bounds of the γ parameter
-* `λ_bounds`: lower and upper bounds of the λ parameter
-* `α_bounds`: lower and upper bounds of the α parameter
-* `movement_range_data`: the matrix for the Facebook movement range timeseries data
-* `social_proximity_data`: the matrix for the social proximity to cases timeseries data
-"""
-function SEIRDFbMobility5(
-    β_bounds::Tuple{T,T},
-    γ_bounds::Tuple{T,T},
-    λ_bounds::Tuple{T,T},
-    α_bounds::Tuple{T,T},
-    movement_range_data::DS,
-    social_proximity_data::DS,
-) where {T<:Real,DS<:AbstractMatrix{T}}
-    β_ann = FastChain(
-        FastDense(5, 8, gelu),
-        FastDense(8, 8, gelu),
-        FastDense(8, 8, gelu),
-        FastDense(8, 1, x -> boxconst(x, β_bounds)),
-    )
-    α_ann = FastChain(
-        FastDense(3, 8, gelu),
-        FastDense(8, 8, gelu),
-        FastDense(8, 8, gelu),
-        FastDense(8, 1, x -> boxconst(x, α_bounds)),
-    )
-    return SEIRDFbMobility5(
-        β_ann,
-        α_ann,
-        DiffEqFlux.paramlength(β_ann),
-        DiffEqFlux.paramlength(α_ann),
-        β_bounds,
-        γ_bounds,
-        λ_bounds,
-        α_bounds,
-        movement_range_data,
-        social_proximity_data,
-    )
-end
-
-@inbounds function (model::SEIRDFbMobility5)(du, u, p, t)
-    S, _, I, R, D, _, N = u
-    γ = boxconst(p[1], model.γ_bounds)
-    λ = boxconst(p[2], model.λ_bounds)
-    θ1 = @view(p[3:3+model.β_ann_paramlength-1])
-    θ2 = @view(p[end-model.α_ann_paramlength:end])
-    # daily mobility
-    time_idx = Int(floor(t + 1))
-    mobility = @view model.movement_range_data[:, time_idx]
-    proximity = @view model.social_proximity_data[:, time_idx]
-    # infection rate depends on time, susceptible, and infected
-    β = first(model.β_ann([S / N; I / N; mobility...; proximity...], θ1))
-    α = first(model.α_ann([I / N; R / N; D / N], θ2))
-    Covid19ModelVN.SEIRD!(du, u, [β, γ, λ, α], t)
-    return nothing
-end
-
-"""
-Get the initial values for the trainable parameters
-
-# Arguments
-
-* `model`: the model that we want to get the parameterrs for
-* `γ0`: initial mean incubation period
-* `λ0`: initial mean infectious period
-"""
-initparams(model::SEIRDFbMobility5, γ0::R, λ0::R) where {R<:Real} = [
-    boxconst_inv(γ0, model.γ_bounds)
-    boxconst_inv(λ0, model.λ_bounds)
-    DiffEqFlux.initial_params(model.β_ann)
-    DiffEqFlux.initial_params(model.α_ann)
-]
-
-"""
-Get the effective reproduction rate calculated from the model
-
-# Arguments
-
-+ `model`: the model from which the effective reproduction number is calculated
-+ `u0`: the model initial conditions
-+ `params`: the model parameters
-+ `tspan`: the simulated time span
-+ `saveat`: the collocation points that will be saved
-"""
-function ℜe(
-    model::SEIRDFbMobility5,
     u0::AbstractVector{T},
     params::AbstractVector{T},
     tspan::Tuple{T,T},

@@ -14,8 +14,6 @@ function runcmd(args)
         cmd_fbmobility3(parsed_args)
     elseif parsed_args[:_COMMAND_] == :fbmobility4
         cmd_fbmobility4(parsed_args)
-    elseif parsed_args[:_COMMAND_] == :fbmobility5
-        cmd_fbmobility5(parsed_args)
     else
         @error "Unsupported command '$(parse_args[:_COMMAND_])'"
     end
@@ -97,6 +95,8 @@ function cmd_fbmobility3(parsed_args)
             ζ = parsed_args[:zeta],
             γ0 = parsed_args[:gamma0],
             λ0 = parsed_args[:lambda0],
+            α0 = parsed_args[:alpha0],
+            β_bounds = (parsed_args[:beta_bounds][1], parsed_args[:beta_bounds][2]),
             γ_bounds = (parsed_args[:gamma_bounds][1], parsed_args[:gamma_bounds][2]),
             λ_bounds = (parsed_args[:lambda_bounds][1], parsed_args[:lambda_bounds][2]),
             α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
@@ -114,28 +114,6 @@ function cmd_fbmobility4(parsed_args)
     experiment_run(
         parsed_args[:name],
         setup_fbmobility4,
-        parsed_args[:locations],
-        (
-            ζ = parsed_args[:zeta],
-            γ0 = parsed_args[:gamma0],
-            λ0 = parsed_args[:lambda0],
-            γ_bounds = (parsed_args[:gamma_bounds][1], parsed_args[:gamma_bounds][2]),
-            λ_bounds = (parsed_args[:lambda_bounds][1], parsed_args[:lambda_bounds][2]),
-            α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
-            train_range = Day(parsed_args[:train_days]),
-            forecast_range = Day(parsed_args[:test_days]),
-            social_proximity_lag = Day(parsed_args[:spc_lag_days]),
-        ),
-        get_train_configs(parsed_args),
-        savedir = parsed_args[:savedir],
-        show_progress = parsed_args[:show_progress],
-    )
-end
-
-function cmd_fbmobility5(parsed_args)
-    experiment_run(
-        parsed_args[:name],
-        setup_fbmobility5,
         parsed_args[:locations],
         (
             ζ = parsed_args[:zeta],
@@ -203,10 +181,6 @@ function parse_commandline(args)
 
         "fbmobility4"
         help = "train and inference with the fbmobility4 model"
-        action = :command
-
-        "fbmobility5"
-        help = "train and inference with the fbmobility5 model"
         action = :command
 
         "--locations"
