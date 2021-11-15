@@ -395,8 +395,7 @@ time-/covariate-dependent whose values are determined by 2 separate neural netwo
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
 """
-struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <:
-       AbstractCovidModel
+struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: AbstractCovidModel
     β_ann::ANN
     β_ann_paramlength::Int
     β_bounds::Tuple{T,T}
