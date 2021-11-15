@@ -33,7 +33,7 @@ Construct a new default `Predictor` using the problem defined by the given model
 """
 Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int}) = Predictor(
     problem,
-    Tsit5(),
+    Vern7(),
     InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
     1e-6,
     1e-6,
@@ -195,25 +195,14 @@ function plot_losses(
     test_losses::AbstractVector{R},
 ) where {R<:Real}
     fig = Figure()
-    # train losses axis
-    ax1 = Axis(
+    ax = Axis(
         fig[1, 1],
         title = "Losses of the model after each iteration",
         xlabel = "Iterations",
-        yticklabelcolor = Makie.ColorSchemes.tab10[1],
         yscale = log10,
     )
-    # test losses axis
-    ax2 = Axis(
-        fig[1, 1],
-        yaxisposition = :right,
-        yticklabelcolor = Makie.ColorSchemes.tab10[2],
-        yscale = log10,
-    )
-    hidespines!(ax2)
-    hidexdecorations!(ax2)
-    ln1 = lines!(ax1, train_losses, color = Makie.ColorSchemes.tab10[1], linewidth = 3)
-    ln2 = lines!(ax2, test_losses, color = Makie.ColorSchemes.tab10[2], linewidth = 3)
+    ln1 = lines!(ax, train_losses, color = Makie.ColorSchemes.tab10[1], linewidth = 3)
+    ln2 = lines!(ax, test_losses, color = Makie.ColorSchemes.tab10[2], linewidth = 3)
     Legend(
         fig[1, 1],
         [ln1, ln2],
