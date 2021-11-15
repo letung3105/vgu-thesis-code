@@ -125,9 +125,6 @@ mutable struct TrainCallbackState{R<:Real}
 end
 
 """
-Construct a new `TrainCallbackState` with the progress bar set to `maxiters`
-and other fields set to their default values
-
 # Arguments
 
 + `T`: type of the losses and parameters
@@ -143,12 +140,20 @@ TrainCallbackState(T::Type{R}, show_progress::Bool) where {R<:Real} = TrainCallb
 )
 
 """
+# Arguments
+
++ `T`: type of the losses and parameters
++ `progress`: the progress meter object that will be used by the callback function
+"""
+TrainCallbackState(T::Type{R}, progress::ProgressUnknown) where {R<:Real} =
+    TrainCallbackState{T}(0, progress, T[], T[], T[], typemax(T))
+
+"""
 Configuration of the callback struct
 
 # Fields
 
 * `test_loss`: loss function on the test dataset
-* `show_progress`: control whether to show a running progress bar
 * `params_length`: number of parameters that the system has
 * `save_interval`: interval for saving the current best set of parameters and losses
 * `losses_save_fpath`: file path to the saved losses figure
@@ -156,7 +161,6 @@ Configuration of the callback struct
 """
 struct TrainCallbackConfig{L<:Loss}
     test_loss::L
-    show_progress::Bool
     params_length::Int
     save_interval::Int
     losses_save_fpath::String
@@ -170,17 +174,6 @@ struct TrainCallback{R<:Real,L<:Loss}
     state::TrainCallbackState{R}
     config::TrainCallbackConfig{L}
 end
-
-"""
-Create a callback for `sciml_train`
-
-# Arguments
-
-+ `T`: type of the losses and parameters
-* `config`: callback configurations
-"""
-TrainCallback(T::Type{R}, config::TrainCallbackConfig{L}) where {R<:Real,L<:Loss} =
-    TrainCallback{T,L}(TrainCallbackState(T, config.show_progress), config)
 
 """
 Illustrate the training andd testing losses using a twinaxis plot
@@ -315,6 +308,9 @@ the initial set of parameters `params`.
 + `configs`: a collection of optimizers and settings used for training the model
 + `loss_samples`: number of params and losses samples to take
 + `snapshots_dir`: a directory for saving the model parameters and training losses
++ `show_progress`: control whether to show the default progress bar for each training session,
+this option will be ignored when `progress` is set
++ `progress`: a progress meter that will be used to monitor the training sessions
 + `kwargs`: keyword arguments that get splatted to `sciml_train`
 """
 function train_model(
@@ -324,7 +320,8 @@ function train_model(
     p0::AbstractVector{<:Real},
     configs::AbstractVector{TrainConfig},
     snapshots_dir::AbstractString;
-    show_progress::Bool = true,
+    show_progress::Bool = false,
+    progress::Union{ProgressUnknown,Nothing} = nothing,
     loss_samples::Integer = 100,
     kwargs...,
 )
@@ -334,19 +331,16 @@ function train_model(
 
     minimizers = Vector{typeof(p0)}()
     params = copy(p0)
-
     params_save_fpath = get_params_save_fpath(snapshots_dir, uuid)
+
     for conf ∈ configs
-        save_interval = div(conf.maxiters, loss_samples)
-        losses_save_fpath = get_losses_save_fpath(snapshots_dir, "$uuid.$(conf.name)")
         cb = TrainCallback(
-            eltype(p0),
+            TrainCallbackState(eltype(p0), isnothing(progress) ? show_progress : progress),
             TrainCallbackConfig(
                 test_loss,
-                show_progress,
                 length(p0),
-                save_interval,
-                losses_save_fpath,
+                div(conf.maxiters, loss_samples),
+                get_losses_save_fpath(snapshots_dir, "$uuid.$(conf.name)"),
                 params_save_fpath,
             ),
         )
@@ -368,6 +362,7 @@ function train_model(
         push!(minimizers, params)
         Serialization.serialize(params_save_fpath, params)
     end
+
     return minimizers
 end
 
