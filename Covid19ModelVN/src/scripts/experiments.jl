@@ -119,38 +119,6 @@ function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVect
     return u0, vars, labels
 end
 
-function experiment_loss(tsteps::Ts, ζ::Float64) where {Ts}
-    weights = exp.(collect(tsteps) .* ζ)
-    lossfn = (ŷ, y) -> sum((log.(ŷ .+ 1) .- log.(y .+ 1)) .^ 2 .* weights')
-    return lossfn
-end
-
-function experiment_train(
-    uuid::AbstractString,
-    setup::Function,
-    configs::AbstractVector{TrainConfig},
-    snapshots_dir::AbstractString;
-    kwargs...,
-)
-    # get model and data
-    model, u0, p0, lossfn, train_dataset, test_dataset, vars, _ = setup()
-    # create a prediction model and loss function
-    prob = ODEProblem(model, u0, train_dataset.tspan)
-    predictor = Predictor(prob, vars)
-    train_loss = Loss(lossfn, predictor, train_dataset)
-    test_loss = Loss(rmse, predictor, test_dataset)
-    # check if AD works
-    dLdθ = Zygote.gradient(train_loss, p0)
-    @assert !isnothing(dLdθ[1]) # gradient is computable
-    @assert any(dLdθ[1] .!= 0.0) # not all gradients are 0
-
-    @info "Training $uuid"
-    minimizers =
-        train_model(uuid, train_loss, test_loss, p0, configs, snapshots_dir; kwargs...)
-    minimizer = last(minimizers)
-    return minimizer, train_loss(minimizer)
-end
-
 SEIRDBaselineHyperparams = @NamedTuple begin
     ζ::Float64
     γ0::Float64
@@ -361,10 +329,54 @@ function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyp
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0)
-    lossfn = experiment_loss(train_dataset.tsteps, hyperparams.ζ)
+    train_data_max = maximum(train_dataset.data, dims = 2)
+    train_data_min = minimum(train_dataset.data, dims = 2)
+    lossfn = experiment_loss(train_dataset.tsteps, hyperparams.ζ, train_data_max, train_data_min)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
+function experiment_loss(tsteps::Ts, ζ::Float64) where {Ts}
+    weights = exp.(collect(tsteps) .* ζ)
+    lossfn = (ŷ, y) -> sum((log.(ŷ .+ 1) .- log.(y .+ 1)) .^ 2 .* weights')
+    return lossfn
+end
+
+function experiment_loss(tsteps::Ts, ζ::R, min::AbstractMatrix{R}, max::AbstractMatrix{R}) where {Ts,R<:Real}
+    weights = exp.(collect(tsteps) .* ζ)
+    domain = max .- min
+    lossfn = function(ŷ, y)
+        ŷ_std = (ŷ .- min) ./ domain
+        y_std = (y .- min) ./ domain
+        return sum((ŷ_std - y_std) .^ 2 .* weights')
+    end
+    return lossfn
+end
+
+function experiment_train(
+    uuid::AbstractString,
+    setup::Function,
+    configs::AbstractVector{TrainConfig},
+    snapshots_dir::AbstractString;
+    kwargs...,
+)
+    # get model and data
+    model, u0, p0, lossfn, train_dataset, test_dataset, vars, _ = setup()
+    # create a prediction model and loss function
+    prob = ODEProblem(model, u0, train_dataset.tspan)
+    predictor = Predictor(prob, vars)
+    train_loss = Loss(lossfn, predictor, train_dataset)
+    test_loss = Loss(rmse, predictor, test_dataset)
+    # check if AD works
+    dLdθ = Zygote.gradient(train_loss, p0)
+    @assert !isnothing(dLdθ[1]) # gradient is computable
+    @assert any(dLdθ[1] .!= 0.0) # not all gradients are 0
+
+    @info "Training $uuid"
+    minimizers =
+        train_model(uuid, train_loss, test_loss, p0, configs, snapshots_dir; kwargs...)
+    minimizer = last(minimizers)
+    return minimizer, train_loss(minimizer)
+end
 
 function experiment_eval(
     uuid::AbstractString,
