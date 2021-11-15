@@ -377,7 +377,20 @@ function train_model(
 end
 
 """
+    evaluate_model(
+        config::EvalConfig,
+        predictor::Predictor,
+        params::AbstractVector{<:Real},
+        train_dataset::TimeseriesDataset,
+        test_dataset::TimeseriesDataset,
+    )::(Makie.Figure, DataFrames.DataFrame)
+
 Evaluate the model by calculating the errors and draw plot againts ground truth data
+
+# Returns
+
+A 2-tuple where the first element contains the Figure object containing the model
+forecasts and the second element contains the Dataframe fore the forecasts errors
 
 # Arguments
 
@@ -402,8 +415,19 @@ function evaluate_model(
 end
 
 """
+    calculate_forecasts_errors(
+        config::EvalConfig,
+        pred::SciMLBase.AbstractTimeseriesSolution,
+        test_dataset::TimeseriesDataset,
+    )::DataFrame
+
 Calculate the forecast error based on the model prediction and the ground truth data
 for each forecasting horizon
+
+# Returns
+
+A dataframe containing the errors between the model prediction and the ground truth data
+calculated with different metrics and forecasting horizons
 
 # Arguments
 
@@ -433,7 +457,19 @@ function calculate_forecasts_errors(
 end
 
 """
+    plot_forecasts(
+        config::EvalConfig,
+        fit::SciMLBase.AbstractTimeseriesSolution,
+        pred::SciMLBase.AbstractTimeseriesSolution,
+        train_dataset::TimeseriesDataset,
+        test_dataset::TimeseriesDataset,
+    )
+
 Plot the forecasted values produced by against the ground truth data.
+
+# Returns
+
+The figure object from Makie that contains the plotting definition for the model predictions
 
 # Arguments
 
@@ -479,7 +515,14 @@ function plot_forecasts(
 end
 
 """
+    plot_ℜe(ℜe::AbstractVector{R}, sep::R)::Figure where {R<:Real}
+
 Plot the effective reproduction number for the traing period and testing period
+
+# Returns
+
+The figure object from Makie that contains the plotting definition for the given
+effecitve reproduction number
 
 # Arguments
 
@@ -500,43 +543,62 @@ function plot_ℜe(ℜe::AbstractVector{R}, sep::R) where {R<:Real}
 end
 
 """
+    logit(x::Real)::Real
+
 Calculate the inverse of the sigmoid function
 """
 logit(x::Real) = log(x / (1 - x))
 
 """
-Transform the value of `x` to get a value that lies between `bounds[1]` and `bounds[2]`.
+    boxconst(x::Real, bounds::Tuple{R,R})::Real where {R<:Real}
+
+Transform the value of `x` to get a value that lies between `bounds[1]` and `bounds[2]`
 """
 boxconst(x::Real, bounds::Tuple{R,R}) where {R<:Real} =
     bounds[1] + (bounds[2] - bounds[1]) * sigmoid(x)
 
+"""
+    boxconst(x::Real, bounds::Tuple{R,R})::Real where {R<:Real}
+
+Calculate the inverse of the `boxconst` function
+"""
 boxconst_inv(x::Real, bounds::Tuple{R,R}) where {R<:Real} =
     logit((x - bounds[1]) / (bounds[2] - bounds[1]))
 
 """
+    hswish(x::Real)::Real
+
 [1] A. Howard et al., “Searching for MobileNetV3,” arXiv:1905.02244 [cs], Nov. 2019, Accessed: Oct. 09, 2021. [Online]. Available: http://arxiv.org/abs/1905.02244
 """
 hswish(x::Real) = x * (relu6(x + 3) / 6)
 
 """
+    mae(ŷ::AbstractArray{<:Real}, y::AbstractArray{<:Real})::Real
+
 Calculate the mean absolute error between 2 values. Note that the input arguments must be of the same size.
 The function does not check if the inputs are valid and may produces erroneous output.
 """
 mae(ŷ::AbstractArray{<:Real}, y::AbstractArray{<:Real}) = mean(abs, (ŷ .- y))
 
 """
+    mape(ŷ::AbstractArray{<:Real}, y::AbstractArray{<:Real})::Real
+
 Calculate the mean absolute percentge error between 2 values. Note that the input arguments must be of the same size.
 The function does not check if the inputs are valid and may produces erroneous output.
 """
 mape(ŷ::AbstractArray{<:Real}, y::AbstractArray{<:Real}) = 100 * mean(abs, (ŷ .- y) ./ y)
 
 """
+    rmse(ŷ::AbstractArray{<:Real}, y::AbstractArray{<:Real})::Real
+
 Calculate the root mean squared error between 2 values. Note that the input arguments must be of the same size.
 The function does not check if the inputs are valid and may produces erroneous output.
 """
 rmse(ŷ::AbstractArray{<:Real}, y::AbstractArray{<:Real}) = sqrt(mean(abs2, ŷ .- y))
 
 """
+    rmsle(ŷ::AbstractArray{<:Real}, y::AbstractArray{<:Real})::Real
+
 Calculate the root mean squared log error between 2 values. Note that the input arguments must be of the same size.
 The function does not check if the inputs are valid and may produces erroneous output.
 """
