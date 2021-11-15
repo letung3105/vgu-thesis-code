@@ -3,6 +3,7 @@ using OrdinaryDiffEq, DiffEqFlux
 using CairoMakie
 using DataFrames
 using Covid19ModelVN
+using JSON
 
 import Covid19ModelVN.JHUCSSEData,
     Covid19ModelVN.FacebookData,
@@ -446,10 +447,11 @@ function experiment_run(
         uuid = "$timestamp.$model_name.$loc"
         setup = () -> model_setup(loc, hyperparams)
         snapshots_dir = joinpath(savedir, loc)
+        if !isdir(snapshots_dir)
+            mkpath(snapshots_dir)
+        end
 
-        df_hyperparams = DataFrame(hyperparams)
-        save_dataframe(df_hyperparams, joinpath(snapshots_dir, "$uuid.hyperparams.csv"))
-
+        write(joinpath(snapshots_dir, "$uuid.hyperparams.json"), json(hyperparams))
         minimizer, final_loss =
             experiment_train(uuid, setup, train_configs, snapshots_dir; kwargs...)
 
