@@ -34,11 +34,11 @@ ho = let
                 social_proximity_lag = Day(14),
             ),
             TrainConfig[
-                TrainConfig("ADAM", ADAM(adam_lr), adam_maxiters),
+                TrainConfig("ADAM", ADAM(adam_lr), Int(adam_maxiters)),
                 TrainConfig(
                     "BFGS",
                     BFGS(initial_stepnorm = bfgs_initial_stepnorm),
-                    bfgs_maxiters,
+                    Int(bfgs_maxiters),
                 ),
             ];
             savedir,
