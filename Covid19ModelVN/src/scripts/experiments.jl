@@ -331,7 +331,8 @@ function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyp
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0)
     train_data_max = maximum(train_dataset.data, dims = 2)
     train_data_min = minimum(train_dataset.data, dims = 2)
-    lossfn = experiment_loss(train_dataset.tsteps, hyperparams.ζ, train_data_max, train_data_min)
+    lossfn =
+        experiment_loss(train_dataset.tsteps, hyperparams.ζ, train_data_max, train_data_min)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -341,14 +342,15 @@ function experiment_loss(tsteps::Ts, ζ::Float64) where {Ts}
     return lossfn
 end
 
-function experiment_loss(tsteps::Ts, ζ::R, min::AbstractMatrix{R}, max::AbstractMatrix{R}) where {Ts,R<:Real}
+function experiment_loss(
+    tsteps::Ts,
+    ζ::R,
+    min::AbstractMatrix{R},
+    max::AbstractMatrix{R},
+) where {Ts,R<:Real}
     weights = exp.(collect(tsteps) .* ζ)
     domain = max .- min
-    lossfn = function(ŷ, y)
-        ŷ_std = (ŷ .- min) ./ domain
-        y_std = (y .- min) ./ domain
-        return sum((ŷ_std - y_std) .^ 2 .* weights')
-    end
+    lossfn = (ŷ, y) -> sum(((ŷ - y) ./ domain) .^ 2 .* weights')
     return lossfn
 end
 
@@ -444,6 +446,9 @@ function experiment_run(
         uuid = "$timestamp.$model_name.$loc"
         setup = () -> model_setup(loc, hyperparams)
         snapshots_dir = joinpath(savedir, loc)
+
+        df_hyperparams = DataFrame(hyperparams)
+        save_dataframe(df_hyperparams, joinpath(snapshots_dir, "$uuid.hyperparams.csv"))
 
         minimizer, final_loss =
             experiment_train(uuid, setup, train_configs, snapshots_dir; kwargs...)
