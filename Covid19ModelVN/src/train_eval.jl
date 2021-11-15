@@ -33,7 +33,7 @@ Construct a new default `Predictor` using the problem defined by the given model
 """
 Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int}) = Predictor(
     problem,
-    Vern7(),
+    Tsit5(),
     InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
     1e-6,
     1e-6,
@@ -188,14 +188,23 @@ function plot_losses(
     test_losses::AbstractVector{R},
 ) where {R<:Real}
     fig = Figure()
-    ax = Axis(
+    ax1 = Axis(
         fig[1, 1],
         title = "Losses of the model after each iteration",
         xlabel = "Iterations",
         yscale = log10,
+        yticklabelcolor = Makie.ColorSchemes.tab10[1],
     )
-    ln1 = lines!(ax, train_losses, color = Makie.ColorSchemes.tab10[1], linewidth = 3)
-    ln2 = lines!(ax, test_losses, color = Makie.ColorSchemes.tab10[2], linewidth = 3)
+    ax2 = Axis(
+        fig[1, 1],
+        yscale = log10,
+        yticklabelcolor = Makie.ColorSchemes.tab10[2],
+        yaxisposition = :right,
+    )
+    hidespines!(ax2)
+    hidexdecorations!(ax2)
+    ln1 = lines!(ax1, train_losses, color = Makie.ColorSchemes.tab10[1], linewidth = 3)
+    ln2 = lines!(ax2, test_losses, color = Makie.ColorSchemes.tab10[2], linewidth = 3)
     Legend(
         fig[1, 1],
         [ln1, ln2],
@@ -334,6 +343,7 @@ function train_model(
     params_save_fpath = get_params_save_fpath(snapshots_dir, uuid)
 
     for conf ∈ configs
+        @info "Training $uuid | Optimizer $(conf.optimizer) | Maxiters $(conf.maxiters)"
         cb = TrainCallback(
             TrainCallbackState(eltype(p0), isnothing(progress) ? show_progress : progress),
             TrainCallbackConfig(
