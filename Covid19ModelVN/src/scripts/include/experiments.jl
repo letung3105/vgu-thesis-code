@@ -129,11 +129,11 @@ function experiment_loss(
 ) where {Ts,R<:Real}
     weights = exp.(collect(tsteps) .* ζ)
     domain = max .- min
-    lossfn = @inbounds function(ŷ, y)
+    lossfn = @inbounds function (ŷ, y)
         s::Float64 = 0
         sz = size(y)
-        for j ∈ 1:sz[2], i ∈ 1:sz[1]
-            s += ((ŷ[i,j] - y[i,j]) / domain[i]) ^ 2 * weights[j]
+        @simd for j ∈ 1:sz[2], i ∈ 1:sz[1]
+            s += ((ŷ[i, j] - y[i, j]) / domain[i])^2 * weights[j]
         end
         return s
     end

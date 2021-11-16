@@ -59,10 +59,10 @@ struct SEIRDBaseline{ANN<:FastChain,T<:Real} <: AbstractCovidModel
         α_bounds::Tuple{T,T},
     ) where {T<:Real}
         β_ann = FastChain(
-            FastDense(2, 8, hswish),
-            FastDense(8, 8, hswish),
-            FastDense(8, 8, hswish),
-            FastDense(8, 1, softplus),
+            StaticDense(2, 8, hswish),
+            StaticDense(8, 8, hswish),
+            StaticDense(8, 8, hswish),
+            StaticDense(8, 1, softplus),
         )
         return new{typeof(β_ann),T}(
             β_ann,
@@ -177,9 +177,10 @@ struct SEIRDFbMobility1{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         movement_range_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            FastDense(4, 8, relu),
-            FastDense(8, 8, relu),
-            FastDense(8, 1, softplus),
+            StaticDense(4, 8, hswish),
+            StaticDense(8, 8, hswish),
+            StaticDense(8, 8, hswish),
+            StaticDense(8, 1, softplus),
         )
         return new{typeof(β_ann),T,DS}(
             β_ann,
@@ -313,9 +314,10 @@ struct SEIRDFbMobility2{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            FastDense(5, 8, relu),
-            FastDense(8, 8, relu),
-            FastDense(8, 1, softplus),
+            StaticDense(5, 8, hswish),
+            StaticDense(8, 8, hswish),
+            StaticDense(8, 8, hswish),
+            StaticDense(8, 1, softplus),
         )
         return new{typeof(β_ann),T,DS}(
             β_ann,
@@ -456,10 +458,10 @@ struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            FastDense(5, 8, relu),
-            FastDense(8, 8, relu),
-            FastDense(8, 8, relu),
-            FastDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(5, 8, relu),
+            StaticDense(8, 8, relu),
+            StaticDense(8, 8, relu),
+            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
         )
         return new{typeof(β_ann),T,DS}(
             β_ann,
@@ -606,16 +608,16 @@ struct SEIRDFbMobility4{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            FastDense(5, 8, gelu),
-            FastDense(8, 8, gelu),
-            FastDense(8, 8, gelu),
-            FastDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(5, 8, hswish),
+            StaticDense(8, 8, hswish),
+            StaticDense(8, 8, hswish),
+            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
         )
         α_ann = FastChain(
-            FastDense(3, 8, gelu),
-            FastDense(8, 8, gelu),
-            FastDense(8, 8, gelu),
-            FastDense(8, 1, x -> boxconst(x, α_bounds)),
+            StaticDense(3, 8, hswish),
+            StaticDense(8, 8, hswish),
+            StaticDense(8, 8, hswish),
+            StaticDense(8, 1, x -> boxconst(x, α_bounds)),
         )
         return new{typeof(β_ann),typeof(α_ann),T,DS}(
             β_ann,
