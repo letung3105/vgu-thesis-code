@@ -43,29 +43,35 @@ struct SEIRDBaseline{ANN<:FastChain,T<:Real} <: AbstractCovidModel
     γ_bounds::Tuple{T,T}
     λ_bounds::Tuple{T,T}
     α_bounds::Tuple{T,T}
-end
 
-"""
-Construct the SEIRDBaseline model
+    """
+    Construct the SEIRDBaseline model
 
-# Arguments
+    # Arguments
 
-* `γ_bounds`: lower and upper bounds of the γ parameter
-* `λ_bounds`: lower and upper bounds of the λ parameter
-* `α_bounds`: lower and upper bounds of the α parameter
-"""
-function SEIRDBaseline(
-    γ_bounds::Tuple{T,T},
-    λ_bounds::Tuple{T,T},
-    α_bounds::Tuple{T,T},
-) where {T<:Real}
-    β_ann = FastChain(
-        FastDense(2, 8, hswish),
-        FastDense(8, 8, hswish),
-        FastDense(8, 8, hswish),
-        FastDense(8, 1, softplus),
-    )
-    SEIRDBaseline(β_ann, DiffEqFlux.paramlength(β_ann), γ_bounds, λ_bounds, α_bounds)
+    * `γ_bounds`: lower and upper bounds of the γ parameter
+    * `λ_bounds`: lower and upper bounds of the λ parameter
+    * `α_bounds`: lower and upper bounds of the α parameter
+    """
+    function SEIRDBaseline(
+        γ_bounds::Tuple{T,T},
+        λ_bounds::Tuple{T,T},
+        α_bounds::Tuple{T,T},
+    ) where {T<:Real}
+        β_ann = FastChain(
+            FastDense(2, 8, hswish),
+            FastDense(8, 8, hswish),
+            FastDense(8, 8, hswish),
+            FastDense(8, 1, softplus),
+        )
+        return new{typeof(β_ann),T}(
+            β_ann,
+            DiffEqFlux.paramlength(β_ann),
+            γ_bounds,
+            λ_bounds,
+            α_bounds,
+        )
+    end
 end
 
 @inbounds function (model::SEIRDBaseline)(du, u, p, t)
@@ -154,35 +160,38 @@ struct SEIRDFbMobility1{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
     λ_bounds::Tuple{T,T}
     α_bounds::Tuple{T,T}
     movement_range_data::DS
+    """
+    Construct the SEIRDFbMobility1 model
+
+    # Arguments
+
+    * `γ_bounds`: lower and upper bounds of the γ parameter
+    * `λ_bounds`: lower and upper bounds of the λ parameter
+    * `α_bounds`: lower and upper bounds of the α parameter
+    * `movement_range_data`: the matrix for the Facebook movement range timeseries data
+    """
+    function SEIRDFbMobility1(
+        γ_bounds::Tuple{T,T},
+        λ_bounds::Tuple{T,T},
+        α_bounds::Tuple{T,T},
+        movement_range_data::DS,
+    ) where {T<:Real,DS<:AbstractMatrix{T}}
+        β_ann = FastChain(
+            FastDense(4, 8, relu),
+            FastDense(8, 8, relu),
+            FastDense(8, 1, softplus),
+        )
+        return new{typeof(β_ann),T,DS}(
+            β_ann,
+            DiffEqFlux.paramlength(β_ann),
+            γ_bounds,
+            λ_bounds,
+            α_bounds,
+            movement_range_data,
+        )
+    end
 end
 
-"""
-Construct the SEIRDFbMobility1 model
-
-# Arguments
-
-* `γ_bounds`: lower and upper bounds of the γ parameter
-* `λ_bounds`: lower and upper bounds of the λ parameter
-* `α_bounds`: lower and upper bounds of the α parameter
-* `movement_range_data`: the matrix for the Facebook movement range timeseries data
-"""
-function SEIRDFbMobility1(
-    γ_bounds::Tuple{T,T},
-    λ_bounds::Tuple{T,T},
-    α_bounds::Tuple{T,T},
-    movement_range_data::DS,
-) where {T<:Real,DS<:AbstractMatrix{T}}
-    β_ann =
-        FastChain(FastDense(4, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
-    SEIRDFbMobility1(
-        β_ann,
-        DiffEqFlux.paramlength(β_ann),
-        γ_bounds,
-        λ_bounds,
-        α_bounds,
-        movement_range_data,
-    )
-end
 
 @inbounds function (model::SEIRDFbMobility1)(du, u, p, t)
     time_idx = Int(floor(t + 1))
@@ -285,38 +294,41 @@ struct SEIRDFbMobility2{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
     α_bounds::Tuple{T,T}
     movement_range_data::DS
     social_proximity_data::DS
+    """
+    Construct the SEIRDFbMobility2 model
+
+    # Arguments
+
+    * `γ_bounds`: lower and upper bounds of the γ parameter
+    * `λ_bounds`: lower and upper bounds of the λ parameter
+    * `α_bounds`: lower and upper bounds of the α parameter
+    * `movement_range_data`: the matrix for the Facebook movement range timeseries data
+    * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
+    """
+    function SEIRDFbMobility2(
+        γ_bounds::Tuple{T,T},
+        λ_bounds::Tuple{T,T},
+        α_bounds::Tuple{T,T},
+        movement_range_data::DS,
+        social_proximity_data::DS,
+    ) where {T<:Real,DS<:AbstractMatrix{T}}
+        β_ann = FastChain(
+            FastDense(5, 8, relu),
+            FastDense(8, 8, relu),
+            FastDense(8, 1, softplus),
+        )
+        return new{typeof(β_ann),T,DS}(
+            β_ann,
+            DiffEqFlux.paramlength(β_ann),
+            γ_bounds,
+            λ_bounds,
+            α_bounds,
+            movement_range_data,
+            social_proximity_data,
+        )
+    end
 end
 
-"""
-Construct the SEIRDFbMobility2 model
-
-# Arguments
-
-* `γ_bounds`: lower and upper bounds of the γ parameter
-* `λ_bounds`: lower and upper bounds of the λ parameter
-* `α_bounds`: lower and upper bounds of the α parameter
-* `movement_range_data`: the matrix for the Facebook movement range timeseries data
-* `social_proximity_data`: the matrix for the social proximity to cases timeseries data
-"""
-function SEIRDFbMobility2(
-    γ_bounds::Tuple{T,T},
-    λ_bounds::Tuple{T,T},
-    α_bounds::Tuple{T,T},
-    movement_range_data::DS,
-    social_proximity_data::DS,
-) where {T<:Real,DS<:AbstractMatrix{T}}
-    β_ann =
-        FastChain(FastDense(5, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
-    SEIRDFbMobility2(
-        β_ann,
-        DiffEqFlux.paramlength(β_ann),
-        γ_bounds,
-        λ_bounds,
-        α_bounds,
-        movement_range_data,
-        social_proximity_data,
-    )
-end
 
 @inbounds function (model::SEIRDFbMobility2)(du, u, p, t)
     time_idx = Int(floor(t + 1))
@@ -424,44 +436,44 @@ struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
     α_bounds::Tuple{T,T}
     movement_range_data::DS
     social_proximity_data::DS
+    """
+    Construct the SEIRDFbMobility3 model
+
+    # Arguments
+
+    * `γ_bounds`: lower and upper bounds of the γ parameter
+    * `λ_bounds`: lower and upper bounds of the λ parameter
+    * `α_bounds`: lower and upper bounds of the α parameter
+    * `movement_range_data`: the matrix for the Facebook movement range timeseries data
+    * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
+    """
+    function SEIRDFbMobility3(
+        β_bounds::Tuple{T,T},
+        γ_bounds::Tuple{T,T},
+        λ_bounds::Tuple{T,T},
+        α_bounds::Tuple{T,T},
+        movement_range_data::DS,
+        social_proximity_data::DS,
+    ) where {T<:Real,DS<:AbstractMatrix{T}}
+        β_ann = FastChain(
+            FastDense(5, 8, relu),
+            FastDense(8, 8, relu),
+            FastDense(8, 8, relu),
+            FastDense(8, 1, x -> boxconst(x, β_bounds)),
+        )
+        return SEIRDFbMobility3(
+            β_ann,
+            DiffEqFlux.paramlength(β_ann),
+            β_bounds,
+            γ_bounds,
+            λ_bounds,
+            α_bounds,
+            movement_range_data,
+            social_proximity_data,
+        )
+    end
 end
 
-"""
-Construct the SEIRDFbMobility3 model
-
-# Arguments
-
-* `γ_bounds`: lower and upper bounds of the γ parameter
-* `λ_bounds`: lower and upper bounds of the λ parameter
-* `α_bounds`: lower and upper bounds of the α parameter
-* `movement_range_data`: the matrix for the Facebook movement range timeseries data
-* `social_proximity_data`: the matrix for the social proximity to cases timeseries data
-"""
-function SEIRDFbMobility3(
-    β_bounds::Tuple{T,T},
-    γ_bounds::Tuple{T,T},
-    λ_bounds::Tuple{T,T},
-    α_bounds::Tuple{T,T},
-    movement_range_data::DS,
-    social_proximity_data::DS,
-) where {T<:Real,DS<:AbstractMatrix{T}}
-    β_ann = FastChain(
-        FastDense(5, 8, relu),
-        FastDense(8, 8, relu),
-        FastDense(8, 8, relu),
-        FastDense(8, 1, x -> boxconst(x, β_bounds)),
-    )
-    return SEIRDFbMobility3(
-        β_ann,
-        DiffEqFlux.paramlength(β_ann),
-        β_bounds,
-        γ_bounds,
-        λ_bounds,
-        α_bounds,
-        movement_range_data,
-        social_proximity_data,
-    )
-end
 
 @inbounds function (model::SEIRDFbMobility3)(du, u, p, t)
     time_idx = Int(floor(t + 1))
@@ -572,53 +584,54 @@ struct SEIRDFbMobility4{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
     α_bounds::Tuple{T,T}
     movement_range_data::DS
     social_proximity_data::DS
+
+    """
+    Construct the SEIRDFbMobility4 model
+
+    # Arguments
+
+    * `β_bounds`: lower and upper bounds of the β parameter
+    * `γ_bounds`: lower and upper bounds of the γ parameter
+    * `λ_bounds`: lower and upper bounds of the λ parameter
+    * `α_bounds`: lower and upper bounds of the α parameter
+    * `movement_range_data`: the matrix for the Facebook movement range timeseries data
+    * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
+    """
+    function SEIRDFbMobility4(
+        β_bounds::Tuple{T,T},
+        γ_bounds::Tuple{T,T},
+        λ_bounds::Tuple{T,T},
+        α_bounds::Tuple{T,T},
+        movement_range_data::DS,
+        social_proximity_data::DS,
+    ) where {T<:Real,DS<:AbstractMatrix{T}}
+        β_ann = FastChain(
+            FastDense(5, 8, gelu),
+            FastDense(8, 8, gelu),
+            FastDense(8, 8, gelu),
+            FastDense(8, 1, x -> boxconst(x, β_bounds)),
+        )
+        α_ann = FastChain(
+            FastDense(3, 8, gelu),
+            FastDense(8, 8, gelu),
+            FastDense(8, 8, gelu),
+            FastDense(8, 1, x -> boxconst(x, α_bounds)),
+        )
+        return new{typeof(β_ann),typeof{α_ann},T,DS}(
+            β_ann,
+            α_ann,
+            DiffEqFlux.paramlength(β_ann),
+            DiffEqFlux.paramlength(α_ann),
+            β_bounds,
+            γ_bounds,
+            λ_bounds,
+            α_bounds,
+            movement_range_data,
+            social_proximity_data,
+        )
+    end
 end
 
-"""
-Construct the SEIRDFbMobility4 model
-
-# Arguments
-
-* `β_bounds`: lower and upper bounds of the β parameter
-* `γ_bounds`: lower and upper bounds of the γ parameter
-* `λ_bounds`: lower and upper bounds of the λ parameter
-* `α_bounds`: lower and upper bounds of the α parameter
-* `movement_range_data`: the matrix for the Facebook movement range timeseries data
-* `social_proximity_data`: the matrix for the social proximity to cases timeseries data
-"""
-function SEIRDFbMobility4(
-    β_bounds::Tuple{T,T},
-    γ_bounds::Tuple{T,T},
-    λ_bounds::Tuple{T,T},
-    α_bounds::Tuple{T,T},
-    movement_range_data::DS,
-    social_proximity_data::DS,
-) where {T<:Real,DS<:AbstractMatrix{T}}
-    β_ann = FastChain(
-        FastDense(5, 8, gelu),
-        FastDense(8, 8, gelu),
-        FastDense(8, 8, gelu),
-        FastDense(8, 1, x -> boxconst(x, β_bounds)),
-    )
-    α_ann = FastChain(
-        FastDense(3, 8, gelu),
-        FastDense(8, 8, gelu),
-        FastDense(8, 8, gelu),
-        FastDense(8, 1, x -> boxconst(x, α_bounds)),
-    )
-    return SEIRDFbMobility4(
-        β_ann,
-        α_ann,
-        DiffEqFlux.paramlength(β_ann),
-        DiffEqFlux.paramlength(α_ann),
-        β_bounds,
-        γ_bounds,
-        λ_bounds,
-        α_bounds,
-        movement_range_data,
-        social_proximity_data,
-    )
-end
 
 @inbounds function (model::SEIRDFbMobility4)(du, u, p, t)
     time_idx = Int(floor(t + 1))

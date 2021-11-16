@@ -21,24 +21,25 @@ struct Predictor{
     abstol::Float64
     reltol::Float64
     save_idxs::Vector{Int}
+    """
+    Construct a new default `Predictor` using the problem defined by the given model
+
+    # Argument
+
+    * `problem`: the problem that will be solved
+    + `save_idxs`: the indices of the system's states to return
+    """
+    Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int}) =
+        new{typeof(problem),Tsit5,InterpolatingAdjoint}(
+            problem,
+            Tsit5(),
+            InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
+            1e-6,
+            1e-6,
+            save_idxs,
+        )
 end
 
-"""
-Construct a new default `Predictor` using the problem defined by the given model
-
-# Argument
-
-* `problem`: the problem that will be solved
-+ `save_idxs`: the indices of the system's states to return
-"""
-Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int}) = Predictor(
-    problem,
-    Tsit5(),
-    InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
-    1e-6,
-    1e-6,
-    save_idxs,
-)
 
 """
 Call an object of struct `CovidModelPredict` to solve the underlying DiffEq problem
@@ -80,14 +81,43 @@ struct Loss{Bool,F<:Function,P<:Predictor,D<:TimeseriesDataset}
     metric_fn::F
     predict_fn::P
     dataset::D
-end
 
-Loss{B}(metric_fn, predict_fn, dataset) where {B<:Bool} =
-    Loss{regularized,typeof(metric_fn),typeof(predict_fn),typeof(dataset)}(
-        metric_fn,
-        predict_fn,
-        dataset,
-    )
+    """
+        Loss{true}(metric_fn, predict_fn, dataset)
+
+    Construct a new loss function againts the ground truth data where `metric_fn` accepts
+    the model parameters as the third parameter (eg. for regularization)
+
+    # Arguments
+
+    * `metric_fn`: a function that computes the error between two data arrays
+    * `predict_fn`: the time span that the ODE solver will be run on
+    * `dataset`: the dataset that contains the ground truth data
+    """
+    Loss{true}(metric_fn, predict_fn, dataset) =
+        new{true,typeof(metric_fn),typeof(predict_fn),typeof(dataset)}(
+            metric_fn,
+            predict_fn,
+            dataset,
+        )
+
+    """
+        Loss{false}(metric_fn, predict_fn, dataset)
+
+    Construct a new loss function againts the ground truth data.
+    # Arguments
+
+    * `metric_fn`: a function that computes the error between two data arrays
+    * `predict_fn`: the time span that the ODE solver will be run on
+    * `dataset`: the dataset that contains the ground truth data
+    """
+    Loss{false}(metric_fn, predict_fn, dataset) =
+        new{false,typeof(metric_fn),typeof(predict_fn),typeof(dataset)}(
+            metric_fn,
+            predict_fn,
+            dataset,
+        )
+end
 
 """
     (l::Loss{false,F,P,D})(params::VT) where {F,P,D,VT<:AbstractVector{<:Real}}
@@ -155,26 +185,26 @@ mutable struct TrainCallbackState{R<:Real}
     test_losses::Vector{R}
     minimizer::Vector{R}
     minimizer_loss::R
+    """
+    # Arguments
+
+    + `T`: type of the losses and parameters
+    + `show_progress`: control whether to show a running progress bar
+    """
+    TrainCallbackState(
+        T::Type{R},
+        params_length::Integer,
+        show_progress::Bool,
+    ) where {R<:Real} = new{T}(
+        0,
+        ProgressUnknown(showspeed = true, enabled = show_progress),
+        T[],
+        T[],
+        Vector{T}(undef, params_length),
+        typemax(T),
+    )
 end
 
-"""
-# Arguments
-
-+ `T`: type of the losses and parameters
-+ `show_progress`: control whether to show a running progress bar
-"""
-TrainCallbackState(
-    T::Type{R},
-    params_length::Integer,
-    show_progress::Bool,
-) where {R<:Real} = TrainCallbackState{T}(
-    0,
-    ProgressUnknown(showspeed = true, enabled = show_progress),
-    T[],
-    T[],
-    Vector{T}(undef, params_length),
-    typemax(T),
-)
 
 """
 # Arguments
