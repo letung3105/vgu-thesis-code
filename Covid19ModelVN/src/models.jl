@@ -11,6 +11,15 @@
     return nothing
 end
 
+default_solve(model, u0, params, tspan, saveat) = solve(
+    ODEProblem(model, u0, tspan, params),
+    Tsit5(),
+    saveat = saveat,
+    solver = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
+    abstol = 1e-6,
+    reltol = 1e-6,
+)
+
 """
 An abstract type for representing a Covid-19 model
 """
@@ -50,21 +59,22 @@ function SEIRDBaseline(
     λ_bounds::Tuple{T,T},
     α_bounds::Tuple{T,T},
 ) where {T<:Real}
-    β_ann =
-        FastChain(FastDense(2, 8, relu), FastDense(8, 8, relu), FastDense(8, 1, softplus))
+    β_ann = FastChain(
+        FastDense(2, 8, hswish),
+        FastDense(8, 8, hswish),
+        FastDense(8, 8, hswish),
+        FastDense(8, 1, softplus),
+    )
     SEIRDBaseline(β_ann, DiffEqFlux.paramlength(β_ann), γ_bounds, λ_bounds, α_bounds)
 end
 
 @inbounds function (model::SEIRDBaseline)(du, u, p, t)
     # states and params
     S, _, I, _, _, _, N = u
-    γ = boxconst(p[1], model.γ_bounds)
-    λ = boxconst(p[2], model.λ_bounds)
-    α = boxconst(p[3], model.α_bounds)
-    θ = @view(p[4:4+model.β_ann_paramlength-1])
+    pnamed = namedparams(model, p)
     # infection rate depends on time, susceptible, and infected
-    β = first(model.β_ann(SVector{2}(S / N, I / N), θ))
-    SEIRD!(du, u, SVector{4}(β, γ, λ, α), t)
+    β = first(model.β_ann(SVector{2}(S / N, I / N), pnamed.θ))
+    SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, pnamed.α), t)
     return nothing
 end
 
@@ -85,6 +95,13 @@ initparams(model::SEIRDBaseline, γ0::R, λ0::R, α0::R) where {R<:Real} = [
     DiffEqFlux.initial_params(model.β_ann)
 ]
 
+namedparams(model::SEIRDBaseline, params::AbstractVector{<:Real}) = (
+    γ = boxconst(params[1], model.γ_bounds),
+    λ = boxconst(params[2], model.λ_bounds),
+    α = boxconst(params[3], model.α_bounds),
+    θ = @view(params[4:4+model.β_ann_paramlength-1]),
+)
+
 """
 Get the effective reproduction rate calculated from the model
 
@@ -103,26 +120,17 @@ function ℜe(
     tspan::Tuple{T,T},
     saveat,
 ) where {T<:Real}
-    prob = ODEProblem(model, u0, tspan, params)
-    sol = solve(
-        prob,
-        Tsit5(),
-        saveat = saveat,
-        solver = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
-        abstol = 1e-6,
-        reltol = 1e-6,
-    )
+    sol = default_solve(model, u0, params, tspan, saveat)
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
 
+    pnamed = namedparams(model, params)
     β_ann_input = [(S ./ N)'; (I ./ N)']
-    θ = @view(params[4:4+model.β_ann_paramlength-1])
-    γ = boxconst(params[1], model.γ_bounds)
 
-    βt = vec(model.β_ann(β_ann_input, θ))
-    ℜe = βt ./ γ
+    βt = vec(model.β_ann(β_ann_input, pnamed.θ))
+    ℜe = βt ./ pnamed.γ
     return ℜe
 end
 
@@ -180,10 +188,7 @@ end
     time_idx = Int(floor(t + 1))
     # states and params
     S, _, I, _, _, _, N = u
-    γ = boxconst(p[1], model.γ_bounds)
-    λ = boxconst(p[2], model.λ_bounds)
-    α = boxconst(p[3], model.α_bounds)
-    θ = @view(p[4:4+model.β_ann_paramlength-1])
+    pnamed = namedparams(model, p)
     # infection rate depends on time, susceptible, and infected
     β = first(
         model.β_ann(
@@ -193,10 +198,10 @@ end
                 model.movement_range_data[1, time_idx],
                 model.movement_range_data[2, time_idx],
             ),
-            θ,
+            pnamed.θ,
         ),
     )
-    SEIRD!(du, u, SVector{4}(β, γ, λ, α), t)
+    SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, pnamed.α), t)
     return nothing
 end
 
@@ -217,6 +222,13 @@ initparams(model::SEIRDFbMobility1, γ0::R, λ0::R, α0::R) where {R<:Real} = [
     DiffEqFlux.initial_params(model.β_ann)
 ]
 
+namedparams(model::SEIRDFbMobility1, params::AbstractVector{<:Real}) = (
+    γ = boxconst(params[1], model.γ_bounds),
+    λ = boxconst(params[2], model.λ_bounds),
+    α = boxconst(params[3], model.α_bounds),
+    θ = @view(params[4:4+model.β_ann_paramlength-1]),
+)
+
 """
 Get the effective reproduction rate calculated from the model
 
@@ -235,27 +247,18 @@ function ℜe(
     tspan::Tuple{T,T},
     saveat,
 ) where {T<:Real}
-    prob = ODEProblem(model, u0, tspan, params)
-    sol = solve(
-        prob,
-        Tsit5(),
-        saveat = saveat,
-        solver = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
-        abstol = 1e-6,
-        reltol = 1e-6,
-    )
+    sol = default_solve(model, u0, params, tspan, saveat)
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
 
+    pnamed = namedparams(model, params)
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility]
-    θ = @view(params[4:4+model.β_ann_paramlength-1])
-    γ = boxconst(params[1], model.γ_bounds)
 
-    βt = vec(model.β_ann(β_ann_input, θ))
-    ℜe = βt ./ γ
+    βt = vec(model.β_ann(β_ann_input, pnamed.θ))
+    ℜe = βt ./ pnamed.γ
     return ℜe
 end
 
@@ -319,10 +322,7 @@ end
     time_idx = Int(floor(t + 1))
     # states and params
     S, _, I, _, _, _, N = u
-    γ = boxconst(p[1], model.γ_bounds)
-    λ = boxconst(p[2], model.λ_bounds)
-    α = boxconst(p[3], model.α_bounds)
-    θ = @view(p[4:4+model.β_ann_paramlength-1])
+    pnamed = namedparams(model, p)
     # infection rate depends on time, susceptible, and infected
     β = first(
         model.β_ann(
@@ -333,10 +333,10 @@ end
                 model.movement_range_data[2, time_idx],
                 model.social_proximity_data[1, time_idx],
             ),
-            θ,
+            pnamed.θ,
         ),
     )
-    SEIRD!(du, u, SVector{4}(β, γ, λ, α), t)
+    SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, pnamed.α), t)
     return nothing
 end
 
@@ -357,6 +357,13 @@ initparams(model::SEIRDFbMobility2, γ0::R, λ0::R, α0::R) where {R<:Real} = [
     DiffEqFlux.initial_params(model.β_ann)
 ]
 
+namedparams(model::SEIRDFbMobility2, params::AbstractVector{<:Real}) = (
+    γ = boxconst(params[1], model.γ_bounds),
+    λ = boxconst(params[2], model.λ_bounds),
+    α = boxconst(params[3], model.α_bounds),
+    θ = @view(params[4:4+model.β_ann_paramlength-1]),
+)
+
 """
 Get the effective reproduction rate calculated from the model
 
@@ -375,28 +382,19 @@ function ℜe(
     tspan::Tuple{T,T},
     saveat,
 ) where {T<:Real}
-    prob = ODEProblem(model, u0, tspan, params)
-    sol = solve(
-        prob,
-        Tsit5(),
-        saveat = saveat,
-        solver = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
-        abstol = 1e-6,
-        reltol = 1e-6,
-    )
+    sol = default_solve(model, u0, params, tspan, saveat)
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
 
+    pnamed = namedparams(model, params)
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
-    θ = @view(params[4:4+model.β_ann_paramlength-1])
-    γ = boxconst(params[1], model.γ_bounds)
 
-    βt = vec(model.β_ann(β_ann_input, θ))
-    ℜe = βt ./ γ
+    βt = vec(model.β_ann(β_ann_input, pnamed.θ))
+    ℜe = βt ./ pnamed.γ
     return ℜe
 end
 
@@ -469,10 +467,7 @@ end
     time_idx = Int(floor(t + 1))
     # states and params
     S, _, I, _, _, _, N = u
-    γ = boxconst(p[1], model.γ_bounds)
-    λ = boxconst(p[2], model.λ_bounds)
-    α = boxconst(p[3], model.α_bounds)
-    θ = @view(p[4:4+model.β_ann_paramlength-1])
+    pnamed = namedparams(model, p)
     # infection rate depends on time, susceptible, and infected
     β = first(
         model.β_ann(
@@ -483,10 +478,10 @@ end
                 model.movement_range_data[2, time_idx],
                 model.social_proximity_data[1, time_idx],
             ),
-            θ,
+            pnamed.θ,
         ),
     )
-    SEIRD!(du, u, SVector{4}(β, γ, λ, α), t)
+    SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, pnamed.α), t)
     return nothing
 end
 
@@ -506,6 +501,13 @@ initparams(model::SEIRDFbMobility3, γ0::R, λ0::R, α0::R) where {R<:Real} = [
     DiffEqFlux.initial_params(model.β_ann)
 ]
 
+namedparams(model::SEIRDFbMobility3, params::AbstractVector{<:Real}) = (
+    γ = boxconst(params[1], model.γ_bounds),
+    λ = boxconst(params[2], model.λ_bounds),
+    α = boxconst(params[3], model.α_bounds),
+    θ = @view(params[4:4+model.β_ann_paramlength-1]),
+)
+
 """
 Get the effective reproduction rate calculated from the model
 
@@ -524,26 +526,19 @@ function ℜe(
     tspan::Tuple{T,T},
     saveat::Ts,
 ) where {T<:Real,Ts}
-    prob = ODEProblem(model, u0, tspan, params)
-    sol = solve(
-        prob,
-        Tsit5(),
-        saveat = saveat,
-        solver = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
-    )
+    sol = default_solve(model, u0, params, tspan, saveat)
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
 
+    pnamed = namedparams(model, params)
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
-    θ = @view(params[4:4+model.β_ann_paramlength-1])
-    γ = boxconst(params[1], model.γ_bounds)
 
-    βt = vec(model.β_ann(β_ann_input, θ))
-    ℜe = βt ./ γ
+    βt = vec(model.β_ann(β_ann_input, pnamed.θ))
+    ℜe = βt ./ pnamed.γ
     return ℜe
 end
 
@@ -629,10 +624,7 @@ end
     time_idx = Int(floor(t + 1))
     # states and params
     S, _, I, R, D, _, N = u
-    γ = boxconst(p[1], model.γ_bounds)
-    λ = boxconst(p[2], model.λ_bounds)
-    θ1 = @view(p[3:3+model.β_ann_paramlength-1])
-    θ2 = @view(p[end-model.α_ann_paramlength:end])
+    pnamed = namedparams(model, p)
     # infection rate depends on time, susceptible, and infected
     β = first(
         model.β_ann(
@@ -643,11 +635,11 @@ end
                 model.movement_range_data[2, time_idx],
                 model.social_proximity_data[1, time_idx],
             ),
-            θ1,
+            pnamed.θ1,
         ),
     )
-    α = first(model.α_ann(SVector{3}(I / N, R / N, D / N), θ2))
-    SEIRD!(du, u, SVector{4}(β, γ, λ, α), t)
+    α = first(model.α_ann(SVector{3}(I / N, R / N, D / N), pnamed.θ2))
+    SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, α), t)
     return nothing
 end
 
@@ -667,6 +659,13 @@ initparams(model::SEIRDFbMobility4, γ0::R, λ0::R) where {R<:Real} = [
     DiffEqFlux.initial_params(model.α_ann)
 ]
 
+namedparams(model::SEIRDFbMobility4, params::AbstractVector{<:Real}) = (
+    γ = boxconst(params[1], model.γ_bounds),
+    λ = boxconst(params[2], model.λ_bounds),
+    θ1 = @view(params[3:3+model.β_ann_paramlength-1]),
+    θ2 = @view(params[end-model.α_ann_paramlength:end]),
+)
+
 """
 Get the effective reproduction rate calculated from the model
 
@@ -685,25 +684,18 @@ function ℜe(
     tspan::Tuple{T,T},
     saveat::Ts,
 ) where {T<:Real,Ts}
-    prob = ODEProblem(model, u0, tspan, params)
-    sol = solve(
-        prob,
-        Tsit5(),
-        saveat = saveat,
-        solver = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
-    )
+    sol = default_solve(model, u0, params, tspan, saveat)
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
 
+    pnamed = namedparams(model, params)
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
-    θ = @view(params[3:3+model.β_ann_paramlength-1])
-    γ = boxconst(params[1], model.γ_bounds)
 
-    βt = vec(model.β_ann(β_ann_input, θ))
-    ℜe = βt ./ γ
+    βt = vec(model.β_ann(β_ann_input, pnamed.θ1))
+    ℜe = βt ./ pnamed.γ
     return ℜe
 end

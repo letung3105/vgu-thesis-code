@@ -472,7 +472,7 @@ function experiment_run(
             mkpath(snapshots_dir)
         end
 
-        @info "$uuid started"
+        @info "Running $uuid"
         write(
             joinpath(snapshots_dir, "$uuid.hyperparams.json"),
             json((; hyperparams..., train_configs), 4),
@@ -497,7 +497,7 @@ function experiment_run(
             unlock(LK_EVALUATION)
         end
 
-        @info "$uuid finished"
+        @info "Finished running $uuid"
         return nothing
     end
 
