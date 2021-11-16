@@ -6,6 +6,8 @@ using Statistics
 let
     savedir = "snapshots/baseline/hyperopt"
     locations = [
+        Covid19ModelVN.LOC_CODE_VIETNAM
+        Covid19ModelVN.LOC_CODE_UNITED_STATES
         collect(keys(Covid19ModelVN.LOC_NAMES_VN))
         collect(keys(Covid19ModelVN.LOC_NAMES_US))
     ]
