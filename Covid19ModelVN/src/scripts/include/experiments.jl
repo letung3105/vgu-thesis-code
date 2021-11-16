@@ -57,12 +57,13 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
     first_date = first(subset(df, :confirmed_total => x -> x .>= 500, view = true).date)
     split_date = first_date + train_range - Day(1)
     last_date = split_date + forecast_range
-    @info [first_date; split_date; last_date]
     # smooth out weekly seasonality
     moving_average!(df, cols, 7)
     conf = TimeseriesConfig(df, "date", cols)
     # split data into 2 parts for training and testing
     train_dataset, test_dataset = train_test_split(conf, first_date, split_date, last_date)
+
+    @info "Got Covid-19 data\n+ First train date $first_date\n+ Last train date $split_date\n+ Last evaluated date $last_date"
 
     return train_dataset, test_dataset, first_date, last_date
 end
@@ -374,7 +375,6 @@ function experiment_train(
     @assert !isnothing(dLdθ[1]) # gradient is computable
     @assert any(dLdθ[1] .!= 0.0) # not all gradients are 0
 
-    @info "Training $uuid"
     minimizers =
         train_model(uuid, train_loss, test_loss, p0, configs, snapshots_dir; kwargs...)
     minimizer = last(minimizers)
@@ -422,7 +422,6 @@ function experiment_eval(
             save(joinpath(snapshots_dir, "$uuid.R_effective.png"), fig_ℜe)
         end
     end
-    @info "Evaluated $uuid"
 
     return nothing
 end
@@ -467,6 +466,7 @@ function experiment_run(
             mkpath(snapshots_dir)
         end
 
+        @info "$uuid started"
         write(
             joinpath(snapshots_dir, "$uuid.hyperparams.json"),
             json((; hyperparams..., train_configs), 4),
@@ -491,6 +491,7 @@ function experiment_run(
             unlock(LK_EVALUATION)
         end
 
+        @info "$uuid finished"
         return nothing
     end
 
