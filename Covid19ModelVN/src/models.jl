@@ -63,8 +63,8 @@ end
     α = boxconst(p[3], model.α_bounds)
     θ = @view(p[4:4+model.β_ann_paramlength-1])
     # infection rate depends on time, susceptible, and infected
-    β = first(model.β_ann([S / N; I / N], θ))
-    SEIRD!(du, u, [β, γ, λ, α], t)
+    β = first(model.β_ann(SVector{2}(S / N, I / N), θ))
+    SEIRD!(du, u, SVector{4}(β, γ, λ, α), t)
     return nothing
 end
 
@@ -116,10 +116,12 @@ function ℜe(
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
+
     β_ann_input = [(S ./ N)'; (I ./ N)']
     θ = @view(params[4:4+model.β_ann_paramlength-1])
-    βt = vec(model.β_ann(β_ann_input, θ))
     γ = boxconst(params[1], model.γ_bounds)
+
+    βt = vec(model.β_ann(β_ann_input, θ))
     ℜe = βt ./ γ
     return ℜe
 end
@@ -175,8 +177,7 @@ function SEIRDFbMobility1(
 end
 
 @inbounds function (model::SEIRDFbMobility1)(du, u, p, t)
-    # daily mobility
-    mobility = @view model.movement_range_data[:, Int(floor(t + 1))]
+    time_idx = Int(floor(t + 1))
     # states and params
     S, _, I, _, _, _, N = u
     γ = boxconst(p[1], model.γ_bounds)
@@ -184,8 +185,18 @@ end
     α = boxconst(p[3], model.α_bounds)
     θ = @view(p[4:4+model.β_ann_paramlength-1])
     # infection rate depends on time, susceptible, and infected
-    β = first(model.β_ann([S / N; I / N; mobility...], θ))
-    SEIRD!(du, u, [β, γ, λ, α], t)
+    β = first(
+        model.β_ann(
+            SVector{4}(
+                S / N,
+                I / N,
+                model.movement_range_data[1, time_idx],
+                model.movement_range_data[2, time_idx],
+            ),
+            θ,
+        ),
+    )
+    SEIRD!(du, u, SVector{4}(β, γ, λ, α), t)
     return nothing
 end
 
@@ -237,11 +248,13 @@ function ℜe(
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
+
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility]
     θ = @view(params[4:4+model.β_ann_paramlength-1])
-    βt = vec(model.β_ann(β_ann_input, θ))
     γ = boxconst(params[1], model.γ_bounds)
+
+    βt = vec(model.β_ann(β_ann_input, θ))
     ℜe = βt ./ γ
     return ℜe
 end
@@ -304,10 +317,6 @@ end
 
 @inbounds function (model::SEIRDFbMobility2)(du, u, p, t)
     time_idx = Int(floor(t + 1))
-    # daily mobility
-    mobility = @view model.movement_range_data[:, time_idx]
-    # daily social proximity to cases
-    proximity = @view model.social_proximity_data[:, time_idx]
     # states and params
     S, _, I, _, _, _, N = u
     γ = boxconst(p[1], model.γ_bounds)
@@ -315,8 +324,19 @@ end
     α = boxconst(p[3], model.α_bounds)
     θ = @view(p[4:4+model.β_ann_paramlength-1])
     # infection rate depends on time, susceptible, and infected
-    β = first(model.β_ann([S / N; I / N; mobility...; proximity...], θ))
-    SEIRD!(du, u, [β, γ, λ, α], t)
+    β = first(
+        model.β_ann(
+            SVector{5}(
+                S / N,
+                I / N,
+                model.movement_range_data[1, time_idx],
+                model.movement_range_data[2, time_idx],
+                model.social_proximity_data[1, time_idx],
+            ),
+            θ,
+        ),
+    )
+    SEIRD!(du, u, SVector{4}(β, γ, λ, α), t)
     return nothing
 end
 
@@ -368,12 +388,14 @@ function ℜe(
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
+
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
     θ = @view(params[4:4+model.β_ann_paramlength-1])
-    βt = vec(model.β_ann(β_ann_input, θ))
     γ = boxconst(params[1], model.γ_bounds)
+
+    βt = vec(model.β_ann(β_ann_input, θ))
     ℜe = βt ./ γ
     return ℜe
 end
@@ -445,10 +467,6 @@ end
 
 @inbounds function (model::SEIRDFbMobility3)(du, u, p, t)
     time_idx = Int(floor(t + 1))
-    # daily mobility
-    mobility = @view model.movement_range_data[:, time_idx]
-    # daily social proximity to cases
-    proximity = @view model.social_proximity_data[:, time_idx]
     # states and params
     S, _, I, _, _, _, N = u
     γ = boxconst(p[1], model.γ_bounds)
@@ -456,8 +474,19 @@ end
     α = boxconst(p[3], model.α_bounds)
     θ = @view(p[4:4+model.β_ann_paramlength-1])
     # infection rate depends on time, susceptible, and infected
-    β = first(model.β_ann([S / N; I / N; mobility...; proximity...], θ))
-    SEIRD!(du, u, [β, γ, λ, α], t)
+    β = first(
+        model.β_ann(
+            SVector{5}(
+                S / N,
+                I / N,
+                model.movement_range_data[1, time_idx],
+                model.movement_range_data[2, time_idx],
+                model.social_proximity_data[1, time_idx],
+            ),
+            θ,
+        ),
+    )
+    SEIRD!(du, u, SVector{4}(β, γ, λ, α), t)
     return nothing
 end
 
@@ -506,12 +535,14 @@ function ℜe(
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
+
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
     θ = @view(params[4:4+model.β_ann_paramlength-1])
-    βt = vec(model.β_ann(β_ann_input, θ))
     γ = boxconst(params[1], model.γ_bounds)
+
+    βt = vec(model.β_ann(β_ann_input, θ))
     ℜe = βt ./ γ
     return ℜe
 end
@@ -569,16 +600,16 @@ function SEIRDFbMobility4(
     social_proximity_data::DS,
 ) where {T<:Real,DS<:AbstractMatrix{T}}
     β_ann = FastChain(
-        FastDense(5, 4, gelu),
-        FastDense(4, 4, gelu),
-        FastDense(4, 4, gelu),
-        FastDense(4, 1, x -> boxconst(x, β_bounds)),
+        FastDense(5, 8, gelu),
+        FastDense(8, 8, gelu),
+        FastDense(8, 8, gelu),
+        FastDense(8, 1, x -> boxconst(x, β_bounds)),
     )
     α_ann = FastChain(
-        FastDense(3, 4, gelu),
-        FastDense(4, 4, gelu),
-        FastDense(4, 4, gelu),
-        FastDense(4, 1, x -> boxconst(x, α_bounds)),
+        FastDense(3, 8, gelu),
+        FastDense(8, 8, gelu),
+        FastDense(8, 8, gelu),
+        FastDense(8, 1, x -> boxconst(x, α_bounds)),
     )
     return SEIRDFbMobility4(
         β_ann,
@@ -596,10 +627,6 @@ end
 
 @inbounds function (model::SEIRDFbMobility4)(du, u, p, t)
     time_idx = Int(floor(t + 1))
-    # daily mobility
-    mobility = @view model.movement_range_data[:, time_idx]
-    # daily social proximity to cases
-    proximity = @view model.social_proximity_data[:, time_idx]
     # states and params
     S, _, I, R, D, _, N = u
     γ = boxconst(p[1], model.γ_bounds)
@@ -607,9 +634,20 @@ end
     θ1 = @view(p[3:3+model.β_ann_paramlength-1])
     θ2 = @view(p[end-model.α_ann_paramlength:end])
     # infection rate depends on time, susceptible, and infected
-    β = first(model.β_ann([S / N; I / N; mobility...; proximity...], θ1))
-    α = first(model.α_ann([I / N; R / N; D / N], θ2))
-    SEIRD!(du, u, [β, γ, λ, α], t)
+    β = first(
+        model.β_ann(
+            SVector{5}(
+                S / N,
+                I / N,
+                model.movement_range_data[1, time_idx],
+                model.movement_range_data[2, time_idx],
+                model.social_proximity_data[1, time_idx],
+            ),
+            θ1,
+        ),
+    )
+    α = first(model.α_ann(SVector{3}(I / N, R / N, D / N), θ2))
+    SEIRD!(du, u, SVector{4}(β, γ, λ, α), t)
     return nothing
 end
 
@@ -658,12 +696,14 @@ function ℜe(
     S = @view states[1, :]
     I = @view states[3, :]
     N = @view states[7, :]
+
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
     θ = @view(params[3:3+model.β_ann_paramlength-1])
-    βt = vec(model.β_ann(β_ann_input, θ))
     γ = boxconst(params[1], model.γ_bounds)
+
+    βt = vec(model.β_ann(β_ann_input, θ))
     ℜe = βt ./ γ
     return ℜe
 end

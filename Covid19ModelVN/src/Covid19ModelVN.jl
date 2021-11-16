@@ -3,6 +3,7 @@ module Covid19ModelVN
 using Dates, Statistics, Serialization
 using CairoMakie, DataDeps, DataFrames, CSV
 using OrdinaryDiffEq, DiffEqFlux
+using StaticArrays
 using ProgressMeter
 
 export AbstractCovidModel,
