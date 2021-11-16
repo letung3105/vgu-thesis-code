@@ -427,6 +427,21 @@ function experiment_eval(
     return nothing
 end
 
+JSON.lower(x::AbstractVector{TrainConfig}) = x
+
+JSON.lower(x::TrainConfig{ADAM}) =
+    (name = x.name, maxiters = x.maxiters, eta = x.optimizer.eta, beta = x.optimizer.beta)
+
+JSON.lower(x::TrainConfig{BFGS{IL,L,H,T,TM}}) where {IL,L,H,T,TM} = (
+    name = x.name,
+    maxiters = x.maxiters,
+    alphaguess = IL.name.wrapper,
+    linesearch = L.name.wrapper,
+    initial_invH = x.optimizer.initial_invH,
+    initial_stepnorm = x.optimizer.initial_stepnorm,
+    manifold = TM.name.wrapper,
+)
+
 const LK_EVALUATION = ReentrantLock()
 
 function experiment_run(
