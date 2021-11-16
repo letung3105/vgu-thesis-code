@@ -33,6 +33,7 @@ function cmd_baseline(parsed_args)
 end
 
 get_baseline_hyperparams(parsed_args) = (
+    L2_λ = parsed_args[:L2_lambda],
     ζ = parsed_args[:zeta],
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
@@ -58,6 +59,7 @@ function cmd_fbmobility1(parsed_args)
 end
 
 get_fbmobility1_hyperparams(parsed_args) = (
+    L2_λ = parsed_args[:L2_lambda],
     ζ = parsed_args[:zeta],
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
@@ -83,6 +85,7 @@ function cmd_fbmobility2(parsed_args)
 end
 
 get_fbmobility2_hyperparams(parsed_args) = (
+    L2_λ = parsed_args[:L2_lambda],
     ζ = parsed_args[:zeta],
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
@@ -109,6 +112,7 @@ function cmd_fbmobility3(parsed_args)
 end
 
 get_fbmobility3_hyperparams(parsed_args) = (
+    L2_λ = parsed_args[:L2_lambda],
     ζ = parsed_args[:zeta],
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
@@ -136,6 +140,7 @@ function cmd_fbmobility4(parsed_args)
 end
 
 get_fbmobility4_hyperparams(parsed_args) = (
+    L2_λ = parsed_args[:L2_lambda],
     ζ = parsed_args[:zeta],
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
@@ -252,6 +257,11 @@ function parse_commandline(args)
         help = "number of lag days that is used when reading the Social Proximity to Cases index"
         arg_type = Int
         default = 14
+
+        "--L2_lambda"
+        help = "L2-regularization term weight"
+        arg_type = Float64
+        default = 1e-5
 
         "--zeta"
         help = "loss function time weights"

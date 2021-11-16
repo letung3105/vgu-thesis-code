@@ -76,20 +76,29 @@ A callable struct that uses `metric_fn` to calculate the loss between the output
 * `predict_fn`: the time span that the ODE solver will be run on
 * `dataset`: the dataset that contains the ground truth data
 """
-struct Loss{F<:Function,P<:Predictor,D<:TimeseriesDataset}
+struct Loss{Bool,F<:Function,P<:Predictor,D<:TimeseriesDataset}
     metric_fn::F
     predict_fn::P
     dataset::D
 end
 
+Loss{B}(metric_fn, predict_fn, dataset) where {B<:Bool} =
+    Loss{regularized,typeof(metric_fn),typeof(predict_fn),typeof(dataset)}(
+        metric_fn,
+        predict_fn,
+        dataset,
+    )
+
 """
+    (l::Loss{false,F,P,D})(params::VT) where {F,P,D,VT<:AbstractVector{<:Real}}
+
 Call an object of the `Loss` struct on a set of parameters to get the loss scalar
 
 # Arguments
 
 * `params`: the set of parameters of the model
 """
-function (l::Loss)(params::VT) where {VT<:AbstractVector{<:Real}}
+function (l::Loss{false,F,P,D})(params::VT) where {F,P,D,VT<:AbstractVector{<:Real}}
     sol = l.predict_fn(params, l.dataset.tspan, l.dataset.tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
@@ -101,6 +110,30 @@ function (l::Loss)(params::VT) where {VT<:AbstractVector{<:Real}}
         return Inf
     end
     return l.metric_fn(pred, l.dataset.data)
+end
+
+"""
+    (l::Loss{true,F,P,D})(params::VT) where {F,P,D,VT<:AbstractVector{<:Real}}
+
+Call an object of the `Loss` struct on a set of parameters to get the loss scalar.
+The metric function accepts a keyword argument `params` for regularization
+
+# Arguments
+
+* `params`: the set of parameters of the model
+"""
+function (l::Loss{true,F,P,D})(params::VT) where {F,P,D,VT<:AbstractVector{<:Real}}
+    sol = l.predict_fn(params, l.dataset.tspan, l.dataset.tsteps)
+    if sol.retcode != :Success
+        # Unstable trajectories => hard penalize
+        return Inf
+    end
+    pred = @view sol[:, :]
+    if size(pred) != size(l.dataset.data)
+        # Unstable trajectories / Wrong inputs
+        return Inf
+    end
+    return l.metric_fn(pred, l.dataset.data, params)
 end
 
 """
@@ -130,12 +163,16 @@ end
 + `T`: type of the losses and parameters
 + `show_progress`: control whether to show a running progress bar
 """
-TrainCallbackState(T::Type{R}, show_progress::Bool) where {R<:Real} = TrainCallbackState{T}(
+TrainCallbackState(
+    T::Type{R},
+    params_length::Integer,
+    show_progress::Bool,
+) where {R<:Real} = TrainCallbackState{T}(
     0,
     ProgressUnknown(showspeed = true, enabled = show_progress),
     T[],
     T[],
-    T[],
+    Vector{T}(undef, params_length),
     typemax(T),
 )
 
@@ -145,8 +182,18 @@ TrainCallbackState(T::Type{R}, show_progress::Bool) where {R<:Real} = TrainCallb
 + `T`: type of the losses and parameters
 + `progress`: the progress meter object that will be used by the callback function
 """
-TrainCallbackState(T::Type{R}, progress::ProgressUnknown) where {R<:Real} =
-    TrainCallbackState{T}(0, progress, T[], T[], T[], typemax(T))
+TrainCallbackState(
+    T::Type{R},
+    params_length::Integer,
+    progress::ProgressUnknown,
+) where {R<:Real} = TrainCallbackState{T}(
+    0,
+    progress,
+    T[],
+    T[],
+    Vector{T}(undef, params_length),
+    typemax(T),
+)
 
 """
 Configuration of the callback struct
@@ -154,14 +201,12 @@ Configuration of the callback struct
 # Fields
 
 * `test_loss`: loss function on the test dataset
-* `params_length`: number of parameters that the system has
 * `save_interval`: interval for saving the current best set of parameters and losses
 * `losses_save_fpath`: file path to the saved losses figure
 * `params_save_fpath`: file path to the serialized current best set of parameters
 """
 struct TrainCallbackConfig{L<:Loss}
     test_loss::L
-    params_length::Int
     save_interval::Int
     losses_save_fpath::String
     params_save_fpath::String
@@ -176,110 +221,6 @@ struct TrainCallback{R<:Real,L<:Loss}
 end
 
 """
-Marker struct for our custom formatter that uses `Showoff.showoff` with the option set to
-`:plain`. This is done to mitigate to error occur with `Unicode.subscript` when used on
-scientific-/engineering-formated strings
-"""
-struct MakieShowoffPlain end
-
-"""
-    makie_log_scale_formatter(xs::AbstractVector)::Vector{String}
-
-The format function that is used when the `MakieLogScaleFormatter` marker is set
-"""
-makie_showoff_plain(xs) = MakieLayout.Showoff.showoff(xs, :plain)
-
-"""
-    MakieLayout.get_ticks(l::LogTicks, scale::Union{typeof(log10), typeof(log2), typeof(log)}, ::MakieShowoffPlain, vmin, vmax)
-
-Override Makie default function for getting ticks values and labels for log-scaled axis.
-This method uses our custom formatter `MakieShowoffPlain` instead of using `Makie.Automatic`.
-"""
-function MakieLayout.get_ticks(
-    l::LogTicks,
-    scale::Union{typeof(log10),typeof(log2),typeof(log)},
-    ::MakieShowoffPlain,
-    vmin,
-    vmax,
-)
-    ticks_scaled =
-        MakieLayout.get_tickvalues(l.linear_ticks, identity, scale(vmin), scale(vmax))
-    ticks = Makie.inverse_transform(scale).(ticks_scaled)
-
-    labels_scaled = MakieLayout.get_ticklabels(makie_showoff_plain, ticks_scaled)
-    labels = MakieLayout._logbase(scale) .* Makie.UnicodeFun.to_superscript.(labels_scaled)
-
-    (ticks, labels)
-end
-
-"""
-Illustrate the training andd testing losses using a twinaxis plot
-
-# Arguments
-
-*`train_losses`: the training losses to be plotted
-*`test_losses`: the testing losses to be plotted
-"""
-function plot_losses(
-    train_losses::AbstractVector{R},
-    test_losses::AbstractVector{R},
-) where {R<:Real}
-    fig = Figure()
-    ax1 = Axis(
-        fig[1, 1],
-        title = "Losses of the model after each iteration",
-        xlabel = "Iterations",
-        yscale = log10,
-        ytickformat = MakieShowoffPlain(),
-        yticklabelcolor = Makie.ColorSchemes.tab10[1],
-    )
-    ax2 = Axis(
-        fig[1, 1],
-        yaxisposition = :right,
-        yscale = log10,
-        ytickformat = MakieShowoffPlain(),
-        yticklabelcolor = Makie.ColorSchemes.tab10[2],
-    )
-    hidespines!(ax2)
-    hidexdecorations!(ax2)
-    ln1 = lines!(ax1, train_losses, color = Makie.ColorSchemes.tab10[1], linewidth = 3)
-    ln2 = lines!(ax2, test_losses, color = Makie.ColorSchemes.tab10[2], linewidth = 3)
-    Legend(
-        fig[1, 1],
-        [ln1, ln2],
-        ["Train loss", "Test loss"],
-        margin = (10, 10, 10, 10),
-        tellheight = false,
-        tellwidth = false,
-        halign = :right,
-        valign = :top,
-    )
-    return fig
-end
-
-function plot_losses(train_losses::AbstractVector{R}) where {R<:Real}
-    fig = Figure()
-    ax = Axis(
-        fig[1, 1],
-        title = "Losses of the model after each iteration",
-        xlabel = "Iterations",
-        yscale = log10,
-    )
-    ln = lines!(ax, train_losses, color = Makie.ColorSchemes.tab10[1], linewidth = 3)
-    Legend(
-        fig[1, 1],
-        [ln],
-        ["Train loss"],
-        margin = (10, 10, 10, 10),
-        tellheight = false,
-        tellwidth = false,
-        halign = :right,
-        valign = :top,
-    )
-    return fig
-end
-
-"""
 Call an object of type `TrainCallback`
 
 # Arguments
@@ -289,19 +230,19 @@ Call an object of type `TrainCallback`
 """
 function (cb::TrainCallback)(params::AbstractVector{R}, train_loss::R) where {R<:Real}
     test_loss = cb.config.test_loss(params)
-    showvalues = Pair{Symbol,Any}[
-        :losses_save_fpath=>cb.config.losses_save_fpath,
-        :params_save_fpath=>cb.config.params_save_fpath,
-        :train_loss=>train_loss,
-        :test_loss=>test_loss,
+    showvalues = @SVector [
+        :losses_save_fpath => cb.config.losses_save_fpath,
+        :params_save_fpath => cb.config.params_save_fpath,
+        :train_loss => train_loss,
+        :test_loss => test_loss,
     ]
     next!(cb.state.progress, showvalues = showvalues)
     push!(cb.state.train_losses, train_loss)
     push!(cb.state.test_losses, test_loss)
     cb.state.iters += 1
-    if train_loss < cb.state.minimizer_loss && length(params) == cb.config.params_length
+    if train_loss < cb.state.minimizer_loss && size(params) == size(cb.state.minimizer)
         cb.state.minimizer_loss = train_loss
-        cb.state.minimizer = params
+        cb.state.minimizer .= params
     end
     if cb.state.iters % cb.config.save_interval == 0
         Serialization.serialize(
@@ -384,10 +325,13 @@ function train_model(
     for conf ∈ configs
         @info "Training $uuid\nMaxiters $(conf.maxiters)\nOptimizer $(typeof(conf.optimizer).name.wrapper)"
         cb = TrainCallback(
-            TrainCallbackState(eltype(p0), isnothing(progress) ? show_progress : progress),
+            TrainCallbackState(
+                eltype(p0),
+                length(p0),
+                isnothing(progress) ? show_progress : progress,
+            ),
             TrainCallbackConfig(
                 test_loss,
-                length(p0),
                 div(conf.maxiters, loss_samples),
                 get_losses_save_fpath(snapshots_dir, "$uuid.$(conf.name)"),
                 params_save_fpath,
@@ -493,6 +437,110 @@ function calculate_forecasts_errors(
     df1 = DataFrame([horizons metrics], [:horizon, :metric])
     df2 = DataFrame(errors, config.labels)
     return [df1 df2]
+end
+
+"""
+Marker struct for our custom formatter that uses `Showoff.showoff` with the option set to
+`:plain`. This is done to mitigate to error occur with `Unicode.subscript` when used on
+scientific-/engineering-formated strings
+"""
+struct MakieShowoffPlain end
+
+"""
+    makie_log_scale_formatter(xs::AbstractVector)::Vector{String}
+
+The format function that is used when the `MakieLogScaleFormatter` marker is set
+"""
+makie_showoff_plain(xs) = MakieLayout.Showoff.showoff(xs, :plain)
+
+"""
+    MakieLayout.get_ticks(l::LogTicks, scale::Union{typeof(log10), typeof(log2), typeof(log)}, ::MakieShowoffPlain, vmin, vmax)
+
+Override Makie default function for getting ticks values and labels for log-scaled axis.
+This method uses our custom formatter `MakieShowoffPlain` instead of using `Makie.Automatic`.
+"""
+function MakieLayout.get_ticks(
+    l::LogTicks,
+    scale::Union{typeof(log10),typeof(log2),typeof(log)},
+    ::MakieShowoffPlain,
+    vmin,
+    vmax,
+)
+    ticks_scaled =
+        MakieLayout.get_tickvalues(l.linear_ticks, identity, scale(vmin), scale(vmax))
+    ticks = Makie.inverse_transform(scale).(ticks_scaled)
+
+    labels_scaled = MakieLayout.get_ticklabels(makie_showoff_plain, ticks_scaled)
+    labels = MakieLayout._logbase(scale) .* Makie.UnicodeFun.to_superscript.(labels_scaled)
+
+    (ticks, labels)
+end
+
+"""
+Illustrate the training andd testing losses using a twinaxis plot
+
+# Arguments
+
+*`train_losses`: the training losses to be plotted
+*`test_losses`: the testing losses to be plotted
+"""
+function plot_losses(
+    train_losses::AbstractVector{R},
+    test_losses::AbstractVector{R},
+) where {R<:Real}
+    fig = Figure()
+    ax1 = Axis(
+        fig[1, 1],
+        title = "Losses of the model after each iteration",
+        xlabel = "Iterations",
+        yscale = log10,
+        ytickformat = MakieShowoffPlain(),
+        yticklabelcolor = Makie.ColorSchemes.tab10[1],
+    )
+    ax2 = Axis(
+        fig[1, 1],
+        yaxisposition = :right,
+        yscale = log10,
+        ytickformat = MakieShowoffPlain(),
+        yticklabelcolor = Makie.ColorSchemes.tab10[2],
+    )
+    hidespines!(ax2)
+    hidexdecorations!(ax2)
+    ln1 = lines!(ax1, train_losses, color = Makie.ColorSchemes.tab10[1], linewidth = 3)
+    ln2 = lines!(ax2, test_losses, color = Makie.ColorSchemes.tab10[2], linewidth = 3)
+    Legend(
+        fig[1, 1],
+        [ln1, ln2],
+        ["Train loss", "Test loss"],
+        margin = (10, 10, 10, 10),
+        tellheight = false,
+        tellwidth = false,
+        halign = :right,
+        valign = :top,
+    )
+    return fig
+end
+
+function plot_losses(train_losses::AbstractVector{R}) where {R<:Real}
+    fig = Figure()
+    ax = Axis(
+        fig[1, 1],
+        title = "Losses of the model after each iteration",
+        xlabel = "Iterations",
+        yscale = log10,
+    )
+    ln = lines!(ax, train_losses, color = Makie.ColorSchemes.tab10[1], linewidth = 3)
+    Legend(
+        fig[1, 1],
+        [ln],
+        ["Train loss"],
+        margin = (10, 10, 10, 10),
+        tellheight = false,
+        tellwidth = false,
+        halign = :right,
+        valign = :top,
+    )
+    return fig
 end
 
 """

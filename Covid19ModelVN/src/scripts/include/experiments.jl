@@ -121,7 +121,24 @@ function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVect
     return u0, vars, labels
 end
 
+function experiment_loss(
+    tsteps::Ts,
+    ζ::R,
+    min::AbstractMatrix{R},
+    max::AbstractMatrix{R},
+) where {Ts,R<:Real}
+    weights = exp.(collect(tsteps) .* ζ)
+    domain = max .- min
+    cache = Array{R}(undef, length(domain), length(weights))
+    lossfn = function (ŷ, y)
+        cache .= ((ŷ .- y) ./ domain) .^ 2 .* weights'
+        sum(cache)
+    end
+    return lossfn
+end
+
 SEIRDBaselineHyperparams = @NamedTuple begin
+    L2_λ::Float64
     ζ::Float64
     γ0::Float64
     λ0::Float64
@@ -150,10 +167,15 @@ function setup_baseline(loc::AbstractString, hyperparams::SEIRDBaselineHyperpara
     train_data_max = maximum(train_dataset.data, dims = 2)
     lossfn =
         experiment_loss(train_dataset.tsteps, hyperparams.ζ, train_data_min, train_data_max)
-    return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
+    lossfn_regularized = function (ŷ, y, params)
+        pnamed = namedparams(model, params)
+        return lossfn(ŷ, y) + hyperparams.L2_λ * sum(abs2, pnamed.θ)
+    end
+    return model, u0, p0, lossfn_regularized, train_dataset, test_dataset, vars, labels
 end
 
 SEIRDFbMobility1Hyperparams = @NamedTuple begin
+    L2_λ::Float64
     ζ::Float64
     γ0::Float64
     λ0::Float64
@@ -191,10 +213,15 @@ function setup_fbmobility1(loc::AbstractString, hyperparams::SEIRDFbMobility1Hyp
     train_data_max = maximum(train_dataset.data, dims = 2)
     lossfn =
         experiment_loss(train_dataset.tsteps, hyperparams.ζ, train_data_min, train_data_max)
-    return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
+    lossfn_regularized = function (ŷ, y, params)
+        pnamed = namedparams(model, params)
+        return lossfn(ŷ, y) + hyperparams.L2_λ * sum(abs2, pnamed.θ)
+    end
+    return model, u0, p0, lossfn_regularized, train_dataset, test_dataset, vars, labels
 end
 
 SEIRDFbMobility2Hyperparams = @NamedTuple begin
+    L2_λ::Float64
     ζ::Float64
     γ0::Float64
     λ0::Float64
@@ -242,10 +269,15 @@ function setup_fbmobility2(loc::AbstractString, hyperparams::SEIRDFbMobility2Hyp
     train_data_max = maximum(train_dataset.data, dims = 2)
     lossfn =
         experiment_loss(train_dataset.tsteps, hyperparams.ζ, train_data_min, train_data_max)
-    return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
+    lossfn_regularized = function (ŷ, y, params)
+        pnamed = namedparams(model, params)
+        return lossfn(ŷ, y) + hyperparams.L2_λ * sum(abs2, pnamed.θ)
+    end
+    return model, u0, p0, lossfn_regularized, train_dataset, test_dataset, vars, labels
 end
 
 SEIRDFbMobility3Hyperparams = @NamedTuple begin
+    L2_λ::Float64
     ζ::Float64
     γ0::Float64
     λ0::Float64
@@ -295,10 +327,15 @@ function setup_fbmobility3(loc::AbstractString, hyperparams::SEIRDFbMobility3Hyp
     train_data_max = maximum(train_dataset.data, dims = 2)
     lossfn =
         experiment_loss(train_dataset.tsteps, hyperparams.ζ, train_data_min, train_data_max)
-    return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
+    lossfn_regularized = function (ŷ, y, params)
+        pnamed = namedparams(model, params)
+        return lossfn(ŷ, y) + hyperparams.L2_λ * sum(abs2, pnamed.θ)
+    end
+    return model, u0, p0, lossfn_regularized, train_dataset, test_dataset, vars, labels
 end
 
 SEIRDFbMobility4Hyperparams = @NamedTuple begin
+    L2_λ::Float64
     ζ::Float64
     γ0::Float64
     λ0::Float64
@@ -347,19 +384,12 @@ function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyp
     train_data_max = maximum(train_dataset.data, dims = 2)
     lossfn =
         experiment_loss(train_dataset.tsteps, hyperparams.ζ, train_data_min, train_data_max)
-    return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
-end
-
-function experiment_loss(
-    tsteps::Ts,
-    ζ::R,
-    min::AbstractMatrix{R},
-    max::AbstractMatrix{R},
-) where {Ts,R<:Real}
-    weights = exp.(collect(tsteps) .* ζ)
-    domain = max .- min
-    lossfn = (ŷ, y) -> sum(((ŷ - y) ./ domain) .^ 2 .* weights')
-    return lossfn
+    lossfn_regularized = function (ŷ, y, params)
+        pnamed = namedparams(model, params)
+        return lossfn(ŷ, y) +
+               hyperparams.L2_λ * (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
+    end
+    return model, u0, p0, lossfn_regularized, train_dataset, test_dataset, vars, labels
 end
 
 function experiment_train(
@@ -374,8 +404,8 @@ function experiment_train(
     # create a prediction model and loss function
     prob = ODEProblem(model, u0, train_dataset.tspan)
     predictor = Predictor(prob, vars)
-    train_loss = Loss(lossfn, predictor, train_dataset)
-    test_loss = Loss(rmse, predictor, test_dataset)
+    train_loss = Loss{true}(lossfn, predictor, train_dataset)
+    test_loss = Loss{false}(rmse, predictor, test_dataset)
     # check if AD works
     dLdθ = Zygote.gradient(train_loss, p0)
     @assert !isnothing(dLdθ[1]) # gradient is computable
