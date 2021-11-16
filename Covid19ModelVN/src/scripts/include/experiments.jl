@@ -451,7 +451,10 @@ function experiment_run(
             mkpath(snapshots_dir)
         end
 
-        write(joinpath(snapshots_dir, "$uuid.hyperparams.json"), json(hyperparams))
+        write(
+            joinpath(snapshots_dir, "$uuid.hyperparams.json"),
+            json((; hyperparams..., train_configs), 4),
+        )
         minimizer, final_loss =
             experiment_train(uuid, setup, train_configs, snapshots_dir; kwargs...)
 
