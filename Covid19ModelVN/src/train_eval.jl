@@ -95,7 +95,7 @@ function (l::Loss)(params::VT) where {VT<:AbstractVector{<:Real}}
         # Unstable trajectories => hard penalize
         return Inf
     end
-    pred = Array(sol)
+    pred = @view sol[:, :]
     if size(pred) != size(l.dataset.data)
         # Unstable trajectories / Wrong inputs
         return Inf
