@@ -176,6 +176,43 @@ struct TrainCallback{R<:Real,L<:Loss}
 end
 
 """
+Marker struct for our custom formatter that uses `Showoff.showoff` with the option set to
+`:plain`. This is done to mitigate to error occur with `Unicode.subscript` when used on
+scientific-/engineering-formated strings
+"""
+struct MakieShowoffPlain end
+
+"""
+    makie_log_scale_formatter(xs::AbstractVector)::Vector{String}
+
+The format function that is used when the `MakieLogScaleFormatter` marker is set
+"""
+makie_showoff_plain(xs) = MakieLayout.Showoff.showoff(xs, :plain)
+
+"""
+    MakieLayout.get_ticks(l::LogTicks, scale::Union{typeof(log10), typeof(log2), typeof(log)}, ::MakieShowoffPlain, vmin, vmax)
+
+Override Makie default function for getting ticks values and labels for log-scaled axis.
+This method uses our custom formatter `MakieShowoffPlain` instead of using `Makie.Automatic`.
+"""
+function MakieLayout.get_ticks(
+    l::LogTicks,
+    scale::Union{typeof(log10),typeof(log2),typeof(log)},
+    ::MakieShowoffPlain,
+    vmin,
+    vmax,
+)
+    ticks_scaled =
+        MakieLayout.get_tickvalues(l.linear_ticks, identity, scale(vmin), scale(vmax))
+    ticks = Makie.inverse_transform(scale).(ticks_scaled)
+
+    labels_scaled = MakieLayout.get_ticklabels(makie_showoff_plain, ticks_scaled)
+    labels = MakieLayout._logbase(scale) .* Makie.UnicodeFun.to_superscript.(labels_scaled)
+
+    (ticks, labels)
+end
+
+"""
 Illustrate the training andd testing losses using a twinaxis plot
 
 # Arguments
@@ -193,13 +230,15 @@ function plot_losses(
         title = "Losses of the model after each iteration",
         xlabel = "Iterations",
         yscale = log10,
+        ytickformat = MakieShowoffPlain(),
         yticklabelcolor = Makie.ColorSchemes.tab10[1],
     )
     ax2 = Axis(
         fig[1, 1],
-        yscale = log10,
-        yticklabelcolor = Makie.ColorSchemes.tab10[2],
         yaxisposition = :right,
+        yscale = log10,
+        ytickformat = MakieShowoffPlain(),
+        yticklabelcolor = Makie.ColorSchemes.tab10[2],
     )
     hidespines!(ax2)
     hidexdecorations!(ax2)
@@ -212,7 +251,7 @@ function plot_losses(
         margin = (10, 10, 10, 10),
         tellheight = false,
         tellwidth = false,
-        halign = :left,
+        halign = :right,
         valign = :top,
     )
     return fig
@@ -234,7 +273,7 @@ function plot_losses(train_losses::AbstractVector{R}) where {R<:Real}
         margin = (10, 10, 10, 10),
         tellheight = false,
         tellwidth = false,
-        halign = :left,
+        halign = :right,
         valign = :top,
     )
     return fig
@@ -530,16 +569,19 @@ effecitve reproduction number
 * `sep`: value at which the data is splitted for training and testing
 """
 function plot_ℜe(ℜe::AbstractVector{R}, sep::R) where {R<:Real}
-    R_effective_plot = Figure()
-    ax = Axis(
-        R_effective_plot[1, 1],
-        title = "Effective reproduction number learned by the model",
-        xlabel = "Days since the 500th confirmed case",
+    fig = Figure()
+    ax = Axis(fig[2, 1], xlabel = "Days since the 500th confirmed case")
+    vln = vlines!(ax, [sep], color = :black, linestyle = :dash)
+    ln = lines!(ax, ℜe, color = :red, linewidth = 3)
+    Legend(
+        fig[1, 1],
+        [vln, ln],
+        ["last training day", "effective reproduction number"],
+        orientation = :horizontal,
+        tellwidth = false,
+        tellheight = true,
     )
-    vlines!(ax, [sep], color = :black, linestyle = :dash, label = "last training day")
-    lines!(ax, ℜe, color = :red, label = "effective reproduction number", linewidth = 3)
-    axislegend(ax, position = :lt)
-    return R_effective_plot
+    return fig
 end
 
 """
