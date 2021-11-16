@@ -53,11 +53,7 @@ Call an object of struct `CovidModelPredict` to solve the underlying DiffEq prob
 * `tspan`: the time span of the problem
 * `saveat`: the collocation coordinates
 """
-function (p::Predictor)(
-    params::VT,
-    tspan::Tuple{T,T},
-    saveat::TS,
-) where {T<:Real,VT<:AbstractVector{T},TS}
+function (p::Predictor)(params, tspan, saveat)
     problem = remake(p.problem, p = params, tspan = tspan)
     return solve(
         problem,
@@ -131,7 +127,7 @@ Call an object of the `Loss` struct on a set of parameters to get the loss scala
 
 * `params`: the set of parameters of the model
 """
-function (l::Loss{false,F,P,D})(params::VT) where {F,P,D,VT<:AbstractVector{<:Real}}
+function (l::Loss{false,F,P,D})(params) where {F,P,D}
     sol = l.predict_fn(params, l.dataset.tspan, l.dataset.tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
@@ -155,7 +151,7 @@ The metric function accepts a keyword argument `params` for regularization
 
 * `params`: the set of parameters of the model
 """
-function (l::Loss{true,F,P,D})(params::VT) where {F,P,D,VT<:AbstractVector{<:Real}}
+function (l::Loss{true,F,P,D})(params) where {F,P,D}
     sol = l.predict_fn(params, l.dataset.tspan, l.dataset.tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize

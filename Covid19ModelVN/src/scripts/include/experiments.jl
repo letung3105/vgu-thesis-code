@@ -129,11 +129,7 @@ function experiment_loss(
 ) where {Ts,R<:Real}
     weights = exp.(collect(tsteps) .* ζ)
     domain = max .- min
-    cache = Array{R}(undef, length(domain), length(weights))
-    lossfn = function (ŷ, y)
-        cache .= ((ŷ .- y) ./ domain) .^ 2 .* weights'
-        sum(cache)
-    end
+    lossfn = (ŷ, y) -> sum(((ŷ .- y) ./ domain) .^ 2 .* weights')
     return lossfn
 end
 
