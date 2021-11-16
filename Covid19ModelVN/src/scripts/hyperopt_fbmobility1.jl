@@ -1,4 +1,4 @@
-include("experiments.jl")
+include("include/experiments.jl")
 
 using Hyperopt
 using Statistics

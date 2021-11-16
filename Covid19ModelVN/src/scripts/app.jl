@@ -1,3 +1,3 @@
-include("cmd.jl")
+include("include/cmd.jl")
 
 runcmd(ARGS)
