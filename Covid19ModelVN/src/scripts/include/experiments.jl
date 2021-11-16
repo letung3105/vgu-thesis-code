@@ -450,6 +450,7 @@ function experiment_run(
     locations::AbstractVector{<:AbstractString},
     hyperparams::NamedTuple,
     train_configs::AbstractVector{<:TrainConfig};
+    multithreading::Bool,
     savedir::AbstractString,
     kwargs...,
 )
@@ -457,7 +458,7 @@ function experiment_run(
     final_losses = Float64[]
     lk = ReentrantLock()
 
-    Threads.@threads for loc ∈ locations
+    run = function (loc)
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         uuid = "$timestamp.$model_name.$loc"
         setup = () -> model_setup(loc, hyperparams)
@@ -488,6 +489,18 @@ function experiment_run(
             experiment_eval(uuid, setup, snapshots_dir)
         finally
             unlock(LK_EVALUATION)
+        end
+
+        return nothing
+    end
+
+    if multithreading
+        Threads.@threads for loc ∈ locations
+            run(loc)
+        end
+    else
+        for loc ∈ locations
+            run(loc)
         end
     end
 

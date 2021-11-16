@@ -26,6 +26,7 @@ function cmd_baseline(parsed_args)
         parsed_args[:locations],
         get_baseline_hyperparams(parsed_args),
         get_train_configs(parsed_args),
+        multithreading = parsed_args[:multithreading],
         savedir = parsed_args[:savedir],
         show_progress = parsed_args[:show_progress],
     )
@@ -50,6 +51,7 @@ function cmd_fbmobility1(parsed_args)
         parsed_args[:locations],
         get_fbmobility1_hyperparams(parsed_args),
         get_train_configs(parsed_args),
+        multithreading = parsed_args[:multithreading],
         savedir = parsed_args[:savedir],
         show_progress = parsed_args[:show_progress],
     )
@@ -74,6 +76,7 @@ function cmd_fbmobility2(parsed_args)
         parsed_args[:locations],
         get_fbmobility2_hyperparams(parsed_args),
         get_train_configs(parsed_args),
+        multithreading = parsed_args[:multithreading],
         savedir = parsed_args[:savedir],
         show_progress = parsed_args[:show_progress],
     )
@@ -99,6 +102,7 @@ function cmd_fbmobility3(parsed_args)
         parsed_args[:locations],
         get_fbmobility3_hyperparams(parsed_args),
         get_train_configs(parsed_args),
+        multithreading = parsed_args[:multithreading],
         savedir = parsed_args[:savedir],
         show_progress = parsed_args[:show_progress],
     )
@@ -125,6 +129,7 @@ function cmd_fbmobility4(parsed_args)
         parsed_args[:locations],
         get_fbmobility4_hyperparams(parsed_args),
         get_train_configs(parsed_args),
+        multithreading = parsed_args[:multithreading],
         savedir = parsed_args[:savedir],
         show_progress = parsed_args[:show_progress],
     )
@@ -199,6 +204,10 @@ function parse_commandline(args)
         nargs = '*'
         arg_type = String
         default = String[]
+
+        "--multithreading"
+        help = "use multiple threads to train the model at multiple locations at once"
+        action = :store_true
 
         "--savedir"
         help = "path to the directory where the model outputs are saved"
