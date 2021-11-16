@@ -266,7 +266,7 @@ function parse_commandline(args)
         "--zeta"
         help = "loss function time weights"
         arg_type = Float64
-        default = 0.01
+        default = 0.005
 
         "--gamma0"
         help = "inverse of the mean incubation period"
