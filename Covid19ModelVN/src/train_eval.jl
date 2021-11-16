@@ -29,15 +29,18 @@ struct Predictor{
     * `problem`: the problem that will be solved
     + `save_idxs`: the indices of the system's states to return
     """
-    Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int}) =
-        new{typeof(problem),Tsit5,InterpolatingAdjoint}(
+    function Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int})
+        solver = Tsit5()
+        sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true))
+        return new{typeof(problem),typeof(solver),typeof(sensealg)}(
             problem,
-            Tsit5(),
-            InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
+            solver,
+            sensealg,
             1e-6,
             1e-6,
             save_idxs,
         )
+    end
 end
 
 

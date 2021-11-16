@@ -461,7 +461,7 @@ struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
             FastDense(8, 8, relu),
             FastDense(8, 1, x -> boxconst(x, β_bounds)),
         )
-        return SEIRDFbMobility3(
+        return new{typeof(β_ann),T,DS}(
             β_ann,
             DiffEqFlux.paramlength(β_ann),
             β_bounds,
@@ -617,7 +617,7 @@ struct SEIRDFbMobility4{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
             FastDense(8, 8, gelu),
             FastDense(8, 1, x -> boxconst(x, α_bounds)),
         )
-        return new{typeof(β_ann),typeof{α_ann},T,DS}(
+        return new{typeof(β_ann),typeof(α_ann),T,DS}(
             β_ann,
             α_ann,
             DiffEqFlux.paramlength(β_ann),
