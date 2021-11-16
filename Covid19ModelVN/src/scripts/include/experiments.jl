@@ -146,7 +146,10 @@ function setup_baseline(loc::AbstractString, hyperparams::SEIRDBaselineHyperpara
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
-    lossfn = experiment_loss(train_dataset.tsteps, hyperparams.ζ)
+    train_data_min = minimum(train_dataset.data, dims = 2)
+    train_data_max = maximum(train_dataset.data, dims = 2)
+    lossfn =
+        experiment_loss(train_dataset.tsteps, hyperparams.ζ, train_data_min, train_data_max)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -184,7 +187,10 @@ function setup_fbmobility1(loc::AbstractString, hyperparams::SEIRDFbMobility1Hyp
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
-    lossfn = experiment_loss(train_dataset.tsteps, hyperparams.ζ)
+    train_data_min = minimum(train_dataset.data, dims = 2)
+    train_data_max = maximum(train_dataset.data, dims = 2)
+    lossfn =
+        experiment_loss(train_dataset.tsteps, hyperparams.ζ, train_data_min, train_data_max)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -232,7 +238,10 @@ function setup_fbmobility2(loc::AbstractString, hyperparams::SEIRDFbMobility2Hyp
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
-    lossfn = experiment_loss(train_dataset.tsteps, hyperparams.ζ)
+    train_data_min = minimum(train_dataset.data, dims = 2)
+    train_data_max = maximum(train_dataset.data, dims = 2)
+    lossfn =
+        experiment_loss(train_dataset.tsteps, hyperparams.ζ, train_data_min, train_data_max)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -282,7 +291,10 @@ function setup_fbmobility3(loc::AbstractString, hyperparams::SEIRDFbMobility3Hyp
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
-    lossfn = experiment_loss(train_dataset.tsteps, hyperparams.ζ)
+    train_data_min = minimum(train_dataset.data, dims = 2)
+    train_data_max = maximum(train_dataset.data, dims = 2)
+    lossfn =
+        experiment_loss(train_dataset.tsteps, hyperparams.ζ, train_data_min, train_data_max)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -331,17 +343,11 @@ function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyp
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0)
-    train_data_max = maximum(train_dataset.data, dims = 2)
     train_data_min = minimum(train_dataset.data, dims = 2)
+    train_data_max = maximum(train_dataset.data, dims = 2)
     lossfn =
-        experiment_loss(train_dataset.tsteps, hyperparams.ζ, train_data_max, train_data_min)
+        experiment_loss(train_dataset.tsteps, hyperparams.ζ, train_data_min, train_data_max)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
-end
-
-function experiment_loss(tsteps::Ts, ζ::Float64) where {Ts}
-    weights = exp.(collect(tsteps) .* ζ)
-    lossfn = (ŷ, y) -> sum((log.(ŷ .+ 1) .- log.(y .+ 1)) .^ 2 .* weights')
-    return lossfn
 end
 
 function experiment_loss(
