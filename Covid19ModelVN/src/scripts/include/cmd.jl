@@ -213,7 +213,7 @@ function parse_commandline(args)
 
         "--ma7_disable"
         help = "do not apply a 7-day moving average to all the time series datasets"
-        action = :store_false
+        action = :store_true
 
         "--L2_lambda"
         help = "L2-regularization term weight"
