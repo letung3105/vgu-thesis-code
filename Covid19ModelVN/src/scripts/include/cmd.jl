@@ -21,7 +21,7 @@ end
 
 function cmd_baseline(parsed_args)
     experiment_run(
-        parsed_args[:name],
+        "baseline",
         setup_baseline,
         parsed_args[:locations],
         get_baseline_hyperparams(parsed_args),
@@ -47,7 +47,7 @@ get_baseline_hyperparams(parsed_args) = (
 
 function cmd_fbmobility1(parsed_args)
     experiment_run(
-        parsed_args[:name],
+        "fbmobility1",
         setup_fbmobility1,
         parsed_args[:locations],
         get_fbmobility1_hyperparams(parsed_args),
@@ -73,7 +73,7 @@ get_fbmobility1_hyperparams(parsed_args) = (
 
 function cmd_fbmobility2(parsed_args)
     experiment_run(
-        parsed_args[:name],
+        "fbmobility2",
         setup_fbmobility2,
         parsed_args[:locations],
         get_fbmobility2_hyperparams(parsed_args),
@@ -100,7 +100,7 @@ get_fbmobility2_hyperparams(parsed_args) = (
 
 function cmd_fbmobility3(parsed_args)
     experiment_run(
-        parsed_args[:name],
+        "fbmobility3",
         setup_fbmobility3,
         parsed_args[:locations],
         get_fbmobility3_hyperparams(parsed_args),
@@ -128,7 +128,7 @@ get_fbmobility3_hyperparams(parsed_args) = (
 
 function cmd_fbmobility4(parsed_args)
     experiment_run(
-        parsed_args[:name],
+        "fbmobility4",
         setup_fbmobility4,
         parsed_args[:locations],
         get_fbmobility4_hyperparams(parsed_args),
@@ -178,11 +178,6 @@ function parse_commandline(args)
     s = ArgParseSettings()
 
     @add_arg_table s begin
-        "name"
-        help = "name of the training and evalution session"
-        arg_type = String
-        required = true
-
         "baseline"
         help = "train and inference with the baseline model"
         action = :command
