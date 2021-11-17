@@ -21,11 +21,15 @@ default_solve(model, u0, params, tspan, saveat) = solve(
 )
 
 """
+    AbstractCovidModel
+
 An abstract type for representing a Covid-19 model
 """
 abstract type AbstractCovidModel end
 
 """
+    SEIRDBaseline{ANN<:FastChain,T<:Real} <: AbstractCovidModel
+
 A struct for containing the SEIRD baseline model. In the model, the β parameter is
 time-/covariate-dependent whose value is determined by a neural network.
 
@@ -33,6 +37,20 @@ time-/covariate-dependent whose value is determined by a neural network.
 
 * `β_ann`: an neural network that outputs the time-dependent β contact rate
 * `β_ann_paramlength`: number of parameters used by the network
+* `γ_bounds`: lower and upper bounds of the γ parameter
+* `λ_bounds`: lower and upper bounds of the λ parameter
+* `α_bounds`: lower and upper bounds of the α parameter
+
+# Constructors
+
+    SEIRDBaseline(
+        γ_bounds::Tuple{T,T},
+        λ_bounds::Tuple{T,T},
+        α_bounds::Tuple{T,T},
+    ) where {T<:Real}
+
+## Arguments
+
 * `γ_bounds`: lower and upper bounds of the γ parameter
 * `λ_bounds`: lower and upper bounds of the λ parameter
 * `α_bounds`: lower and upper bounds of the α parameter
@@ -44,15 +62,6 @@ struct SEIRDBaseline{ANN<:FastChain,T<:Real} <: AbstractCovidModel
     λ_bounds::Tuple{T,T}
     α_bounds::Tuple{T,T}
 
-    """
-    Construct the SEIRDBaseline model
-
-    # Arguments
-
-    * `γ_bounds`: lower and upper bounds of the γ parameter
-    * `λ_bounds`: lower and upper bounds of the λ parameter
-    * `α_bounds`: lower and upper bounds of the α parameter
-    """
     function SEIRDBaseline(
         γ_bounds::Tuple{T,T},
         λ_bounds::Tuple{T,T},
@@ -85,6 +94,8 @@ end
 end
 
 """
+    initparams(model::SEIRDBaseline, γ0::R, λ0::R, α0::R) where {R<:Real}
+
 Get the initial values for the trainable parameters
 
 # Arguments
@@ -109,6 +120,14 @@ namedparams(model::SEIRDBaseline, params::AbstractVector{<:Real}) = (
 )
 
 """
+    ℜe(
+        model::SEIRDBaseline,
+        u0::AbstractVector{T},
+        params::AbstractVector{T},
+        tspan::Tuple{T,T},
+        saveat,
+    ) where {T<:Real}
+
 Get the effective reproduction rate calculated from the model
 
 # Arguments
@@ -141,6 +160,8 @@ function ℜe(
 end
 
 """
+    SEIRDFbMobility1{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: AbstractCovidModel
+
 A struct for containing the SEIRD model with Facebook movement range. In the model, the β
 parameter is time-/covariate-dependent whose value is determined by a neural network.
 
@@ -148,6 +169,22 @@ parameter is time-/covariate-dependent whose value is determined by a neural net
 
 * `β_ann`: an neural network that outputs the time-dependent β contact rate
 * `β_ann_paramlength`: number of parameters used by the network
+* `γ_bounds`: lower and upper bounds of the γ parameter
+* `λ_bounds`: lower and upper bounds of the λ parameter
+* `α_bounds`: lower and upper bounds of the α parameter
+* `movement_range_data`: the matrix for the Facebook movement range timeseries data
+
+# Constructors
+
+    SEIRDFbMobility1(
+        γ_bounds::Tuple{T,T},
+        λ_bounds::Tuple{T,T},
+        α_bounds::Tuple{T,T},
+        movement_range_data::DS,
+    ) where {T<:Real,DS<:AbstractMatrix{T}}
+
+## Arguments
+
 * `γ_bounds`: lower and upper bounds of the γ parameter
 * `λ_bounds`: lower and upper bounds of the λ parameter
 * `α_bounds`: lower and upper bounds of the α parameter
@@ -160,16 +197,7 @@ struct SEIRDFbMobility1{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
     λ_bounds::Tuple{T,T}
     α_bounds::Tuple{T,T}
     movement_range_data::DS
-    """
-    Construct the SEIRDFbMobility1 model
 
-    # Arguments
-
-    * `γ_bounds`: lower and upper bounds of the γ parameter
-    * `λ_bounds`: lower and upper bounds of the λ parameter
-    * `α_bounds`: lower and upper bounds of the α parameter
-    * `movement_range_data`: the matrix for the Facebook movement range timeseries data
-    """
     function SEIRDFbMobility1(
         γ_bounds::Tuple{T,T},
         λ_bounds::Tuple{T,T},
@@ -193,7 +221,6 @@ struct SEIRDFbMobility1{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
     end
 end
 
-
 @inbounds function (model::SEIRDFbMobility1)(du, u, p, t)
     time_idx = Int(floor(t + 1))
     # states and params
@@ -216,6 +243,8 @@ end
 end
 
 """
+    initparams(model::SEIRDFbMobility1, γ0::R, λ0::R, α0::R) where {R<:Real}
+
 Get the initial values for the trainable parameters
 
 # Arguments
@@ -240,6 +269,14 @@ namedparams(model::SEIRDFbMobility1, params::AbstractVector{<:Real}) = (
 )
 
 """
+    ℜe(
+        model::SEIRDFbMobility1,
+        u0::AbstractVector{T},
+        params::AbstractVector{T},
+        tspan::Tuple{T,T},
+        saveat,
+    ) where {T<:Real}
+
 Get the effective reproduction rate calculated from the model
 
 # Arguments
@@ -273,6 +310,8 @@ function ℜe(
 end
 
 """
+    SEIRDFbMobility2{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: AbstractCovidModel
+
 A struct for containing the SEIRD model that uses Facebook movement range maps dataset
 and Facebook social connectedness index dataset. In the model, the β parameter is
 time-/covariate-dependent whose value is determined by a neural network
@@ -281,6 +320,24 @@ time-/covariate-dependent whose value is determined by a neural network
 
 * `β_ann`: an neural network that outputs the time-dependent β contact rate
 * `β_ann_paramlength`: number of parameters used by the network
+* `γ_bounds`: lower and upper bounds of the γ parameter
+* `λ_bounds`: lower and upper bounds of the λ parameter
+* `α_bounds`: lower and upper bounds of the α parameter
+* `movement_range_data`: the matrix for the Facebook movement range timeseries data
+* `social_proximity_data`: the matrix for the social proximity to cases timeseries data
+
+# Constructors
+
+    SEIRDFbMobility2(
+        γ_bounds::Tuple{T,T},
+        λ_bounds::Tuple{T,T},
+        α_bounds::Tuple{T,T},
+        movement_range_data::DS,
+        social_proximity_data::DS,
+    ) where {T<:Real,DS<:AbstractMatrix{T}}
+
+## Arguments
+
 * `γ_bounds`: lower and upper bounds of the γ parameter
 * `λ_bounds`: lower and upper bounds of the λ parameter
 * `α_bounds`: lower and upper bounds of the α parameter
@@ -295,17 +352,7 @@ struct SEIRDFbMobility2{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
     α_bounds::Tuple{T,T}
     movement_range_data::DS
     social_proximity_data::DS
-    """
-    Construct the SEIRDFbMobility2 model
 
-    # Arguments
-
-    * `γ_bounds`: lower and upper bounds of the γ parameter
-    * `λ_bounds`: lower and upper bounds of the λ parameter
-    * `α_bounds`: lower and upper bounds of the α parameter
-    * `movement_range_data`: the matrix for the Facebook movement range timeseries data
-    * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
-    """
     function SEIRDFbMobility2(
         γ_bounds::Tuple{T,T},
         λ_bounds::Tuple{T,T},
@@ -331,7 +378,6 @@ struct SEIRDFbMobility2{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
     end
 end
 
-
 @inbounds function (model::SEIRDFbMobility2)(du, u, p, t)
     time_idx = Int(floor(t + 1))
     # states and params
@@ -355,6 +401,8 @@ end
 end
 
 """
+    initparams(model::SEIRDFbMobility2, γ0::R, λ0::R, α0::R) where {R<:Real}
+
 Get the initial values for the trainable parameters
 
 # Arguments
@@ -379,6 +427,14 @@ namedparams(model::SEIRDFbMobility2, params::AbstractVector{<:Real}) = (
 )
 
 """
+    ℜe(
+        model::SEIRDFbMobility2,
+        u0::AbstractVector{T},
+        params::AbstractVector{T},
+        tspan::Tuple{T,T},
+        saveat,
+    ) where {T<:Real}
+
 Get the effective reproduction rate calculated from the model
 
 # Arguments
@@ -413,6 +469,8 @@ function ℜe(
 end
 
 """
+    SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: AbstractCovidModel
+
 A struct for containing the SEIRD model that uses Facebook movement range maps dataset
 and Facebook social connectedness index dataset. In the model, both the β and α are
 time-/covariate-dependent whose values are determined by 2 separate neural networks
@@ -428,6 +486,25 @@ time-/covariate-dependent whose values are determined by 2 separate neural netwo
 * `α_bounds`: lower and upper bounds of the α parameter
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
+
+# Constructors
+
+    SEIRDFbMobility3(
+        β_bounds::Tuple{T,T},
+        γ_bounds::Tuple{T,T},
+        λ_bounds::Tuple{T,T},
+        α_bounds::Tuple{T,T},
+        movement_range_data::DS,
+        social_proximity_data::DS,
+    ) where {T<:Real,DS<:AbstractMatrix{T}}
+
+## Arguments
+
+* `γ_bounds`: lower and upper bounds of the γ parameter
+* `λ_bounds`: lower and upper bounds of the λ parameter
+* `α_bounds`: lower and upper bounds of the α parameter
+* `movement_range_data`: the matrix for the Facebook movement range timeseries data
+* `social_proximity_data`: the matrix for the social proximity to cases timeseries data
 """
 struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: AbstractCovidModel
     β_ann::ANN
@@ -438,17 +515,7 @@ struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
     α_bounds::Tuple{T,T}
     movement_range_data::DS
     social_proximity_data::DS
-    """
-    Construct the SEIRDFbMobility3 model
 
-    # Arguments
-
-    * `γ_bounds`: lower and upper bounds of the γ parameter
-    * `λ_bounds`: lower and upper bounds of the λ parameter
-    * `α_bounds`: lower and upper bounds of the α parameter
-    * `movement_range_data`: the matrix for the Facebook movement range timeseries data
-    * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
-    """
     function SEIRDFbMobility3(
         β_bounds::Tuple{T,T},
         γ_bounds::Tuple{T,T},
@@ -476,7 +543,6 @@ struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
     end
 end
 
-
 @inbounds function (model::SEIRDFbMobility3)(du, u, p, t)
     time_idx = Int(floor(t + 1))
     # states and params
@@ -500,6 +566,8 @@ end
 end
 
 """
+    initparams(model::SEIRDFbMobility3, γ0::R, λ0::R, α0::R) where {R<:Real}
+
 Get the initial values for the trainable parameters
 
 # Arguments
@@ -523,6 +591,14 @@ namedparams(model::SEIRDFbMobility3, params::AbstractVector{<:Real}) = (
 )
 
 """
+    ℜe(
+        model::SEIRDFbMobility3,
+        u0::AbstractVector{T},
+        params::AbstractVector{T},
+        tspan::Tuple{T,T},
+        saveat::Ts,
+    ) where {T<:Real,Ts}
+
 Get the effective reproduction rate calculated from the model
 
 # Arguments
@@ -557,6 +633,8 @@ function ℜe(
 end
 
 """
+    SEIRDFbMobility4{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <:
+
 A struct for containing the SEIRD model that uses Facebook movement range maps dataset
 and Facebook social connectedness index dataset. In the model, both the β and α are
 time-/covariate-dependent whose values are determined by 2 separate neural networks
@@ -568,6 +646,26 @@ time-/covariate-dependent whose values are determined by 2 separate neural netwo
 * `α_ann`: an neural network that outputs the time-dependent α fatality rate
 * `α_ann_paramlength`: number of parameters used by the network
 * `β_bounds`: lower and upper bounds of the α parameter
+* `γ_bounds`: lower and upper bounds of the γ parameter
+* `λ_bounds`: lower and upper bounds of the λ parameter
+* `α_bounds`: lower and upper bounds of the α parameter
+* `movement_range_data`: the matrix for the Facebook movement range timeseries data
+* `social_proximity_data`: the matrix for the social proximity to cases timeseries data
+
+# Constructors
+
+    SEIRDFbMobility4(
+        β_bounds::Tuple{T,T},
+        γ_bounds::Tuple{T,T},
+        λ_bounds::Tuple{T,T},
+        α_bounds::Tuple{T,T},
+        movement_range_data::DS,
+        social_proximity_data::DS,
+    ) where {T<:Real,DS<:AbstractMatrix{T}}
+
+## Arguments
+
+* `β_bounds`: lower and upper bounds of the β parameter
 * `γ_bounds`: lower and upper bounds of the γ parameter
 * `λ_bounds`: lower and upper bounds of the λ parameter
 * `α_bounds`: lower and upper bounds of the α parameter
@@ -587,18 +685,6 @@ struct SEIRDFbMobility4{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
     movement_range_data::DS
     social_proximity_data::DS
 
-    """
-    Construct the SEIRDFbMobility4 model
-
-    # Arguments
-
-    * `β_bounds`: lower and upper bounds of the β parameter
-    * `γ_bounds`: lower and upper bounds of the γ parameter
-    * `λ_bounds`: lower and upper bounds of the λ parameter
-    * `α_bounds`: lower and upper bounds of the α parameter
-    * `movement_range_data`: the matrix for the Facebook movement range timeseries data
-    * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
-    """
     function SEIRDFbMobility4(
         β_bounds::Tuple{T,T},
         γ_bounds::Tuple{T,T},
