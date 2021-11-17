@@ -120,7 +120,7 @@ function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVect
         D0 = data[3] # total deaths
         C0 = data[4] # total confirmed
         N0 = population - D0 # effective population
-        E0 = I0 * 20 # exposed individuals
+        E0 = I0 * 2 # exposed individuals
         S0 = population - C0 - E0 # susceptible individuals
         # initial state
         u0 = [S0, E0, I0, R0, D0, C0, N0]
@@ -135,7 +135,7 @@ function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVect
         I0 = div(C0 - D0, 2) # infective individuals
         R0 = C0 - I0 - D0 # recovered individuals
         N0 = population - D0 # effective population
-        E0 = I0 * 20 # exposed individuals
+        E0 = I0 * 2 # exposed individuals
         S0 = population - C0 - E0 # susceptible individuals
         # initial state
         u0 = [S0, E0, I0, R0, D0, C0, N0]

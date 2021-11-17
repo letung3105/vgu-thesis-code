@@ -31,7 +31,6 @@ function setupcmd(parsed_args)
                 ("fbmobility4", get_fbmobility4_hyperparams, setup_fbmobility4)
         ],
     )
-    @show parsed_args
     if !haskey(cmdmappings, parsed_args[:_COMMAND_])
         error("Unsupported command '$(parse_args[:_COMMAND_])'")
     end
