@@ -135,7 +135,7 @@ function experiment_loss(
     lossfn = @inbounds function (ŷ, y)
         s::Float64 = 0
         sz = size(y)
-        @simd for j ∈ 1:sz[2], i ∈ 1:sz[1]
+        for j ∈ 1:sz[2], i ∈ 1:sz[1]
             s += ((ŷ[i, j] - y[i, j]) / domain[i])^2 * weights[j]
         end
         return s
