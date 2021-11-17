@@ -30,6 +30,8 @@ function __init__()
 end
 
 """
+    stack_timeseries(df::AbstractDataFrame, value_name::Union{<:AbstractString,Symbol})
+
 Turn the cases dataframe in wide-format to long-format
 
 # Arguments
@@ -41,6 +43,13 @@ stack_timeseries(df::AbstractDataFrame, value_name::Union{<:AbstractString,Symbo
     stack(df, All(), variable_name = :date, value_name = value_name, view = true)
 
 """
+    function combine_country_level_timeseries(
+        df_confirmed::AbstractDataFrame,
+        df_recovered::AbstractDataFrame,
+        df_deaths::AbstractDataFrame,
+        country_name::AbstractString,
+    )
+
 Combine 3 separated timeseries from JHU-CSSE into 1 single dataframe for a specific country
 
 # Arguments
@@ -90,6 +99,8 @@ function combine_country_level_timeseries(
 end
 
 """
+    CountryCovidTimeseriesFile
+
 + `path`: Path to the file
 + `country`: Name of the country whose Covid-19 timeseries data is contained in `path`
 """
@@ -99,6 +110,14 @@ struct CountryCovidTimeseriesFile
 end
 
 """
+    save_country_level_timeseries(
+        files::AbstractVector{CountryCovidTimeseriesFile};
+        fpath_confirmed::AbstractString = datadep"jhu-csse/time_series_covid19_confirmed_global.csv",
+        fpath_recovered::AbstractString = datadep"jhu-csse/time_series_covid19_recovered_global.csv",
+        fpath_deaths::AbstractString = datadep"jhu-csse/time_series_covid19_deaths_global.csv",
+        recreate::Bool = false,
+    )
+
 Read and combine 3 separated timeseries from JHU-CSSE into 1 single dataframe for a specific country,
 then save the resulting dataframe into a CSV file.
 
@@ -150,6 +169,8 @@ function save_country_level_timeseries(
 end
 
 """
+    CountyCovidTimeseriesFile
+
 + `path`: Path to the file
 + `state`: Name of state where `county` is located
 + `county`: The county whose Covid-19 timeseries data is contained in `path`
@@ -161,6 +182,13 @@ struct CountyCovidTimeseriesFile
 end
 
 """
+    save_us_county_level_timeseries(
+        files::AbstractVector{CountyCovidTimeseriesFile};
+        fpath_confirmed::AbstractString = datadep"jhu-csse/time_series_covid19_confirmed_US.csv",
+        fpath_deaths::AbstractString = datadep"jhu-csse/time_series_covid19_deaths_US.csv",
+        recreate::Bool = false,
+    )
+
 Read and combine 2 separated timeseries from JHU-CSSE into 1 single dataframe for a specific county,
 then save the resulting dataframe into a CSV file.
 
@@ -208,6 +236,13 @@ function save_us_county_level_timeseries(
 end
 
 """
+    combine_us_county_level_timeseries(
+        df_confirmed::AbstractDataFrame,
+        df_deaths::AbstractDataFrame,
+        state_name::AbstractString,
+        county_name::AbstractString,
+    )
+
 Combine 2 separated timeseries from JHU-CSSE into 1 single dataframe for a specific US county
 
 # Arguments
@@ -271,6 +306,12 @@ function combine_us_county_level_timeseries(
 end
 
 """
+    get_us_county_population(
+        df_deaths::AbstractDataFrame,
+        state_name::AbstractString,
+        county_name::AbstractString,
+    )
+
 Read the county's population from JHU-CSSE deaths timeseries
 
 # Arguments
@@ -327,6 +368,8 @@ function get_us_counties_timeseries_confirmed(df_confirmed_total::AbstractDataFr
 end
 
 """
+    get_us_counties_population(df_deaths::AbstractDataFrame)
+
 Read the county's population from JHU-CSSE deaths timeseries
 
 # Arguments
@@ -342,6 +385,12 @@ function get_us_counties_population(df_deaths::AbstractDataFrame)
 end
 
 """
+    save_us_counties_population(
+        fpath_output::AbstractString;
+        fpath_deaths::AbstractString = datadep"jhu-csse/time_series_covid19_deaths_US.csv",
+        recreate::Bool = false,
+    )
+
 Extract counties population data from JHU deaths time series
 
 # Arguments

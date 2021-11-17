@@ -1,4 +1,6 @@
 """
+    TimeseriesConfig{DF<:AbstractDataFrame}
+
 A wrapper round `AbstractDataFrame` that contains additional information for the names
 of the columns that contain the timeseries data and the column that contains the timestamps
 of the data points
@@ -16,6 +18,8 @@ struct TimeseriesConfig{DF<:AbstractDataFrame}
 end
 
 """
+    load_timeseries(config::TimeseriesConfig, first_date::Date, last_date::Date)
+
 Read the timeseries given by `config` and returns a matrix that contains the timeseries
 data whose timestamps lie between `first_date` and `last_date`
 
@@ -32,6 +36,8 @@ function load_timeseries(config::TimeseriesConfig, first_date::Date, last_date::
 end
 
 """
+    TimeseriesDataset{R<:Real,DS<:AbstractMatrix{R},TS}
+
 This contains the minimum required information for a timeseriese dataset that is used by UDEs
 
 # Fields
@@ -47,6 +53,13 @@ struct TimeseriesDataset{R<:Real,DS<:AbstractMatrix{R},TS}
 end
 
 """
+    train_test_split(
+        config::TimeseriesConfig,
+        first_date::Date,
+        split_date::Date,
+        last_date::Date,
+    )
+
 Split the timeseries data into 2 parts where the first contains data points whose timestamps
 lie between `[first_date, split_date]` and the second contains data points whose timestamps
 lie between `(split_date, last_date]`
@@ -77,6 +90,8 @@ function train_test_split(
 end
 
 """
+    save_dataframe(df::AbstractDataFrame, fpath::AbstractString)
+
 Save a dataframe as a CSV file
 
 # Arguments
@@ -94,6 +109,8 @@ function save_dataframe(df::AbstractDataFrame, fpath::AbstractString)
 end
 
 """
+    lookup_saved_params(dir::AbstractString)
+
 Get the file paths and uuids of all the saved parameters of an experiment
 
 # Arguments
@@ -107,6 +124,8 @@ function lookup_saved_params(dir::AbstractString)
 end
 
 """
+    get_losses_save_fpath(fdir::AbstractString, uuid::AbstractString)
+
 Get default losses figure file path
 
 # Arguments
@@ -118,6 +137,8 @@ get_losses_save_fpath(fdir::AbstractString, uuid::AbstractString) =
     joinpath(fdir, "$uuid.losses.jls")
 
 """
+    get_params_save_fpath(fdir::AbstractString, uuid::AbstractString)
+
 Get default file path for saved parameters
 
 # Arguments
@@ -129,6 +150,14 @@ get_params_save_fpath(fdir::AbstractString, uuid::AbstractString) =
     joinpath(fdir, "$uuid.params.jls")
 
 """
+    bound(
+        df::AbstractDataFrame,
+        col::Union{Symbol,AbstractString},
+        first::Any,
+        last::Any;
+        kwargs...,
+    )
+
 Select a subset of the dataframe `df` such that values in `col` remain between `start_date` and `end_date`
 
 # Arguments
@@ -147,6 +176,14 @@ bound(
 ) = subset(df, col => x -> (x .>= first) .& (x .<= last); kwargs...)
 
 """
+    bound!(
+        df::AbstractDataFrame,
+        col::Union{Symbol,AbstractString},
+        first::Any,
+        last::Any;
+        kwargs...,
+    )
+
 Filter the dataframe `df` such that values in `col` remain between `start_date` and `end_date`
 
 # Arguments
@@ -165,6 +202,8 @@ bound!(
 ) = subset!(df, col => x -> (x .>= first) .& (x .<= last); kwargs...)
 
 """
+    moving_average(xs::AbstractVector{<:Real}, n::Integer)
+
 Calculate the moving average of the given list of numbers
 
 # Arguments
@@ -176,6 +215,17 @@ moving_average(xs::AbstractVector{<:Real}, n::Integer) =
     [mean(@view xs[(i >= n ? i - n + 1 : 1):i]) for i ∈ 1:length(xs)]
 
 """
+    moving_average!(
+        df::AbstractDataFrame,
+        cols::Union{
+            Symbol,
+            AbstractString,
+            AbstractVector{Symbol},
+            AbstractVector{<:AbstractString},
+        },
+        n::Integer,
+    )
+
 Calculate the moving average of all the `cols` in `df`
 
 # Arguments

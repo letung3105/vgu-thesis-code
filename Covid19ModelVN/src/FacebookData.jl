@@ -25,6 +25,12 @@ function __init__()
 end
 
 """
+    function calculate_social_proximity_to_cases(
+        df_population::AbstractDataFrame,
+        df_covid_timeseries_confirmed::AbstractDataFrame,
+        df_social_connectedness::AbstractDataFrame,
+    )
+
 Calculate the Social Proximity to Cases [1] index based on the population at each area, the number of confirmed cases on each day,
 at each area, and the social connectedness between the areas that are considered.
 
@@ -92,6 +98,8 @@ function calculate_social_proximity_to_cases(
 end
 
 """
+    read_movement_range(fpath::AbstractString)
+
 Read the Movement Range Maps dataset from Facebook
 
 # Arguments
@@ -105,6 +113,12 @@ function read_movement_range(fpath::AbstractString)
 end
 
 """
+    region_average_movement_range(
+        df_movement_range::AbstractDataFrame,
+        country_code::AbstractString,
+        subdivision_id::Union{Nothing,<:Integer} = nothing,
+    )
+
 Calculate the average movement range of a region by taking the mean of the movement
 ranges of all of its subregions.
 
@@ -144,6 +158,8 @@ function region_average_movement_range(
 end
 
 """
+    RegionMovementRangeFile
+
 + `path`: Path to the file
 + `country`: ISO-3166 code of the country whose average movement range is contained in `path`
 + `subdivision`: GADM or FIPS code of the subdivion of `country`
@@ -155,6 +171,12 @@ struct RegionMovementRangeFile
 end
 
 """
+    save_region_average_movement_range(
+        files::AbstractVector{RegionMovementRangeFile};
+        fpath_movement_range::AbstractString = datadep"facebook/movement-range-2021-10-09.txt",
+        recreate::Bool = false,
+    )
+
 Save a subset of the movement range maps dataset for a specific region to CSV files.
 
 # Arguments
@@ -196,6 +218,8 @@ function save_region_average_movement_range(
 end
 
 """
+    read_social_connectedness(fpath::AbstractString)
+
 Read the Social Connectedness Index dataset from Facebook
 
 # Arguments
@@ -208,6 +232,11 @@ function read_social_connectedness(fpath::AbstractString)
 end
 
 """
+    inter_province_social_connectedness(
+        df_social_connectedness::AbstractDataFrame,
+        country_code::AbstractString,
+    )
+
 Get the social connectedness between regions within a country
 
 # Argument
@@ -227,6 +256,8 @@ inter_province_social_connectedness(
 )
 
 """
+    InterProvinceSocialConnectednessFile
+
 + `path`: Path to the file
 + `country`: ISO-3166 code of the country whose average social connectedness is contained in `path`
 """
@@ -236,6 +267,12 @@ struct InterProvinceSocialConnectednessFile
 end
 
 """
+    save_inter_province_social_connectedness(
+        files::AbstractVector{InterProvinceSocialConnectednessFile};
+        fpath_social_connectedness::AbstractString = datadep"facebook/gadm1_nuts2_gadm1_nuts2.tsv",
+        recreate::Bool = false,
+    )
+
 Save a subset of the social connectedness index dataset for specific countries to CSV files.
 
 # Arguments

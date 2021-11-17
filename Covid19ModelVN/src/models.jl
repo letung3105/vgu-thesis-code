@@ -634,7 +634,6 @@ struct SEIRDFbMobility4{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
     end
 end
 
-
 @inbounds function (model::SEIRDFbMobility4)(du, u, p, t)
     time_idx = Int(floor(t + 1))
     # states and params
@@ -659,6 +658,8 @@ end
 end
 
 """
+    initparams(model::SEIRDFbMobility4, γ0::R, λ0::R) where {R<:Real}
+
 Get the initial values for the trainable parameters
 
 # Arguments
@@ -682,6 +683,14 @@ namedparams(model::SEIRDFbMobility4, params::AbstractVector{<:Real}) = (
 )
 
 """
+    function ℜe(
+        model::SEIRDFbMobility4,
+        u0::AbstractVector{T},
+        params::AbstractVector{T},
+        tspan::Tuple{T,T},
+        saveat::Ts,
+    ) where {T<:Real,Ts}
+
 Get the effective reproduction rate calculated from the model
 
 # Arguments
