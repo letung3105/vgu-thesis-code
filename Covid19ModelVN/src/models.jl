@@ -653,9 +653,9 @@ struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(5, 8, relu),
-            StaticDense(8, 8, relu),
-            StaticDense(8, 8, relu),
+            StaticDense(5, 8, hswish),
+            StaticDense(8, 8, hswish),
+            StaticDense(8, 8, hswish),
             StaticDense(8, 1, x -> boxconst(x, β_bounds)),
         )
         return new{typeof(β_ann),T,DS}(
