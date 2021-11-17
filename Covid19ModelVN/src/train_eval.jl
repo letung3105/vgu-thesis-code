@@ -352,7 +352,9 @@ function train_model(
     params_save_fpath = get_params_save_fpath(snapshots_dir, uuid)
 
     for conf ∈ configs
-        @info "Training $uuid\nMaxiters $(conf.maxiters)\nOptimizer $(typeof(conf.optimizer).name.wrapper)"
+        @info "Training $uuid\n" *
+              "Maxiters $(conf.maxiters)\n" *
+              "Optimizer $(typeof(conf.optimizer).name.wrapper)"
         cb = TrainCallback(
             TrainCallbackState(
                 eltype(p0),

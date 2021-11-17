@@ -63,7 +63,10 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
     # split data into 2 parts for training and testing
     train_dataset, test_dataset = train_test_split(conf, first_date, split_date, last_date)
 
-    @info "Got Covid-19 data\n+ First train date $first_date\n+ Last train date $split_date\n+ Last evaluated date $last_date"
+    @info "Got Covid-19 data for '$loc'\n" *
+          "+ First train date $first_date\n" *
+          "+ Last train date $split_date\n" *
+          "+ Last evaluated date $last_date"
 
     return train_dataset, test_dataset, first_date, last_date
 end
