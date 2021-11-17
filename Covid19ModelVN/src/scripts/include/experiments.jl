@@ -157,8 +157,8 @@ function experiment_loss(
 ) where {Ts,R<:Real}
     weights = exp.(collect(tsteps) .* ζ)
     domain = max .- min
-    lossfn = function (ŷ, y)
-        s::Float32 = 0
+    lossfn = function (ŷ::AbstractArray{R}, y) where {R<:Real}
+        s::R = 0.0
         sz = size(y)
         @inbounds for j ∈ 1:sz[2], i ∈ 1:sz[1]
             s += ((ŷ[i, j] - y[i, j]) / domain[i])^2 * weights[j]
