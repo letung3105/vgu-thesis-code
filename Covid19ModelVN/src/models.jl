@@ -1,16 +1,66 @@
-@inbounds function SEIRD!(du, u, p, t)
-    S, E, I, _, _, _, N = u
-    β, γ, λ, α = p
-    du[1] = -β * S * I / N
-    du[2] = β * S * I / N - γ * E
-    du[3] = γ * E - λ * I
-    du[4] = (1 - α) * λ * I
-    du[5] = α * λ * I
-    du[6] = γ * E
-    du[7] = -α * λ * I
+"""
+    SEIRD!(du, u, p, t)
+
+The default SEIRD! dynamics function used for OrdinaryDiffEq.jl
+
+# Arguments
+
++ `du`: the derivative of state `u` at time step `t` that has to be calculated
++ `u`: the system's states at time `t`
++ `p`: the system's parameters
++ `t`: the current time steps
+
+# Model states
+
+The system contains 7 compartments S, E, I, R, D, C, and N. The states and derivatives
+of the compartments can be access using index 1..7 with the same order as listed.
+
++ **S**: Compartment for susceptible individuals
++ **E**: Compartment for exposed individuals
++ **I**: Compartment for infectious individuals
++ **R**: Compartment for recovered individuals
++ **D**: Compartment for total deaths
++ **C**: Compartment for total confirmed cases
++ **N**: Compartment for the effective population
+
+# Model parameters
+
+The system accepts 4 parameters β, γ, λ, and α. The parameters can be access using index
+1..4 with the same order as listed.
+
++ **β**: The contact rate
++ **γ**: Inverse of the mean incubation period
++ **λ**: Inverse of the mean infectious period
++ **α**: The fatality rate
+"""
+function SEIRD!(du, u, p, t)
+    @inbounds begin
+        S, E, I, _, _, _, N = u
+        β, γ, λ, α = p
+        du[1] = -β * S * I / N
+        du[2] = β * S * I / N - γ * E
+        du[3] = γ * E - λ * I
+        du[4] = (1 - α) * λ * I
+        du[5] = α * λ * I
+        du[6] = γ * E
+        du[7] = -α * λ * I
+    end
     return nothing
 end
 
+"""
+    default_solve(model, u0, params, tspan, saveat)
+
+Solve the augmented SEIRD model with sensible settings
+
+# Arguments
+
+* `model`: object of the augmented SEIRD model
+* `u0`: the system initial conditions
+* `params`: the system parameters
+* `tspan`: the integration time span
+* `tsteps`: the timesteps to be saved
+"""
 default_solve(model, u0, params, tspan, saveat) = solve(
     ODEProblem(model, u0, tspan, params),
     Tsit5(),
@@ -83,13 +133,28 @@ struct SEIRDBaseline{ANN<:FastChain,T<:Real} <: AbstractCovidModel
     end
 end
 
-@inbounds function (model::SEIRDBaseline)(du, u, p, t)
-    # states and params
-    S, _, I, _, _, _, N = u
-    pnamed = namedparams(model, p)
-    # infection rate depends on time, susceptible, and infected
-    β = first(model.β_ann(SVector{2}(S / N, I / N), pnamed.θ))
-    SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, pnamed.α), t)
+"""
+    (model::SEIRDBaseline)(du, u, p, t)
+
+The augmented SEIRD! dynamics that integrate a neural network for estimating
+the contact rate
+
+# Arguments
+
++ `du`: the derivative of state `u` at time step `t` that has to be calculated
++ `u`: the system's states at time `t`
++ `p`: the system's parameters
++ `t`: the current time steps
+"""
+function (model::SEIRDBaseline)(du, u, p, t)
+    @inbounds begin
+        # states and params
+        S, _, I, _, _, _, N = u
+        pnamed = namedparams(model, p)
+        # infection rate depends on time, susceptible, and infected
+        β = first(model.β_ann(SVector{2}(S / N, I / N), pnamed.θ))
+        SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, pnamed.α), t)
+    end
     return nothing
 end
 
@@ -112,7 +177,17 @@ initparams(model::SEIRDBaseline, γ0::R, λ0::R, α0::R) where {R<:Real} = [
     DiffEqFlux.initial_params(model.β_ann)
 ]
 
-namedparams(model::SEIRDBaseline, params::AbstractVector{<:Real}) = (
+"""
+    namedparams(model::SEIRDBaseline, params::AbstractVector{<:Real})
+
+Get a named tuple of the parameters that are used by the augmented SEIRD model
+
+# Arguments
+
+* `model`: the object of type the object representing the augmented model
+* `params`: a vector of all the parameters used by the model
+"""
+namedparams(model::SEIRDBaseline, params::AbstractVector{<:Real}) = @inbounds (
     γ = boxconst(params[1], model.γ_bounds),
     λ = boxconst(params[2], model.λ_bounds),
     α = boxconst(params[3], model.α_bounds),
@@ -221,24 +296,40 @@ struct SEIRDFbMobility1{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
     end
 end
 
-@inbounds function (model::SEIRDFbMobility1)(du, u, p, t)
-    time_idx = Int(floor(t + 1))
-    # states and params
-    S, _, I, _, _, _, N = u
-    pnamed = namedparams(model, p)
-    # infection rate depends on time, susceptible, and infected
-    β = first(
-        model.β_ann(
-            SVector{4}(
-                S / N,
-                I / N,
-                model.movement_range_data[1, time_idx],
-                model.movement_range_data[2, time_idx],
+"""
+    (model::SEIRDFbMobility1)(du, u, p, t)
+
+The augmented SEIRD! dynamics that integrate a neural network for estimating
+the contact rate. Facebook's Movement Range Dataset is used to inform the model
+to improve predicting performance
+
+# Arguments
+
++ `du`: the derivative of state `u` at time step `t` that has to be calculated
++ `u`: the system's states at time `t`
++ `p`: the system's parameters
++ `t`: the current time steps
+"""
+function (model::SEIRDFbMobility1)(du, u, p, t)
+    @inbounds begin
+        time_idx = Int(floor(t + 1))
+        # states and params
+        S, _, I, _, _, _, N = u
+        pnamed = namedparams(model, p)
+        # infection rate depends on time, susceptible, and infected
+        β = first(
+            model.β_ann(
+                SVector{4}(
+                    S / N,
+                    I / N,
+                    model.movement_range_data[1, time_idx],
+                    model.movement_range_data[2, time_idx],
+                ),
+                pnamed.θ,
             ),
-            pnamed.θ,
-        ),
-    )
-    SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, pnamed.α), t)
+        )
+        SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, pnamed.α), t)
+    end
     return nothing
 end
 
@@ -261,7 +352,17 @@ initparams(model::SEIRDFbMobility1, γ0::R, λ0::R, α0::R) where {R<:Real} = [
     DiffEqFlux.initial_params(model.β_ann)
 ]
 
-namedparams(model::SEIRDFbMobility1, params::AbstractVector{<:Real}) = (
+"""
+    namedparams(model::SEIRDFbMobility1, params::AbstractVector{<:Real})
+
+Get a named tuple of the parameters that are used by the augmented SEIRD model
+
+# Arguments
+
+* `model`: the object of type the object representing the augmented model
+* `params`: a vector of all the parameters used by the model
+"""
+namedparams(model::SEIRDFbMobility1, params::AbstractVector{<:Real}) = @inbounds (
     γ = boxconst(params[1], model.γ_bounds),
     λ = boxconst(params[2], model.λ_bounds),
     α = boxconst(params[3], model.α_bounds),
@@ -378,25 +479,41 @@ struct SEIRDFbMobility2{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
     end
 end
 
-@inbounds function (model::SEIRDFbMobility2)(du, u, p, t)
-    time_idx = Int(floor(t + 1))
-    # states and params
-    S, _, I, _, _, _, N = u
-    pnamed = namedparams(model, p)
-    # infection rate depends on time, susceptible, and infected
-    β = first(
-        model.β_ann(
-            SVector{5}(
-                S / N,
-                I / N,
-                model.movement_range_data[1, time_idx],
-                model.movement_range_data[2, time_idx],
-                model.social_proximity_data[1, time_idx],
+"""
+    (model::SEIRDFbMobility2)(du, u, p, t)
+
+The augmented SEIRD! dynamics that integrate a neural network for estimating
+the contact rate. Facebook's Movement Range Dataset and the Social Proximity
+to Cases Index are used to inform the model to improve predicting performance
+
+# Arguments
+
++ `du`: the derivative of state `u` at time step `t` that has to be calculated
++ `u`: the system's states at time `t`
++ `p`: the system's parameters
++ `t`: the current time steps
+"""
+function (model::SEIRDFbMobility2)(du, u, p, t)
+    @inbounds begin
+        time_idx = Int(floor(t + 1))
+        # states and params
+        S, _, I, _, _, _, N = u
+        pnamed = namedparams(model, p)
+        # infection rate depends on time, susceptible, and infected
+        β = first(
+            model.β_ann(
+                SVector{5}(
+                    S / N,
+                    I / N,
+                    model.movement_range_data[1, time_idx],
+                    model.movement_range_data[2, time_idx],
+                    model.social_proximity_data[1, time_idx],
+                ),
+                pnamed.θ,
             ),
-            pnamed.θ,
-        ),
-    )
-    SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, pnamed.α), t)
+        )
+        SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, pnamed.α), t)
+    end
     return nothing
 end
 
@@ -419,7 +536,17 @@ initparams(model::SEIRDFbMobility2, γ0::R, λ0::R, α0::R) where {R<:Real} = [
     DiffEqFlux.initial_params(model.β_ann)
 ]
 
-namedparams(model::SEIRDFbMobility2, params::AbstractVector{<:Real}) = (
+"""
+    namedparams(model::SEIRDFbMobility2, params::AbstractVector{<:Real})
+
+Get a named tuple of the parameters that are used by the augmented SEIRD model
+
+# Arguments
+
+* `model`: the object of type the object representing the augmented model
+* `params`: a vector of all the parameters used by the model
+"""
+namedparams(model::SEIRDFbMobility2, params::AbstractVector{<:Real}) = @inbounds (
     γ = boxconst(params[1], model.γ_bounds),
     λ = boxconst(params[2], model.λ_bounds),
     α = boxconst(params[3], model.α_bounds),
@@ -472,8 +599,9 @@ end
     SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: AbstractCovidModel
 
 A struct for containing the SEIRD model that uses Facebook movement range maps dataset
-and Facebook social connectedness index dataset. In the model, both the β and α are
-time-/covariate-dependent whose values are determined by 2 separate neural networks
+and Facebook social connectedness index dataset. In the model, both the β parameter is a
+time-/covariate-dependent whose values are determined by a neural networks, the output
+of the network in this model is constrained using sigmoid function.
 
 # Fields
 
@@ -543,25 +671,42 @@ struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
     end
 end
 
-@inbounds function (model::SEIRDFbMobility3)(du, u, p, t)
-    time_idx = Int(floor(t + 1))
-    # states and params
-    S, _, I, _, _, _, N = u
-    pnamed = namedparams(model, p)
-    # infection rate depends on time, susceptible, and infected
-    β = first(
-        model.β_ann(
-            SVector{5}(
-                S / N,
-                I / N,
-                model.movement_range_data[1, time_idx],
-                model.movement_range_data[2, time_idx],
-                model.social_proximity_data[1, time_idx],
+"""
+    (model::SEIRDFbMobility3)(du, u, p, t)
+
+The augmented SEIRD! dynamics that integrate a neural network for estimating
+the contact rate. Facebook's Movement Range Dataset and the Social Proximity
+to Cases Index are used to inform the model to improve predicting performance.
+The β parameter is transformed with sigmoid to prevent the model from over shooting
+
+# Arguments
+
++ `du`: the derivative of state `u` at time step `t` that has to be calculated
++ `u`: the system's states at time `t`
++ `p`: the system's parameters
++ `t`: the current time steps
+"""
+function (model::SEIRDFbMobility3)(du, u, p, t)
+    @inbounds begin
+        time_idx = Int(floor(t + 1))
+        # states and params
+        S, _, I, _, _, _, N = u
+        pnamed = namedparams(model, p)
+        # infection rate depends on time, susceptible, and infected
+        β = first(
+            model.β_ann(
+                SVector{5}(
+                    S / N,
+                    I / N,
+                    model.movement_range_data[1, time_idx],
+                    model.movement_range_data[2, time_idx],
+                    model.social_proximity_data[1, time_idx],
+                ),
+                pnamed.θ,
             ),
-            pnamed.θ,
-        ),
-    )
-    SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, pnamed.α), t)
+        )
+        SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, pnamed.α), t)
+    end
     return nothing
 end
 
@@ -583,7 +728,17 @@ initparams(model::SEIRDFbMobility3, γ0::R, λ0::R, α0::R) where {R<:Real} = [
     DiffEqFlux.initial_params(model.β_ann)
 ]
 
-namedparams(model::SEIRDFbMobility3, params::AbstractVector{<:Real}) = (
+"""
+    namedparams(model::SEIRDFbMobility3, params::AbstractVector{<:Real})
+
+Get a named tuple of the parameters that are used by the augmented SEIRD model
+
+# Arguments
+
+* `model`: the object of type the object representing the augmented model
+* `params`: a vector of all the parameters used by the model
+"""
+namedparams(model::SEIRDFbMobility3, params::AbstractVector{<:Real}) = @inbounds (
     γ = boxconst(params[1], model.γ_bounds),
     λ = boxconst(params[2], model.λ_bounds),
     α = boxconst(params[3], model.α_bounds),
@@ -720,26 +875,44 @@ struct SEIRDFbMobility4{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
     end
 end
 
-@inbounds function (model::SEIRDFbMobility4)(du, u, p, t)
-    time_idx = Int(floor(t + 1))
-    # states and params
-    S, _, I, R, D, _, N = u
-    pnamed = namedparams(model, p)
-    # infection rate depends on time, susceptible, and infected
-    β = first(
-        model.β_ann(
-            SVector{5}(
-                S / N,
-                I / N,
-                model.movement_range_data[1, time_idx],
-                model.movement_range_data[2, time_idx],
-                model.social_proximity_data[1, time_idx],
+"""
+    (model::SEIRDFbMobility4)(du, u, p, t)
+
+The augmented SEIRD! dynamics that integrate a neural network for estimating
+the contact rate. Facebook's Movement Range Dataset and the Social Proximity
+to Cases Index are used to inform the model to improve predicting performance.
+The β and α parameters are transformed with sigmoid to prevent the model from
+over shooting their values.
+
+# Arguments
+
++ `du`: the derivative of state `u` at time step `t` that has to be calculated
++ `u`: the system's states at time `t`
++ `p`: the system's parameters
++ `t`: the current time steps
+"""
+function (model::SEIRDFbMobility4)(du, u, p, t)
+    @inbounds begin
+        time_idx = Int(floor(t + 1))
+        # states and params
+        S, _, I, R, D, _, N = u
+        pnamed = namedparams(model, p)
+        # infection rate depends on time, susceptible, and infected
+        β = first(
+            model.β_ann(
+                SVector{5}(
+                    S / N,
+                    I / N,
+                    model.movement_range_data[1, time_idx],
+                    model.movement_range_data[2, time_idx],
+                    model.social_proximity_data[1, time_idx],
+                ),
+                pnamed.θ1,
             ),
-            pnamed.θ1,
-        ),
-    )
-    α = first(model.α_ann(SVector{3}(I / N, R / N, D / N), pnamed.θ2))
-    SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, α), t)
+        )
+        α = first(model.α_ann(SVector{3}(I / N, R / N, D / N), pnamed.θ2))
+        SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, α), t)
+    end
     return nothing
 end
 
@@ -761,7 +934,17 @@ initparams(model::SEIRDFbMobility4, γ0::R, λ0::R) where {R<:Real} = [
     DiffEqFlux.initial_params(model.α_ann)
 ]
 
-namedparams(model::SEIRDFbMobility4, params::AbstractVector{<:Real}) = (
+"""
+    namedparams(model::SEIRDFbMobility4, params::AbstractVector{<:Real})
+
+Get a named tuple of the parameters that are used by the augmented SEIRD model
+
+# Arguments
+
+* `model`: the object of type the object representing the augmented model
+* `params`: a vector of all the parameters used by the model
+"""
+namedparams(model::SEIRDFbMobility4, params::AbstractVector{<:Real}) = @inbounds (
     γ = boxconst(params[1], model.γ_bounds),
     λ = boxconst(params[2], model.λ_bounds),
     θ1 = @view(params[3:3+model.β_ann_paramlength-1]),
