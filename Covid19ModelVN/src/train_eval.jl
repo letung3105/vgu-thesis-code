@@ -1,4 +1,10 @@
 """
+    Predictor{
+        P<:SciMLBase.DEProblem,
+        SO<:SciMLBase.DEAlgorithm,
+        SE<:SciMLBase.AbstractSensitivityAlgorithm,
+    }
+
 A struct that solves the underlying DiffEq problem and returns the solution when it is called
 
 # Fields
@@ -8,6 +14,13 @@ A struct that solves the underlying DiffEq problem and returns the solution when
 * `sensealg`: sensitivity algorithm for getting the local gradient
 * `abstol`: solver's absolute tolerant
 * `reltol`: solver's relative tolerant
++ `save_idxs`: the indices of the system's states to return
+
+# Constructors
+
+    Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int})
+
+* `problem`: the problem that will be solved
 + `save_idxs`: the indices of the system's states to return
 """
 struct Predictor{
@@ -21,14 +34,7 @@ struct Predictor{
     abstol::Float64
     reltol::Float64
     save_idxs::Vector{Int}
-    """
-    Construct a new default `Predictor` using the problem defined by the given model
 
-    # Argument
-
-    * `problem`: the problem that will be solved
-    + `save_idxs`: the indices of the system's states to return
-    """
     function Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int})
         solver = Tsit5()
         sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true))
@@ -45,6 +51,8 @@ end
 
 
 """
+    (p::Predictor)(params, tspan, saveat)
+
 Call an object of struct `CovidModelPredict` to solve the underlying DiffEq problem
 
 # Arguments
@@ -67,10 +75,27 @@ function (p::Predictor)(params, tspan, saveat)
 end
 
 """
+    Loss{Bool,F<:Function,P<:Predictor,D<:TimeseriesDataset}
+
 A callable struct that uses `metric_fn` to calculate the loss between the output of
 `predict` and `dataset`.
 
 # Fields
+
+* `metric_fn`: a function that computes the error between two data arrays
+* `predict_fn`: the time span that the ODE solver will be run on
+* `dataset`: the dataset that contains the ground truth data
+
+# Constructors
+
+    Loss{true}(metric_fn, predict_fn, dataset)
+
+* `metric_fn`: a function that computes the error between two data arrays
+* `predict_fn`: the time span that the ODE solver will be run on
+* `dataset`: the dataset that contains the ground truth data
+
+
+    Loss{false}(metric_fn, predict_fn, dataset)
 
 * `metric_fn`: a function that computes the error between two data arrays
 * `predict_fn`: the time span that the ODE solver will be run on
@@ -81,18 +106,6 @@ struct Loss{Bool,F<:Function,P<:Predictor,D<:TimeseriesDataset}
     predict_fn::P
     dataset::D
 
-    """
-        Loss{true}(metric_fn, predict_fn, dataset)
-
-    Construct a new loss function againts the ground truth data where `metric_fn` accepts
-    the model parameters as the third parameter (eg. for regularization)
-
-    # Arguments
-
-    * `metric_fn`: a function that computes the error between two data arrays
-    * `predict_fn`: the time span that the ODE solver will be run on
-    * `dataset`: the dataset that contains the ground truth data
-    """
     Loss{true}(metric_fn, predict_fn, dataset) =
         new{true,typeof(metric_fn),typeof(predict_fn),typeof(dataset)}(
             metric_fn,
@@ -100,16 +113,6 @@ struct Loss{Bool,F<:Function,P<:Predictor,D<:TimeseriesDataset}
             dataset,
         )
 
-    """
-        Loss{false}(metric_fn, predict_fn, dataset)
-
-    Construct a new loss function againts the ground truth data.
-    # Arguments
-
-    * `metric_fn`: a function that computes the error between two data arrays
-    * `predict_fn`: the time span that the ODE solver will be run on
-    * `dataset`: the dataset that contains the ground truth data
-    """
     Loss{false}(metric_fn, predict_fn, dataset) =
         new{false,typeof(metric_fn),typeof(predict_fn),typeof(dataset)}(
             metric_fn,
@@ -166,6 +169,8 @@ function (l::Loss{true,F,P,D})(params) where {F,P,D}
 end
 
 """
+    TrainCallbackState{R<:Real}
+
 State of the callback struct
 
 # Fields
@@ -176,6 +181,28 @@ State of the callback struct
 * `test_losses`: collected testing losses at each interval
 * `minimizer`: current best set of parameters
 * `minimizer_loss`: loss value of the current best set of parameters
+
+# Constructors
+
+
+    TrainCallbackState(
+        T::Type{R},
+        params_length::Integer,
+        show_progress::Bool,
+    ) where {R<:Real} = new{T}(
+
++ `T`: type of the losses and parameters
++ `show_progress`: control whether to show a running progress bar
+
+
+    TrainCallbackState(
+        T::Type{R},
+        params_length::Integer,
+        progress::ProgressUnknown,
+    ) where {R<:Real} = TrainCallbackState{T}(
+
++ `T`: type of the losses and parameters
++ `progress`: the progress meter object that will be used by the callback function
 """
 mutable struct TrainCallbackState{R<:Real}
     iters::Int
@@ -184,12 +211,7 @@ mutable struct TrainCallbackState{R<:Real}
     test_losses::Vector{R}
     minimizer::Vector{R}
     minimizer_loss::R
-    """
-    # Arguments
 
-    + `T`: type of the losses and parameters
-    + `show_progress`: control whether to show a running progress bar
-    """
     TrainCallbackState(
         T::Type{R},
         params_length::Integer,
@@ -202,29 +224,18 @@ mutable struct TrainCallbackState{R<:Real}
         Vector{T}(undef, params_length),
         typemax(T),
     )
+
+    TrainCallbackState(
+        T::Type{R},
+        params_length::Integer,
+        progress::ProgressUnknown,
+    ) where {R<:Real} =
+        new{T}(0, progress, T[], T[], Vector{T}(undef, params_length), typemax(T))
 end
 
-
 """
-# Arguments
+    TrainCallbackConfig{L<:Loss}
 
-+ `T`: type of the losses and parameters
-+ `progress`: the progress meter object that will be used by the callback function
-"""
-TrainCallbackState(
-    T::Type{R},
-    params_length::Integer,
-    progress::ProgressUnknown,
-) where {R<:Real} = TrainCallbackState{T}(
-    0,
-    progress,
-    T[],
-    T[],
-    Vector{T}(undef, params_length),
-    typemax(T),
-)
-
-"""
 Configuration of the callback struct
 
 # Fields
@@ -250,6 +261,8 @@ struct TrainCallback{R<:Real,L<:Loss}
 end
 
 """
+    (cb::TrainCallback)(params::AbstractVector{R}, train_loss::R) where {R<:Real}
+
 Call an object of type `TrainCallback`
 
 # Arguments
@@ -284,6 +297,8 @@ function (cb::TrainCallback)(params::AbstractVector{R}, train_loss::R) where {R<
 end
 
 """
+    TrainConfig{Opt}
+
 Specifications for a model tranining
 
 # Arguments
@@ -299,6 +314,8 @@ struct TrainConfig{Opt}
 end
 
 """
+    EvalConfig
+
 A struct for holding general configuration for the evaluation process
 
 # Arguments
@@ -314,6 +331,19 @@ struct EvalConfig
 end
 
 """
+    train_model(
+        uuid::AbstractString,
+        train_loss::Loss,
+        test_loss::Loss,
+        p0::AbstractVector{<:Real},
+        configs::AbstractVector{TrainConfig},
+        snapshots_dir::AbstractString;
+        show_progress::Bool = false,
+        progress::Union{ProgressUnknown,Nothing} = nothing,
+        loss_samples::Integer = 100,
+        kwargs...,
+    )
+
 Find a set of paramters that minimizes the loss function defined by `train_loss_fn`, starting from
 the initial set of parameters `params`.
 
@@ -471,6 +501,8 @@ function calculate_forecasts_errors(
 end
 
 """
+    MakieShowoffPlain
+
 Marker struct for our custom formatter that uses `Showoff.showoff` with the option set to
 `:plain`. This is done to mitigate to error occur with `Unicode.subscript` when used on
 scientific-/engineering-formated strings
@@ -508,6 +540,11 @@ function MakieLayout.get_ticks(
 end
 
 """
+    plot_losses(
+        train_losses::AbstractVector{R},
+        test_losses::AbstractVector{R},
+    ) where {R<:Real}
+
 Illustrate the training andd testing losses using a twinaxis plot
 
 # Arguments
