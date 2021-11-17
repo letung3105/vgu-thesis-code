@@ -141,12 +141,12 @@ function (l::Loss{false,F,P,D})(params) where {F,P,D}
     sol = l.predict_fn(params, l.dataset.tspan, l.dataset.tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
-        return Inf
+        return Float32(Inf)
     end
     pred = @view sol[:, :]
     if size(pred) != size(l.dataset.data)
         # Unstable trajectories / Wrong inputs
-        return Inf
+        return Float32(Inf)
     end
     return l.metric_fn(pred, l.dataset.data)
 end
@@ -165,12 +165,12 @@ function (l::Loss{true,F,P,D})(params) where {F,P,D}
     sol = l.predict_fn(params, l.dataset.tspan, l.dataset.tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
-        return Inf
+        return Float32(Inf)
     end
     pred = @view sol[:, :]
     if size(pred) != size(l.dataset.data)
         # Unstable trajectories / Wrong inputs
-        return Inf
+        return Float32(Inf)
     end
     return l.metric_fn(pred, l.dataset.data, params)
 end

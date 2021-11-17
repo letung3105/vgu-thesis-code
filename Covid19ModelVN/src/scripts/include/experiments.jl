@@ -123,7 +123,7 @@ function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVect
         E0 = I0 * 2 # exposed individuals
         S0 = population - C0 - E0 # susceptible individuals
         # initial state
-        u0 = [S0, E0, I0, R0, D0, C0, N0]
+        u0 = Float32[S0, E0, I0, R0, D0, C0, N0]
         vars = [3, 4, 5, 6]
         labels = ["infective", "recovered", "deaths", "total confirmed"]
         # return values to outer scope
@@ -138,7 +138,7 @@ function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVect
         E0 = I0 * 2 # exposed individuals
         S0 = population - C0 - E0 # susceptible individuals
         # initial state
-        u0 = [S0, E0, I0, R0, D0, C0, N0]
+        u0 = Float32[S0, E0, I0, R0, D0, C0, N0]
         vars = [5, 6]
         labels = ["deaths", "total confirmed"]
         # return values to outer scope
