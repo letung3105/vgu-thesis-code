@@ -27,7 +27,8 @@ function experiment_covid19_counts_reset!(df::AbstractDataFrame, loc::AbstractSt
            loc ∈ keys(Covid19ModelVN.LOC_NAMES_US)
         # we considered 1st July 2021 to be the start of the outbreak in the US
         # 30th September 2021 is for getting a long enough period
-        Date(2021, 7, 1), Date(2021, 9, 30)
+        bound!(df, :date, Date(2021, 7, 1), Date(2021, 9, 30))
+        return df
     else
         # data for other locations don't need processing
         return df
@@ -42,7 +43,12 @@ function experiment_covid19_counts_reset!(df::AbstractDataFrame, loc::AbstractSt
     return df
 end
 
-function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast_range::Day)
+function experiment_covid19_data(
+    loc::AbstractString,
+    train_range::Day,
+    forecast_range::Day,
+    ma7::Bool,
+)
     cols = if has_irdc(loc)
         ["infective", "recovered_total", "deaths_total", "confirmed_total"]
     elseif has_dc(loc)
@@ -52,13 +58,16 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
     end
 
     df = get_prebuilt_covid_timeseries(loc)
+    df[!, cols] .= Float64.(df[!, cols])
     experiment_covid19_counts_reset!(df, loc)
     # choose the first date to be when the number of total confirmed cases passed 500
     first_date = first(subset(df, :confirmed_total => x -> x .>= 500, view = true).date)
     split_date = first_date + train_range - Day(1)
     last_date = split_date + forecast_range
     # smooth out weekly seasonality
-    moving_average!(df, cols, 7)
+    if ma7
+        moving_average!(df, cols, 7)
+    end
     conf = TimeseriesConfig(df, "date", cols)
     # split data into 2 parts for training and testing
     train_dataset, test_dataset = train_test_split(conf, first_date, split_date, last_date)
@@ -71,18 +80,34 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
     return train_dataset, test_dataset, first_date, last_date
 end
 
-function experiment_movement_range(loc::AbstractString, first_date::Date, last_date::Date)
+function experiment_movement_range(
+    loc::AbstractString,
+    first_date::Date,
+    last_date::Date,
+    ma7::Bool,
+)
     df = get_prebuilt_movement_range(loc)
     cols = ["all_day_bing_tiles_visited_relative_change", "all_day_ratio_single_tile_users"]
+    df[!, cols] .= Float64.(df[!, cols])
     # smooth out weekly seasonality
-    moving_average!(df, cols, 7)
+    if ma7
+        moving_average!(df, cols, 7)
+    end
     return load_timeseries(TimeseriesConfig(df, "ds", cols), first_date, last_date)
 end
 
-function experiment_social_proximity(loc::AbstractString, first_date::Date, last_date::Date)
+function experiment_social_proximity(
+    loc::AbstractString,
+    first_date::Date,
+    last_date::Date,
+    ma7::Bool,
+)
     df, col = get_prebuilt_social_proximity(loc)
+    df[!, col] .= Float64.(df[!, col])
     # smooth out weekly seasonality
-    moving_average!(df, col, 7)
+    if ma7
+        moving_average!(df, col, 7)
+    end
     return load_timeseries(TimeseriesConfig(df, "date", [col]), first_date, last_date)
 end
 
@@ -95,7 +120,7 @@ function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVect
         D0 = data[3] # total deaths
         C0 = data[4] # total confirmed
         N0 = population - D0 # effective population
-        E0 = I0 * 2 # exposed individuals
+        E0 = I0 * 20 # exposed individuals
         S0 = population - C0 - E0 # susceptible individuals
         # initial state
         u0 = [S0, E0, I0, R0, D0, C0, N0]
@@ -110,7 +135,7 @@ function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVect
         I0 = div(C0 - D0, 2) # infective individuals
         R0 = C0 - I0 - D0 # recovered individuals
         N0 = population - D0 # effective population
-        E0 = I0 * 2 # exposed individuals
+        E0 = I0 * 20 # exposed individuals
         S0 = population - C0 - E0 # susceptible individuals
         # initial state
         u0 = [S0, E0, I0, R0, D0, C0, N0]
@@ -154,12 +179,17 @@ SEIRDBaselineHyperparams = @NamedTuple begin
     α_bounds::Tuple{Float64,Float64}
     train_range::Day
     forecast_range::Day
+    ma7::Bool
 end
 
 function setup_baseline(loc::AbstractString, hyperparams::SEIRDBaselineHyperparams)
     # get data for model
-    train_dataset, test_dataset =
-        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
+    train_dataset, test_dataset = experiment_covid19_data(
+        loc,
+        hyperparams.train_range,
+        hyperparams.forecast_range,
+        hyperparams.ma7,
+    )
     @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
     @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
 
@@ -191,16 +221,22 @@ SEIRDFbMobility1Hyperparams = @NamedTuple begin
     α_bounds::Tuple{Float64,Float64}
     train_range::Day
     forecast_range::Day
+    ma7::Bool
 end
 
 function setup_fbmobility1(loc::AbstractString, hyperparams::SEIRDFbMobility1Hyperparams)
     # get data for model
-    train_dataset, test_dataset, first_date, last_date =
-        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
+    train_dataset, test_dataset, first_date, last_date = experiment_covid19_data(
+        loc,
+        hyperparams.train_range,
+        hyperparams.forecast_range,
+        hyperparams.ma7,
+    )
     @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
     @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
 
-    movement_range_data = experiment_movement_range(loc, first_date, last_date)
+    movement_range_data =
+        experiment_movement_range(loc, first_date, last_date, hyperparams.ma7)
     @assert size(movement_range_data, 2) ==
             Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
 
@@ -238,16 +274,22 @@ SEIRDFbMobility2Hyperparams = @NamedTuple begin
     train_range::Day
     forecast_range::Day
     social_proximity_lag::Day
+    ma7::Bool
 end
 
 function setup_fbmobility2(loc::AbstractString, hyperparams::SEIRDFbMobility2Hyperparams)
     # get data for model
-    train_dataset, test_dataset, first_date, last_date =
-        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
+    train_dataset, test_dataset, first_date, last_date = experiment_covid19_data(
+        loc,
+        hyperparams.train_range,
+        hyperparams.forecast_range,
+        hyperparams.ma7,
+    )
     @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
     @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
 
-    movement_range_data = experiment_movement_range(loc, first_date, last_date)
+    movement_range_data =
+        experiment_movement_range(loc, first_date, last_date, hyperparams.ma7)
     @assert size(movement_range_data, 2) ==
             Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
 
@@ -255,6 +297,7 @@ function setup_fbmobility2(loc::AbstractString, hyperparams::SEIRDFbMobility2Hyp
         loc,
         first_date - hyperparams.social_proximity_lag,
         last_date - hyperparams.social_proximity_lag,
+        hyperparams.ma7,
     )
     @assert size(social_proximity_data, 2) ==
             Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
@@ -295,16 +338,22 @@ SEIRDFbMobility3Hyperparams = @NamedTuple begin
     train_range::Day
     forecast_range::Day
     social_proximity_lag::Day
+    ma7::Bool
 end
 
 function setup_fbmobility3(loc::AbstractString, hyperparams::SEIRDFbMobility3Hyperparams)
     # get data for model
-    train_dataset, test_dataset, first_date, last_date =
-        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
+    train_dataset, test_dataset, first_date, last_date = experiment_covid19_data(
+        loc,
+        hyperparams.train_range,
+        hyperparams.forecast_range,
+        hyperparams.ma7,
+    )
     @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
     @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
 
-    movement_range_data = experiment_movement_range(loc, first_date, last_date)
+    movement_range_data =
+        experiment_movement_range(loc, first_date, last_date, hyperparams.ma7)
     @assert size(movement_range_data, 2) ==
             Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
 
@@ -312,6 +361,7 @@ function setup_fbmobility3(loc::AbstractString, hyperparams::SEIRDFbMobility3Hyp
         loc,
         first_date - hyperparams.social_proximity_lag,
         last_date - hyperparams.social_proximity_lag,
+        hyperparams.ma7,
     )
     @assert size(social_proximity_data, 2) ==
             Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
@@ -352,16 +402,22 @@ SEIRDFbMobility4Hyperparams = @NamedTuple begin
     train_range::Day
     forecast_range::Day
     social_proximity_lag::Day
+    ma7::Bool
 end
 
 function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyperparams)
     # get data for model
-    train_dataset, test_dataset, first_date, last_date =
-        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
+    train_dataset, test_dataset, first_date, last_date = experiment_covid19_data(
+        loc,
+        hyperparams.train_range,
+        hyperparams.forecast_range,
+        hyperparams.ma7,
+    )
     @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
     @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
 
-    movement_range_data = experiment_movement_range(loc, first_date, last_date)
+    movement_range_data =
+        experiment_movement_range(loc, first_date, last_date, hyperparams.ma7)
     @assert size(movement_range_data, 2) ==
             Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
 
@@ -369,6 +425,7 @@ function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyp
         loc,
         first_date - hyperparams.social_proximity_lag,
         last_date - hyperparams.social_proximity_lag,
+        hyperparams.ma7,
     )
     @assert size(social_proximity_data, 2) ==
             Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)

@@ -43,6 +43,7 @@ get_baseline_hyperparams(parsed_args) = (
     α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
+    ma7 = parsed_args[:ma7],
 )
 
 function cmd_fbmobility1(parsed_args)
@@ -69,6 +70,7 @@ get_fbmobility1_hyperparams(parsed_args) = (
     α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
+    ma7 = parsed_args[:ma7],
 )
 
 function cmd_fbmobility2(parsed_args)
@@ -96,6 +98,7 @@ get_fbmobility2_hyperparams(parsed_args) = (
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
+    ma7 = parsed_args[:ma7],
 )
 
 function cmd_fbmobility3(parsed_args)
@@ -124,6 +127,7 @@ get_fbmobility3_hyperparams(parsed_args) = (
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
+    ma7 = parsed_args[:ma7],
 )
 
 function cmd_fbmobility4(parsed_args)
@@ -151,6 +155,7 @@ get_fbmobility4_hyperparams(parsed_args) = (
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
+    ma7 = parsed_args[:ma7],
 )
 
 function get_train_configs(parsed_args)
@@ -252,6 +257,10 @@ function parse_commandline(args)
         help = "number of lag days that is used when reading the Social Proximity to Cases index"
         arg_type = Int
         default = 14
+
+        "--ma7"
+        help = "apply a 7-day moving average to all the time series datasets"
+        action = :store_true
 
         "--L2_lambda"
         help = "L2-regularization term weight"
