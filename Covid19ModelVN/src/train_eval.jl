@@ -16,9 +16,11 @@ A struct that solves the underlying DiffEq problem and returns the solution when
 * `reltol`: solver's relative tolerant
 + `save_idxs`: the indices of the system's states to return
 
-# Constructors
+# Constructor
 
     Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int})
+
+## Arguments
 
 * `problem`: the problem that will be solved
 + `save_idxs`: the indices of the system's states to return
@@ -86,16 +88,21 @@ A callable struct that uses `metric_fn` to calculate the loss between the output
 * `predict_fn`: the time span that the ODE solver will be run on
 * `dataset`: the dataset that contains the ground truth data
 
-# Constructors
+# Constructor
 
     Loss{true}(metric_fn, predict_fn, dataset)
+
+## Arguments
 
 * `metric_fn`: a function that computes the error between two data arrays
 * `predict_fn`: the time span that the ODE solver will be run on
 * `dataset`: the dataset that contains the ground truth data
 
+# Constructor
 
     Loss{false}(metric_fn, predict_fn, dataset)
+
+## Arguments
 
 * `metric_fn`: a function that computes the error between two data arrays
 * `predict_fn`: the time span that the ODE solver will be run on
@@ -182,8 +189,7 @@ State of the callback struct
 * `minimizer`: current best set of parameters
 * `minimizer_loss`: loss value of the current best set of parameters
 
-# Constructors
-
+# Constructor
 
     TrainCallbackState(
         T::Type{R},
@@ -191,15 +197,20 @@ State of the callback struct
         show_progress::Bool,
     ) where {R<:Real} = new{T}(
 
+## Arguments
+
 + `T`: type of the losses and parameters
 + `show_progress`: control whether to show a running progress bar
 
+# Constructor
 
     TrainCallbackState(
         T::Type{R},
         params_length::Integer,
         progress::ProgressUnknown,
     ) where {R<:Real} = TrainCallbackState{T}(
+
+## Arguments
 
 + `T`: type of the losses and parameters
 + `progress`: the progress meter object that will be used by the callback function

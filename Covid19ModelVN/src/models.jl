@@ -41,7 +41,7 @@ time-/covariate-dependent whose value is determined by a neural network.
 * `λ_bounds`: lower and upper bounds of the λ parameter
 * `α_bounds`: lower and upper bounds of the α parameter
 
-# Constructors
+# Constructor
 
     SEIRDBaseline(
         γ_bounds::Tuple{T,T},
@@ -174,7 +174,7 @@ parameter is time-/covariate-dependent whose value is determined by a neural net
 * `α_bounds`: lower and upper bounds of the α parameter
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 
-# Constructors
+# Constructor
 
     SEIRDFbMobility1(
         γ_bounds::Tuple{T,T},
@@ -326,7 +326,7 @@ time-/covariate-dependent whose value is determined by a neural network
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
 
-# Constructors
+# Constructor
 
     SEIRDFbMobility2(
         γ_bounds::Tuple{T,T},
@@ -487,7 +487,7 @@ time-/covariate-dependent whose values are determined by 2 separate neural netwo
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
 
-# Constructors
+# Constructor
 
     SEIRDFbMobility3(
         β_bounds::Tuple{T,T},
@@ -652,7 +652,7 @@ time-/covariate-dependent whose values are determined by 2 separate neural netwo
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
 
-# Constructors
+# Constructor
 
     SEIRDFbMobility4(
         β_bounds::Tuple{T,T},
@@ -765,7 +765,7 @@ namedparams(model::SEIRDFbMobility4, params::AbstractVector{<:Real}) = (
     γ = boxconst(params[1], model.γ_bounds),
     λ = boxconst(params[2], model.λ_bounds),
     θ1 = @view(params[3:3+model.β_ann_paramlength-1]),
-    θ2 = @view(params[end-model.α_ann_paramlength:end]),
+    θ2 = @view(params[end-model.α_ann_paramlength+1:end]),
 )
 
 """
