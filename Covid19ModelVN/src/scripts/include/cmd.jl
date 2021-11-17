@@ -265,12 +265,12 @@ function parse_commandline(args)
         "--L2_lambda"
         help = "L2-regularization term weight"
         arg_type = Float64
-        default = 1e-5
+        default = 0.0001
 
         "--zeta"
         help = "loss function time weights"
         arg_type = Float64
-        default = 0.005
+        default = -0.05
 
         "--gamma0"
         help = "inverse of the mean incubation period"
