@@ -51,7 +51,7 @@ let
     fig = Figure(resolution = (600, 400 * length(ho.params)))
     for (paramid, param) in enumerate(ho.params)
         ax = Axis(fig[paramid, 1], xlabel = string(param), ylabel = "Loss")
-        scatter!(ax, map(h -> h[paramid], ho.history), Float64.(ho.results))
+        scatter!(ax, map(h -> h[paramid], ho.history), Float32.(ho.results))
     end
     display(fig)
 end

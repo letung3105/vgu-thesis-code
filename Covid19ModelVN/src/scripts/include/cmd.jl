@@ -183,7 +183,7 @@ function parse_commandline(args)
 
         "--adam_lr"
         help = "the learning rate given to the ADAM optimizer"
-        arg_type = Float64
+        arg_type = Float32
         default = 0.01
 
         "--bfgs_maxiters"
@@ -193,7 +193,7 @@ function parse_commandline(args)
 
         "--bfgs_initial_stepnorm"
         help = "the initial_stepnorm given to the BFGS optimizer"
-        arg_type = Float64
+        arg_type = Float32
         default = 0.01
 
         "--train_days"
@@ -217,51 +217,51 @@ function parse_commandline(args)
 
         "--L2_lambda"
         help = "L2-regularization term weight"
-        arg_type = Float64
+        arg_type = Float32
         default = 0.0001
 
         "--zeta"
         help = "loss function time weights"
-        arg_type = Float64
+        arg_type = Float32
         default = -0.05
 
         "--gamma0"
         help = "inverse of the mean incubation period"
-        arg_type = Float64
+        arg_type = Float32
         default = 1 / 3
 
         "--lambda0"
         help = "inverse of the mean infectious period"
-        arg_type = Float64
+        arg_type = Float32
         default = 1 / 14
 
         "--alpha0"
         help = "the fatality rate"
-        arg_type = Float64
+        arg_type = Float32
         default = 0.025
 
         "--beta_bounds"
         help = "lower and upper bounds contraints for the average contact rate"
         nargs = 2
-        arg_type = Float64
+        arg_type = Float32
         default = [0.0, 1.336] # ℜe ∈ [0.0; 6.68]
 
         "--gamma_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean incubation period"
         nargs = 2
-        arg_type = Float64
+        arg_type = Float32
         default = [1 / 5, 1 / 2]
 
         "--lambda_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean infectious period"
         nargs = 2
-        arg_type = Float64
+        arg_type = Float32
         default = [1 / 21, 1 / 7]
 
         "--alpha_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean infectious period"
         nargs = 2
-        arg_type = Float64
+        arg_type = Float32
         default = [0.01, 0.06]
     end
 
