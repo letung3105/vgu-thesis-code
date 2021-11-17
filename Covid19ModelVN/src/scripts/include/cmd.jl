@@ -4,32 +4,38 @@ include("experiments.jl")
 
 function runcmd(args)
     parsed_args = parse_commandline(args)
-    if parsed_args[:_COMMAND_] == :baseline
-        cmd_baseline(parsed_args)
-    elseif parsed_args[:_COMMAND_] == :fbmobility1
-        cmd_fbmobility1(parsed_args)
-    elseif parsed_args[:_COMMAND_] == :fbmobility2
-        cmd_fbmobility2(parsed_args)
-    elseif parsed_args[:_COMMAND_] == :fbmobility3
-        cmd_fbmobility3(parsed_args)
-    elseif parsed_args[:_COMMAND_] == :fbmobility4
-        cmd_fbmobility4(parsed_args)
-    else
-        @error "Unsupported command '$(parse_args[:_COMMAND_])'"
-    end
-end
-
-function cmd_baseline(parsed_args)
+    name, get_hyperparams, setup = setupcmd(parsed_args)
     experiment_run(
-        "baseline",
-        setup_baseline,
+        name,
+        setup,
         parsed_args[:locations],
-        get_baseline_hyperparams(parsed_args),
+        get_hyperparams(parsed_args),
         get_train_configs(parsed_args),
         multithreading = parsed_args[:multithreading],
         savedir = parsed_args[:savedir],
         show_progress = parsed_args[:show_progress],
     )
+end
+
+function setupcmd(parsed_args)
+    cmdmappings = Dict(
+        [
+            :baseline => ("baseline", get_baseline_hyperparams, setup_baseline)
+            :fbmobility1 =>
+                ("fbmobility1", get_fbmobility1_hyperparams, setup_fbmobility1)
+            :fbmobility2 =>
+                ("fbmobility2", get_fbmobility2_hyperparams, setup_fbmobility2)
+            :fbmobility3 =>
+                ("fbmobility3", get_fbmobility3_hyperparams, setup_fbmobility3)
+            :fbmobility4 =>
+                ("fbmobility4", get_fbmobility4_hyperparams, setup_fbmobility4)
+        ],
+    )
+    @show parsed_args
+    if !haskey(cmdmappings, parsed_args[:_COMMAND_])
+        error("Unsupported command '$(parse_args[:_COMMAND_])'")
+    end
+    return cmdmappings[parsed_args[:_COMMAND_]]
 end
 
 get_baseline_hyperparams(parsed_args) = (
@@ -46,19 +52,6 @@ get_baseline_hyperparams(parsed_args) = (
     ma7 = parsed_args[:ma7],
 )
 
-function cmd_fbmobility1(parsed_args)
-    experiment_run(
-        "fbmobility1",
-        setup_fbmobility1,
-        parsed_args[:locations],
-        get_fbmobility1_hyperparams(parsed_args),
-        get_train_configs(parsed_args),
-        multithreading = parsed_args[:multithreading],
-        savedir = parsed_args[:savedir],
-        show_progress = parsed_args[:show_progress],
-    )
-end
-
 get_fbmobility1_hyperparams(parsed_args) = (
     L2_λ = parsed_args[:L2_lambda],
     ζ = parsed_args[:zeta],
@@ -72,19 +65,6 @@ get_fbmobility1_hyperparams(parsed_args) = (
     forecast_range = Day(parsed_args[:test_days]),
     ma7 = parsed_args[:ma7],
 )
-
-function cmd_fbmobility2(parsed_args)
-    experiment_run(
-        "fbmobility2",
-        setup_fbmobility2,
-        parsed_args[:locations],
-        get_fbmobility2_hyperparams(parsed_args),
-        get_train_configs(parsed_args),
-        multithreading = parsed_args[:multithreading],
-        savedir = parsed_args[:savedir],
-        show_progress = parsed_args[:show_progress],
-    )
-end
 
 get_fbmobility2_hyperparams(parsed_args) = (
     L2_λ = parsed_args[:L2_lambda],
@@ -101,19 +81,6 @@ get_fbmobility2_hyperparams(parsed_args) = (
     ma7 = parsed_args[:ma7],
 )
 
-function cmd_fbmobility3(parsed_args)
-    experiment_run(
-        "fbmobility3",
-        setup_fbmobility3,
-        parsed_args[:locations],
-        get_fbmobility3_hyperparams(parsed_args),
-        get_train_configs(parsed_args),
-        multithreading = parsed_args[:multithreading],
-        savedir = parsed_args[:savedir],
-        show_progress = parsed_args[:show_progress],
-    )
-end
-
 get_fbmobility3_hyperparams(parsed_args) = (
     L2_λ = parsed_args[:L2_lambda],
     ζ = parsed_args[:zeta],
@@ -129,19 +96,6 @@ get_fbmobility3_hyperparams(parsed_args) = (
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     ma7 = parsed_args[:ma7],
 )
-
-function cmd_fbmobility4(parsed_args)
-    experiment_run(
-        "fbmobility4",
-        setup_fbmobility4,
-        parsed_args[:locations],
-        get_fbmobility4_hyperparams(parsed_args),
-        get_train_configs(parsed_args),
-        multithreading = parsed_args[:multithreading],
-        savedir = parsed_args[:savedir],
-        show_progress = parsed_args[:show_progress],
-    )
-end
 
 get_fbmobility4_hyperparams(parsed_args) = (
     L2_λ = parsed_args[:L2_lambda],
