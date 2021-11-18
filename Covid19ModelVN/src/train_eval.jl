@@ -77,7 +77,7 @@ function (p::Predictor)(params, tspan, saveat)
 end
 
 """
-    Loss{Bool,F<:Function,P<:Predictor,D<:TimeseriesDataset}
+    Loss{Regularized,Metric,Predict,DataIter,R<:Real}
 
 A callable struct that uses `metric` to calculate the loss between the output of
 `predict` and `dataset`.
@@ -86,34 +86,32 @@ A callable struct that uses `metric` to calculate the loss between the output of
 
 * `metric`: a function that computes the error between two data arrays
 * `predict`: the time span that the ODE solver will be run on
-* `dataset`: the dataset that contains the ground truth data
+* `datacycle`: the cyling iterator that go through each batch in the dataset
+* `tspan`: the integration time span
 
 # Constructor
 
-    Loss{true}(metric, predict, dataset)
+    Loss{Regularized}(
+        metric,
+        predict,
+        dataset::TimeseriesDataset,
+        batchsize = length(dataset.tsteps),
+    )
 
 ## Arguments
 
+* `Regularized`: a parametric boolean that is used to determined the callable to used,
+set to true if `metric` accepts a third argument for the paramters
 * `metric`: a function that computes the error between two data arrays
 * `predict`: the time span that the ODE solver will be run on
 * `dataset`: the dataset that contains the ground truth data
-
-# Constructor
-
-    Loss{false}(metric, predict, dataset)
-
-## Arguments
-
-* `metric`: a function that computes the error between two data arrays
-* `predict`: the time span that the ODE solver will be run on
-* `dataset`: the dataset that contains the ground truth data
-
+* `batchsize`: the size of each batch in the dataset, default to no batching
 
 # Callable
 
-    (l::Loss{false,Metric,Predict,Dataset})(
+    (l::Loss{false,Metric,Predict,DataCycle,R})(
         params,
-    ) where {Metric<:Function,Predict<:Predictor,Dataset<:TimeseriesDataset}
+    ) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful,R<:Real}
 
 Call an object of the `Loss` struct on a set of parameters to get the loss scalar.
 Here, the field `metric` is used with 2 parameters: the prediction and the ground
@@ -126,9 +124,9 @@ truth data.
 
 # Callable
 
-    (l::Loss{true,Metric,Predict,Dataset})(
+    (l::Loss{true,Metric,Predict,DataCycle,R})(
         params,
-    ) where {Metric<:Function,Predict<:Predictor,Dataset<:TimeseriesDataset}
+    ) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful,R<:Real}
 
 Call an object of the `Loss` struct on a set of parameters to get the loss scalar.
 Here, the field `metric` is used with 3 parameters: the prediction, the ground
@@ -137,128 +135,90 @@ truth data, and the parameters of the system.
 ## Arguments
 
 * `params`: the set of parameters of the model
-
-# Callable
-
-    (l::Loss{false,Metric,Predict,Dataset})(
-        params,
-    ) where {
-        Metric<:Function,
-        Predict<:Predictor,
-        Dataset<:Iterators.Stateful{<:Iterators.Cycle{<:BatchTimeseriesDataset}},
-    }
-
-Call an object of the `Loss` struct on a set of parameters to get the loss scalar.
-Here, the field `metric` is used with 2 parameters: the prediction and the ground
-truth data. Data is sampled in batch.
-
-## Arguments
-
-* `params`: the set of parameters of the model
-
-
-# Callable
-
-    (l::Loss{true,Metric,Predict,Dataset})(
-        params,
-    ) where {
-        Metric<:Function,
-        Predict<:Predictor,
-        Dataset<:Iterators.Stateful{<:Iterators.Cycle{<:BatchTimeseriesDataset}},
-    }
-
-Call an object of the `Loss` struct on a set of parameters to get the loss scalar.
-Here, the field `metric` is used with 3 parameters: the prediction, the ground
-truth data, and the parameters of the system. Data is sampled in batches.
-
-## Arguments
-
-* `params`: the set of parameters of the model
 """
-struct Loss{Bool,Metric,Predict,Dataset}
+struct Loss{Regularized,Metric,Predict,DataCycle,R<:Real}
     metric::Metric
     predict::Predict
-    dataset::Dataset
+    datacycle::DataCycle
+    tspan::Tuple{R,R}
 
-    Loss{true}(metric, predict, dataset) =
-        new{true,typeof(metric),typeof(predict),typeof(dataset)}(metric, predict, dataset)
+    function Loss{false}(
+        metric,
+        predict,
+        dataset::TimeseriesDataset,
+        batchsize = length(dataset.tsteps),
+    )
+        dataloader = timeseries_dataloader(dataset, batchsize)
+        datacycle = dataloader |> Iterators.cycle |> Iterators.Stateful
+        return new{
+            false,
+            typeof(metric),
+            typeof(predict),
+            typeof(datacycle),
+            eltype(dataset.tspan),
+        }(
+            metric,
+            predict,
+            datacycle,
+            dataset.tspan,
+        )
+    end
 
-    Loss{false}(metric, predict, dataset) =
-        new{false,typeof(metric),typeof(predict),typeof(dataset)}(metric, predict, dataset)
+    function Loss{true}(
+        metric,
+        predict,
+        dataset::TimeseriesDataset,
+        batchsize = length(dataset.tsteps),
+    )
+        dataloader = timeseries_dataloader(dataset, batchsize)
+        datacycle = dataloader |> Iterators.cycle |> Iterators.Stateful
+        return new{
+            true,
+            typeof(metric),
+            typeof(predict),
+            typeof(datacycle),
+            eltype(dataset.tspan),
+        }(
+            metric,
+            predict,
+            datacycle,
+            dataset.tspan,
+        )
+    end
 end
 
-function (l::Loss{false,Metric,Predict,Dataset})(
+function (l::Loss{false,Metric,Predict,DataCycle,R})(
     params,
-) where {
-    Metric<:Function,
-    Predict<:Predictor,
-    Dataset<:Iterators.Stateful{<:Iterators.Cycle{<:BatchTimeseriesDataset}},
-}
-    dataset = popfirst!(l.dataset)
-    sol = l.predict(params, dataset.tspan, dataset.tsteps)
+) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful,R<:Real}
+    data, tsteps = popfirst!(l.datacycle)
+    sol = l.predict(params, l.tspan, tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
         return Inf32
     end
     pred = @view sol[:, :]
-    if size(pred) != size(dataset.data)
+    if size(pred) != size(data)
         # Unstable trajectories / Wrong inputs
         return Inf32
     end
-    return l.metric(pred, dataset.data)
+    return l.metric(pred, data)
 end
 
-function (l::Loss{true,Metric,Predict,Dataset})(
+function (l::Loss{true,Metric,Predict,DataCycle,R})(
     params,
-) where {
-    Metric<:Function,
-    Predict<:Predictor,
-    Dataset<:Iterators.Stateful{<:Iterators.Cycle{<:BatchTimeseriesDataset}},
-}
-    dataset = popfirst!(l.dataset)
-    sol = l.predict(params, dataset.tspan, dataset.tsteps)
+) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful,R<:Real}
+    data, tsteps = popfirst!(l.datacycle)
+    sol = l.predict(params, l.tspan, tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
         return Inf32
     end
     pred = @view sol[:, :]
-    if size(pred) != size(dataset.data)
+    if size(pred) != size(data)
         # Unstable trajectories / Wrong inputs
         return Inf32
     end
-    return l.metric(pred, dataset.data, params)
-end
-
-function (l::Loss{false,Metric,Predict,Dataset})(
-    params,
-) where {Metric<:Function,Predict<:Predictor,Dataset<:TimeseriesDataset}
-    sol = l.predict(params, l.dataset.tspan, l.dataset.tsteps)
-    if sol.retcode != :Success
-        # Unstable trajectories => hard penalize
-        return Inf32
-    end
-    pred = @view sol[:, :]
-    if size(pred) != size(l.dataset.data)
-        # Unstable trajectories / Wrong inputs
-        return Inf32
-    end
-    return l.metric(pred, l.dataset.data)
-end
-
-function (l::Loss{true,Metric,Predict,Dataset})(
-    params,
-) where {Metric<:Function,Predict<:Predictor,Dataset<:TimeseriesDataset}
-    sol = l.predict(params, l.dataset.tspan, l.dataset.tsteps)
-    if sol.retcode != :Success
-        # Unstable trajectories => hard penalize
-        return Float32(Inf)
-    end
-    pred = @view sol[:, :]
-    if size(pred) != size(l.dataset.data)
-        # Unstable trajectories / Wrong inputs
-        return Float32(Inf)
-    end
-    return l.metric(pred, l.dataset.data, params)
+    return l.metric(pred, data, params)
 end
 
 """

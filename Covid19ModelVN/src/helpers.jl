@@ -52,79 +52,8 @@ struct TimeseriesDataset{R<:Real,Data<:AbstractMatrix{R},Tspan<:Tuple{R,R},Tstep
     tsteps::Tsteps
 end
 
-"""
-    BatchTimeseriesDataset{R<:Real,Data<:AbstractMatrix{R},Tspan<:Tuple{R,R},Tsteps}
-
-This contains the minimum required information for a timeseriese dataset that is used by UDEs.
-The object of this struct is iterable where each iteration returns a batch of data that is a
-partition of the time series
-
-# Fields
-
-* `data`: an array that holds the timeseries data
-* `tspan`: the first and last time coordinates of the timeseries data
-* `tsteps`: collocations points
-* `batchsize`: the size of each batch
-
-# Constructor
-
-    BatchTimeseriesDataset(dataset::TimeseriesDataset, batchsize)
-
-Create a batched time series from the original time series
-
-## Arguments
-
-* `dataset`: the original dataset
-* `batchsize`: the size to batch the dataset
-"""
-struct BatchTimeseriesDataset{R<:Real,Data<:AbstractMatrix{R},Tspan<:Tuple{R,R},Tsteps}
-    data::Data
-    tspan::Tspan
-    tsteps::Tsteps
-    batchsize::Int
-
-    function BatchTimeseriesDataset(dataset::TimeseriesDataset, batchsize)
-        if batchsize > length(dataset.tsteps)
-            error(
-                "Invalid batch size! '$batchsize' is larger than the number of saved time steps",
-            )
-        end
-        return new{
-            eltype(dataset.data),
-            typeof(dataset.data),
-            typeof(dataset.tspan),
-            typeof(dataset.tsteps),
-        }(
-            dataset.data,
-            dataset.tspan,
-            dataset.tsteps,
-            batchsize,
-        )
-    end
-end
-
-"""
-    iterate(dataset::BatchTimeseriesDataset[, id])
-
-Implement the iterator interface for going through each batch in the dataset
-"""
-Base.iterate(dataset::BatchTimeseriesDataset) = Base.iterate(dataset, 0)
-
-function Base.iterate(dataset::BatchTimeseriesDataset, id)
-    batch_begin = id * dataset.batchsize + 1
-    if batch_begin > length(dataset.tsteps)
-        return nothing
-    end
-
-    batch_end = batch_begin + dataset.batchsize - 1
-    if batch_end > length(dataset.tsteps)
-        batch_end = length(dataset.tsteps)
-    end
-
-    batch_data = @view dataset.data[:, batch_begin:batch_end]
-    batch_tsteps = dataset.tsteps[batch_begin:batch_end]
-    return TimeseriesDataset(batch_data, dataset.tspan, batch_tsteps), id + 1
-end
+timeseries_dataloader(dataset::TimeseriesDataset, batchsize::Integer) =
+    Flux.DataLoader((dataset.data, dataset.tsteps); batchsize)
 
 """
     train_test_split(

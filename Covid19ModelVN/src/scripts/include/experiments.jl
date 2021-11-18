@@ -483,13 +483,7 @@ function experiment_train(
     train_loss = if batchsize == 0
         eval_loss
     else
-        Loss{true}(
-            lossfn,
-            predictor,
-            Iterators.Stateful(
-                Iterators.cycle(BatchTimeseriesDataset(train_dataset, batchsize)),
-            ),
-        )
+        Loss{true}(lossfn, predictor, train_dataset, batchsize)
     end
 
     # check if AD works
