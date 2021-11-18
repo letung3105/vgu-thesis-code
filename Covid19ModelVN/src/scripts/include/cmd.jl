@@ -15,6 +15,7 @@ function runcmd(args)
         forecast_horizons = parsed_args[:forecast_horizons],
         savedir = parsed_args[:savedir],
         show_progress = parsed_args[:show_progress],
+        batchsize = parsed_args[:train_batchsize]
     )
 end
 
@@ -222,6 +223,11 @@ function parse_commandline(args)
         "--ma7_disable"
         help = "do not apply a 7-day moving average to all the time series datasets"
         action = :store_true
+
+        "--train_batchsize"
+        help = "separate dataset into batches for training"
+        arg_type = Int
+        default = 0
 
         "--L2_lambda"
         help = "L2-regularization term weight"

@@ -465,6 +465,7 @@ function experiment_train(
     setup::Function,
     configs::AbstractVector{TrainConfig},
     snapshots_dir::AbstractString;
+    batchsize = 0,
     kwargs...,
 )
     # get model and data
@@ -472,15 +473,27 @@ function experiment_train(
     # create a prediction model and loss function
     prob = ODEProblem(model, u0, train_dataset.tspan)
     predictor = Predictor(prob, vars)
-    train_loss = Loss{true}(lossfn, predictor, train_dataset)
+    eval_loss = Loss{true}(lossfn, predictor, train_dataset)
     test_loss = Loss{false}(rmse, predictor, test_dataset)
+    train_loss = if batchsize == 0
+        eval_loss
+    else
+        Loss{true}(
+            lossfn,
+            predictor,
+            Iterators.Stateful(
+                Iterators.cycle(BatchTimeseriesDataset(train_dataset, batchsize)),
+            ),
+        )
+    end
+
     # check if AD works
     dLdθ = Zygote.gradient(train_loss, p0)
     @assert !isnothing(dLdθ[1]) # gradient is computable
     @assert any(dLdθ[1] .!= 0.0) # not all gradients are 0
 
     minimizers =
-        train_model(uuid, train_loss, test_loss, p0, configs, snapshots_dir; kwargs...)
+        train_model(uuid, train_loss, eval_loss, test_loss, p0, configs, snapshots_dir; kwargs...)
     minimizer = last(minimizers)
     return minimizer, train_loss(minimizer)
 end

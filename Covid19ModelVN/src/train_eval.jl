@@ -79,42 +79,44 @@ end
 """
     Loss{Bool,F<:Function,P<:Predictor,D<:TimeseriesDataset}
 
-A callable struct that uses `metric_fn` to calculate the loss between the output of
+A callable struct that uses `metric` to calculate the loss between the output of
 `predict` and `dataset`.
 
 # Fields
 
-* `metric_fn`: a function that computes the error between two data arrays
-* `predict_fn`: the time span that the ODE solver will be run on
+* `metric`: a function that computes the error between two data arrays
+* `predict`: the time span that the ODE solver will be run on
 * `dataset`: the dataset that contains the ground truth data
 
 # Constructor
 
-    Loss{true}(metric_fn, predict_fn, dataset)
+    Loss{true}(metric, predict, dataset)
 
 ## Arguments
 
-* `metric_fn`: a function that computes the error between two data arrays
-* `predict_fn`: the time span that the ODE solver will be run on
+* `metric`: a function that computes the error between two data arrays
+* `predict`: the time span that the ODE solver will be run on
 * `dataset`: the dataset that contains the ground truth data
 
 # Constructor
 
-    Loss{false}(metric_fn, predict_fn, dataset)
+    Loss{false}(metric, predict, dataset)
 
 ## Arguments
 
-* `metric_fn`: a function that computes the error between two data arrays
-* `predict_fn`: the time span that the ODE solver will be run on
+* `metric`: a function that computes the error between two data arrays
+* `predict`: the time span that the ODE solver will be run on
 * `dataset`: the dataset that contains the ground truth data
 
 
 # Callable
 
-    (l::Loss{false,F,P,D})(params::VT) where {F,P,D,VT<:AbstractVector{<:Real}}
+    (l::Loss{false,Metric,Predict,Dataset})(
+        params,
+    ) where {Metric<:Function,Predict<:Predictor,Dataset<:TimeseriesDataset}
 
 Call an object of the `Loss` struct on a set of parameters to get the loss scalar.
-Here, the field `metric_fn` is used with 2 parameters: the prediction and the ground
+Here, the field `metric` is used with 2 parameters: the prediction and the ground
 truth data.
 
 ## Arguments
@@ -124,38 +126,113 @@ truth data.
 
 # Callable
 
-    (l::Loss{true,F,P,D})(params::VT) where {F,P,D,VT<:AbstractVector{<:Real}}
+    (l::Loss{true,Metric,Predict,Dataset})(
+        params,
+    ) where {Metric<:Function,Predict<:Predictor,Dataset<:TimeseriesDataset}
 
 Call an object of the `Loss` struct on a set of parameters to get the loss scalar.
-Here, the field `metric_fn` is used with 3 parameters: the prediction, the ground
+Here, the field `metric` is used with 3 parameters: the prediction, the ground
 truth data, and the parameters of the system.
 
 ## Arguments
 
 * `params`: the set of parameters of the model
+
+# Callable
+
+    (l::Loss{false,Metric,Predict,Dataset})(
+        params,
+    ) where {
+        Metric<:Function,
+        Predict<:Predictor,
+        Dataset<:Iterators.Stateful{<:Iterators.Cycle{<:BatchTimeseriesDataset}},
+    }
+
+Call an object of the `Loss` struct on a set of parameters to get the loss scalar.
+Here, the field `metric` is used with 2 parameters: the prediction and the ground
+truth data. Data is sampled in batch.
+
+## Arguments
+
+* `params`: the set of parameters of the model
+
+
+# Callable
+
+    (l::Loss{true,Metric,Predict,Dataset})(
+        params,
+    ) where {
+        Metric<:Function,
+        Predict<:Predictor,
+        Dataset<:Iterators.Stateful{<:Iterators.Cycle{<:BatchTimeseriesDataset}},
+    }
+
+Call an object of the `Loss` struct on a set of parameters to get the loss scalar.
+Here, the field `metric` is used with 3 parameters: the prediction, the ground
+truth data, and the parameters of the system. Data is sampled in batches.
+
+## Arguments
+
+* `params`: the set of parameters of the model
 """
-struct Loss{Bool,F<:Function,P<:Predictor,D<:TimeseriesDataset}
-    metric_fn::F
-    predict_fn::P
-    dataset::D
+struct Loss{Bool,Metric,Predict,Dataset}
+    metric::Metric
+    predict::Predict
+    dataset::Dataset
 
-    Loss{true}(metric_fn, predict_fn, dataset) =
-        new{true,typeof(metric_fn),typeof(predict_fn),typeof(dataset)}(
-            metric_fn,
-            predict_fn,
-            dataset,
-        )
+    Loss{true}(metric, predict, dataset) =
+        new{true,typeof(metric),typeof(predict),typeof(dataset)}(metric, predict, dataset)
 
-    Loss{false}(metric_fn, predict_fn, dataset) =
-        new{false,typeof(metric_fn),typeof(predict_fn),typeof(dataset)}(
-            metric_fn,
-            predict_fn,
-            dataset,
-        )
+    Loss{false}(metric, predict, dataset) =
+        new{false,typeof(metric),typeof(predict),typeof(dataset)}(metric, predict, dataset)
 end
 
-function (l::Loss{false,F,P,D})(params) where {F,P,D}
-    sol = l.predict_fn(params, l.dataset.tspan, l.dataset.tsteps)
+function (l::Loss{false,Metric,Predict,Dataset})(
+    params,
+) where {
+    Metric<:Function,
+    Predict<:Predictor,
+    Dataset<:Iterators.Stateful{<:Iterators.Cycle{<:BatchTimeseriesDataset}},
+}
+    dataset = popfirst!(l.dataset)
+    sol = l.predict(params, dataset.tspan, dataset.tsteps)
+    if sol.retcode != :Success
+        # Unstable trajectories => hard penalize
+        return Inf32
+    end
+    pred = @view sol[:, :]
+    if size(pred) != size(dataset.data)
+        # Unstable trajectories / Wrong inputs
+        return Inf32
+    end
+    return l.metric(pred, dataset.data)
+end
+
+function (l::Loss{true,Metric,Predict,Dataset})(
+    params,
+) where {
+    Metric<:Function,
+    Predict<:Predictor,
+    Dataset<:Iterators.Stateful{<:Iterators.Cycle{<:BatchTimeseriesDataset}},
+}
+    dataset = popfirst!(l.dataset)
+    sol = l.predict(params, dataset.tspan, dataset.tsteps)
+    if sol.retcode != :Success
+        # Unstable trajectories => hard penalize
+        return Inf32
+    end
+    pred = @view sol[:, :]
+    if size(pred) != size(dataset.data)
+        # Unstable trajectories / Wrong inputs
+        return Inf32
+    end
+    return l.metric(pred, dataset.data, params)
+end
+
+function (l::Loss{false,Metric,Predict,Dataset})(
+    params,
+) where {Metric<:Function,Predict<:Predictor,Dataset<:TimeseriesDataset}
+    sol = l.predict(params, l.dataset.tspan, l.dataset.tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
         return Inf32
@@ -165,11 +242,13 @@ function (l::Loss{false,F,P,D})(params) where {F,P,D}
         # Unstable trajectories / Wrong inputs
         return Inf32
     end
-    return l.metric_fn(pred, l.dataset.data)
+    return l.metric(pred, l.dataset.data)
 end
 
-function (l::Loss{true,F,P,D})(params) where {F,P,D}
-    sol = l.predict_fn(params, l.dataset.tspan, l.dataset.tsteps)
+function (l::Loss{true,Metric,Predict,Dataset})(
+    params,
+) where {Metric<:Function,Predict<:Predictor,Dataset<:TimeseriesDataset}
+    sol = l.predict(params, l.dataset.tspan, l.dataset.tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
         return Float32(Inf)
@@ -179,7 +258,7 @@ function (l::Loss{true,F,P,D})(params) where {F,P,D}
         # Unstable trajectories / Wrong inputs
         return Float32(Inf)
     end
-    return l.metric_fn(pred, l.dataset.data, params)
+    return l.metric(pred, l.dataset.data, params)
 end
 
 """
@@ -191,7 +270,7 @@ State of the callback struct
 
 * `iters`: number have iterations that have been run
 * `progress`: the progress meter that keeps track of the process
-* `train_losses`: collected training losses at each interval
+* `eval_losses`: collected evaluation losses at each interval
 * `test_losses`: collected testing losses at each interval
 * `minimizer`: current best set of parameters
 * `minimizer_loss`: loss value of the current best set of parameters
@@ -225,7 +304,7 @@ State of the callback struct
 mutable struct TrainCallbackState{R<:Real}
     iters::Int
     progress::ProgressUnknown
-    train_losses::Vector{R}
+    eval_losses::Vector{R}
     test_losses::Vector{R}
     minimizer::Vector{R}
     minimizer_loss::R
@@ -258,13 +337,15 @@ Configuration of the callback struct
 
 # Fields
 
+* `eval_loss`: loss function on the train dataset
 * `test_loss`: loss function on the test dataset
 * `save_interval`: interval for saving the current best set of parameters and losses
 * `losses_save_fpath`: file path to the saved losses figure
 * `params_save_fpath`: file path to the serialized current best set of parameters
 """
-struct TrainCallbackConfig{L<:Loss}
-    test_loss::L
+struct TrainCallbackConfig{L1<:Loss,L2<:Loss}
+    eval_loss::L1
+    test_loss::L2
     save_interval::Int
     losses_save_fpath::String
     params_save_fpath::String
@@ -289,25 +370,27 @@ Call an object of type `TrainCallback`
 * `train_loss`: loss from the training step
 """
 function (cb::TrainCallback)(params::AbstractVector{R}, train_loss::R) where {R<:Real}
+    eval_loss = cb.config.eval_loss(params)
     test_loss = cb.config.test_loss(params)
     showvalues = @SVector [
         :losses_save_fpath => cb.config.losses_save_fpath,
         :params_save_fpath => cb.config.params_save_fpath,
         :train_loss => train_loss,
+        :eval_loss => eval_loss,
         :test_loss => test_loss,
     ]
     next!(cb.state.progress, showvalues = showvalues)
-    push!(cb.state.train_losses, train_loss)
+    push!(cb.state.eval_losses, eval_loss)
     push!(cb.state.test_losses, test_loss)
     cb.state.iters += 1
-    if train_loss < cb.state.minimizer_loss && size(params) == size(cb.state.minimizer)
-        cb.state.minimizer_loss = train_loss
+    if eval_loss < cb.state.minimizer_loss && size(params) == size(cb.state.minimizer)
+        cb.state.minimizer_loss = eval_loss
         cb.state.minimizer .= params
     end
     if cb.state.iters % cb.config.save_interval == 0
         Serialization.serialize(
             cb.config.losses_save_fpath,
-            (cb.state.train_losses, cb.state.test_losses),
+            (cb.state.eval_losses, cb.state.test_losses),
         )
         Serialization.serialize(cb.config.params_save_fpath, cb.state.minimizer)
     end
@@ -332,23 +415,6 @@ struct TrainConfig{Opt}
 end
 
 """
-    EvalConfig
-
-A struct for holding general configuration for the evaluation process
-
-# Arguments
-
-+ `metric_fns`: a list of metric function that will be used to compute the model errors
-+ `forecast_ranges`: a list of different time ranges on which the model's prediction will be evaluated
-+ `labels`: names of the evaluated model's states
-"""
-struct EvalConfig
-    metric_fns::Vector{Function}
-    forecast_ranges::Vector{Int}
-    labels::Vector{String}
-end
-
-"""
     train_model(
         uuid::AbstractString,
         train_loss::Loss,
@@ -362,18 +428,19 @@ end
         kwargs...,
     )
 
-Find a set of paramters that minimizes the loss function defined by `train_loss_fn`, starting from
+Find a set of paramters that minimizes the loss function defined by `train_loss`, starting from
 the initial set of parameters `params`.
 
 # Arguments
 
 + `uuid`: unique id for the training session
 + `train_loss`: a function that will be minimized
-+ `test_loss`: a loss function used for evaluation
++ `test_loss`: a loss function used for testing
 + `p0`: the initial set of parameters
 + `configs`: a collection of optimizers and settings used for training the model
-+ `loss_samples`: number of params and losses samples to take
 + `snapshots_dir`: a directory for saving the model parameters and training losses
++ `eval_loss`: a loss function used for evaluating the model parameters
++ `loss_samples`: number of params and losses samples to take
 + `show_progress`: control whether to show the default progress bar for each training session,
 this option will be ignored when `progress` is set
 + `progress`: a progress meter that will be used to monitor the training sessions
@@ -382,13 +449,14 @@ this option will be ignored when `progress` is set
 function train_model(
     uuid::AbstractString,
     train_loss::Loss,
+    eval_loss::Loss,
     test_loss::Loss,
     p0::AbstractVector{<:Real},
     configs::AbstractVector{TrainConfig},
     snapshots_dir::AbstractString;
+    loss_samples::Integer = 100,
     show_progress::Bool = false,
     progress::Union{ProgressUnknown,Nothing} = nothing,
-    loss_samples::Integer = 100,
     kwargs...,
 )
     if !isdir(snapshots_dir)
@@ -410,6 +478,7 @@ function train_model(
                 isnothing(progress) ? show_progress : progress,
             ),
             TrainCallbackConfig(
+                eval_loss,
                 test_loss,
                 div(conf.maxiters, loss_samples),
                 get_losses_save_fpath(snapshots_dir, "$uuid.$(conf.name)"),
@@ -436,6 +505,23 @@ function train_model(
     end
 
     return minimizers
+end
+
+"""
+    EvalConfig
+
+A struct for holding general configuration for the evaluation process
+
+# Arguments
+
++ `metrics`: a list of metric function that will be used to compute the model errors
++ `forecast_ranges`: a list of different time ranges on which the model's prediction will be evaluated
++ `labels`: names of the evaluated model's states
+"""
+struct EvalConfig
+    metrics::Vector{Function}
+    forecast_ranges::Vector{Int}
+    labels::Vector{String}
 end
 
 """
@@ -502,15 +588,15 @@ function calculate_forecasts_errors(
     pred::SciMLBase.AbstractTimeseriesSolution,
     test_dataset::TimeseriesDataset,
 )
-    horizons = repeat(config.forecast_ranges, inner = length(config.metric_fns))
-    metrics = repeat(map(string, config.metric_fns), length(config.forecast_ranges))
+    horizons = repeat(config.forecast_ranges, inner = length(config.metrics))
+    metrics = repeat(map(string, config.metrics), length(config.forecast_ranges))
     errors = reshape(
         [
-            metric_fn(pred[idx, 1:days], test_dataset.data[idx, 1:days]) for
-            metric_fn ∈ config.metric_fns, days ∈ config.forecast_ranges,
+            metric(pred[idx, 1:days], test_dataset.data[idx, 1:days]) for
+            metric ∈ config.metrics, days ∈ config.forecast_ranges,
             idx ∈ 1:length(config.labels)
         ],
-        length(config.metric_fns) * length(config.forecast_ranges),
+        length(config.metrics) * length(config.forecast_ranges),
         length(config.labels),
     )
     df1 = DataFrame([horizons metrics], [:horizon, :metric])
