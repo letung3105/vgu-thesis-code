@@ -12,6 +12,7 @@ function runcmd(args)
         get_hyperparams(parsed_args),
         get_train_configs(parsed_args),
         multithreading = parsed_args[:multithreading],
+        forecast_horizons = parsed_args[:forecast_horizons],
         savedir = parsed_args[:savedir],
         show_progress = parsed_args[:show_progress],
     )
@@ -162,6 +163,13 @@ function parse_commandline(args)
         nargs = '*'
         arg_type = String
         default = String[]
+
+        "--forecast_horizons"
+        help = "the numbers of days that will be forecasted"
+        action = :store_arg
+        nargs = '*'
+        arg_type = Int32
+        default = Int32[7, 14, 21, 28]
 
         "--multithreading"
         help = "use multiple threads to train the model at multiple locations at once"

@@ -483,6 +483,7 @@ end
 function experiment_eval(
     uuid::AbstractString,
     setup::Function,
+    forecast_horizons::AbstractVector{<:Integer},
     snapshots_dir::AbstractString,
 )
     # get model and data
@@ -491,7 +492,7 @@ function experiment_eval(
     prob = ODEProblem(model, u0, train_dataset.tspan)
     predictor = Predictor(prob, vars)
 
-    eval_config = EvalConfig([mae, mape, rmse], [7, 14, 21, 28], labels)
+    eval_config = EvalConfig([mae, mape, rmse], forecast_horizons, labels)
     for fpath ∈ lookup_saved_params(snapshots_dir)
         dataname, datatype, _ = rsplit(basename(fpath), ".", limit = 3)
         if !startswith(dataname, uuid)
@@ -549,6 +550,7 @@ function experiment_run(
     hyperparams::NamedTuple,
     train_configs::AbstractVector{<:TrainConfig};
     multithreading::Bool,
+    forecast_horizons::AbstractVector{<:Integer},
     savedir::AbstractString,
     kwargs...,
 )
@@ -585,7 +587,7 @@ function experiment_run(
         # program crashes when multiple threads trying to plot at the same time
         lock(LK_EVALUATION)
         try
-            experiment_eval(uuid, setup, snapshots_dir)
+            experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
         finally
             unlock(LK_EVALUATION)
         end
