@@ -46,10 +46,53 @@ This contains the minimum required information for a timeseriese dataset that is
 * `tspan`: the first and last time coordinates of the timeseries data
 * `tsteps`: collocations points
 """
-struct TimeseriesDataset{R<:Real,DS<:AbstractMatrix{R},TS}
-    data::DS
-    tspan::Tuple{R,R}
-    tsteps::TS
+struct TimeseriesDataset{R<:Real,Data<:AbstractMatrix{R},Tspan<:Tuple{R,R},Tsteps}
+    data::Data
+    tspan::Tspan
+    tsteps::Tsteps
+end
+
+struct BatchTimeseriesDataset{R<:Real,Data<:AbstractMatrix{R},Tspan<:Tuple{R,R},Tsteps}
+    data::Data
+    tspan::Tspan
+    tsteps::Tsteps
+    batchsize::Int
+
+    function BatchTimeseriesDataset(dataset::TimeseriesDataset, batchsize)
+        if batchsize > length(dataset.tsteps)
+            error(
+                "Invalid batch size! '$batchsize' is larger than the number of saved time steps",
+            )
+        end
+        return new{
+            eltype(dataset.data),
+            typeof(dataset.data),
+            typeof(dataset.tspan),
+            typeof(dataset.tsteps),
+        }(
+            dataset.data,
+            dataset.tspan,
+            dataset.tsteps,
+            batchsize,
+        )
+    end
+end
+
+Base.iterate(dataset::BatchTimeseriesDataset) = Base.iterate(dataset, 0)
+function Base.iterate(dataset::BatchTimeseriesDataset, id)
+    batch_begin = id * dataset.batchsize + 1
+    if batch_begin > length(dataset.tsteps)
+        return nothing
+    end
+
+    batch_end = batch_begin + dataset.batchsize - 1
+    if batch_end > length(dataset.tsteps)
+        batch_end = length(dataset.tsteps)
+    end
+
+    batch_data = @view dataset.data[:, batch_begin:batch_end]
+    batch_tsteps = dataset.tsteps[batch_begin:batch_end]
+    return TimeseriesDataset(batch_data, dataset.tspan, batch_tsteps), id + 1
 end
 
 """
