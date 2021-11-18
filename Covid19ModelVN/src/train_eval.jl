@@ -158,12 +158,12 @@ function (l::Loss{false,F,P,D})(params) where {F,P,D}
     sol = l.predict_fn(params, l.dataset.tspan, l.dataset.tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
-        return Float32(Inf)
+        return Inf32
     end
     pred = @view sol[:, :]
     if size(pred) != size(l.dataset.data)
         # Unstable trajectories / Wrong inputs
-        return Float32(Inf)
+        return Inf32
     end
     return l.metric_fn(pred, l.dataset.data)
 end
