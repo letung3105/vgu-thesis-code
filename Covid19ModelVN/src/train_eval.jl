@@ -107,6 +107,32 @@ A callable struct that uses `metric_fn` to calculate the loss between the output
 * `metric_fn`: a function that computes the error between two data arrays
 * `predict_fn`: the time span that the ODE solver will be run on
 * `dataset`: the dataset that contains the ground truth data
+
+
+# Callable
+
+    (l::Loss{false,F,P,D})(params::VT) where {F,P,D,VT<:AbstractVector{<:Real}}
+
+Call an object of the `Loss` struct on a set of parameters to get the loss scalar.
+Here, the field `metric_fn` is used with 2 parameters: the prediction and the ground
+truth data.
+
+## Arguments
+
+* `params`: the set of parameters of the model
+
+
+# Callable
+
+    (l::Loss{true,F,P,D})(params::VT) where {F,P,D,VT<:AbstractVector{<:Real}}
+
+Call an object of the `Loss` struct on a set of parameters to get the loss scalar.
+Here, the field `metric_fn` is used with 3 parameters: the prediction, the ground
+truth data, and the parameters of the system.
+
+## Arguments
+
+* `params`: the set of parameters of the model
 """
 struct Loss{Bool,F<:Function,P<:Predictor,D<:TimeseriesDataset}
     metric_fn::F
@@ -128,15 +154,6 @@ struct Loss{Bool,F<:Function,P<:Predictor,D<:TimeseriesDataset}
         )
 end
 
-"""
-    (l::Loss{false,F,P,D})(params::VT) where {F,P,D,VT<:AbstractVector{<:Real}}
-
-Call an object of the `Loss` struct on a set of parameters to get the loss scalar
-
-# Arguments
-
-* `params`: the set of parameters of the model
-"""
 function (l::Loss{false,F,P,D})(params) where {F,P,D}
     sol = l.predict_fn(params, l.dataset.tspan, l.dataset.tsteps)
     if sol.retcode != :Success
@@ -151,16 +168,6 @@ function (l::Loss{false,F,P,D})(params) where {F,P,D}
     return l.metric_fn(pred, l.dataset.data)
 end
 
-"""
-    (l::Loss{true,F,P,D})(params::VT) where {F,P,D,VT<:AbstractVector{<:Real}}
-
-Call an object of the `Loss` struct on a set of parameters to get the loss scalar.
-The metric function accepts a keyword argument `params` for regularization
-
-# Arguments
-
-* `params`: the set of parameters of the model
-"""
 function (l::Loss{true,F,P,D})(params) where {F,P,D}
     sol = l.predict_fn(params, l.dataset.tspan, l.dataset.tsteps)
     if sol.retcode != :Success
