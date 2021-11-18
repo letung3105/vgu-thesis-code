@@ -185,6 +185,7 @@ SEIRDBaselineHyperparams = @NamedTuple begin
     train_range::Day
     forecast_range::Day
     ma7::Bool
+    batchsize::Int
 end
 
 function setup_baseline(loc::AbstractString, hyperparams::SEIRDBaselineHyperparams)
@@ -227,6 +228,7 @@ SEIRDFbMobility1Hyperparams = @NamedTuple begin
     train_range::Day
     forecast_range::Day
     ma7::Bool
+    batchsize::Int
 end
 
 function setup_fbmobility1(loc::AbstractString, hyperparams::SEIRDFbMobility1Hyperparams)
@@ -280,6 +282,7 @@ SEIRDFbMobility2Hyperparams = @NamedTuple begin
     forecast_range::Day
     social_proximity_lag::Day
     ma7::Bool
+    batchsize::Int
 end
 
 function setup_fbmobility2(loc::AbstractString, hyperparams::SEIRDFbMobility2Hyperparams)
@@ -344,6 +347,7 @@ SEIRDFbMobility3Hyperparams = @NamedTuple begin
     forecast_range::Day
     social_proximity_lag::Day
     ma7::Bool
+    batchsize::Int
 end
 
 function setup_fbmobility3(loc::AbstractString, hyperparams::SEIRDFbMobility3Hyperparams)
@@ -408,6 +412,7 @@ SEIRDFbMobility4Hyperparams = @NamedTuple begin
     forecast_range::Day
     social_proximity_lag::Day
     ma7::Bool
+    batchsize::Int
 end
 
 function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyperparams)
@@ -601,8 +606,8 @@ function experiment_run(
         minimizer, final_loss = experiment_train(
             uuid,
             setup,
-            train_configs,
             hyperparams.batchsize,
+            train_configs,
             snapshots_dir;
             kwargs...,
         )

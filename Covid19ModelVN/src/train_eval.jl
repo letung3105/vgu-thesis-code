@@ -502,7 +502,7 @@ function train_model(
         push!(minimizers, params)
         Serialization.serialize(params_save_fpath, params)
     end
-
+    @info "Final evaluation loss of $uuid is $(eval_loss(params))"
     return minimizers
 end
 
