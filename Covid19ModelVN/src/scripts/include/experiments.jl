@@ -61,7 +61,13 @@ function experiment_covid19_data(
     df[!, cols] .= Float32.(df[!, cols])
     experiment_covid19_counts_reset!(df, loc)
     # choose the first date to be when the number of total confirmed cases passed 500
-    first_date = first(subset(df, :confirmed_total => x -> x .>= 500, view = true).date)
+    first_date = first(
+        subset(
+            df,
+            [:deaths_total, :confirmed_total] => (x, y) -> (x .>= 5) .& (y .>= 500),
+            view = true,
+        ).date,
+    )
     split_date = first_date + train_range - Day(1)
     last_date = split_date + forecast_range
     # smooth out weekly seasonality
