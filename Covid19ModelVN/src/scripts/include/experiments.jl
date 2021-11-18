@@ -463,9 +463,9 @@ end
 function experiment_train(
     uuid::AbstractString,
     setup::Function,
+    batchsize::Integer,
     configs::AbstractVector{TrainConfig},
     snapshots_dir::AbstractString;
-    batchsize = 0,
     kwargs...,
 )
     # get model and data
@@ -598,8 +598,14 @@ function experiment_run(
             joinpath(snapshots_dir, "$uuid.hyperparams.json"),
             json((; hyperparams..., train_configs), 4),
         )
-        minimizer, final_loss =
-            experiment_train(uuid, setup, train_configs, snapshots_dir; kwargs...)
+        minimizer, final_loss = experiment_train(
+            uuid,
+            setup,
+            train_configs,
+            hyperparams.batchsize,
+            snapshots_dir;
+            kwargs...,
+        )
 
         # access shared arrays
         lock(lk)
