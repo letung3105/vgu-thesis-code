@@ -156,12 +156,12 @@ function experiment_loss(
     max::AbstractMatrix{R},
 ) where {Ts,R<:Real}
     weights = exp.(collect(tsteps) .* ζ)
-    domain = max .- min
+    scale = max .- min
     lossfn = function (ŷ::AbstractArray{R}, y) where {R<:Real}
-        s::R = 0.0
+        s = zero(R)
         sz = size(y)
         @inbounds for j ∈ 1:sz[2], i ∈ 1:sz[1]
-            s += ((ŷ[i, j] - y[i, j]) / domain[i])^2 * weights[j]
+            s += ((ŷ[i, j] - y[i, j]) / scale[i])^2 * weights[j]
         end
         return s
     end
