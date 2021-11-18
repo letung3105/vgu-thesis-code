@@ -492,8 +492,16 @@ function experiment_train(
     @assert !isnothing(dLdθ[1]) # gradient is computable
     @assert any(dLdθ[1] .!= 0.0) # not all gradients are 0
 
-    minimizers =
-        train_model(uuid, train_loss, eval_loss, test_loss, p0, configs, snapshots_dir; kwargs...)
+    minimizers = train_model(
+        uuid,
+        train_loss,
+        eval_loss,
+        test_loss,
+        p0,
+        configs,
+        snapshots_dir;
+        kwargs...,
+    )
     minimizer = last(minimizers)
     return minimizer, train_loss(minimizer)
 end

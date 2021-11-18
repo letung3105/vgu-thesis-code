@@ -15,7 +15,7 @@ function runcmd(args)
         forecast_horizons = parsed_args[:forecast_horizons],
         savedir = parsed_args[:savedir],
         show_progress = parsed_args[:show_progress],
-        batchsize = parsed_args[:train_batchsize]
+        batchsize = parsed_args[:train_batchsize],
     )
 end
 
