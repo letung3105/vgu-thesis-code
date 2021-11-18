@@ -27,8 +27,7 @@ function experiment_covid19_counts_reset!(df::AbstractDataFrame, loc::AbstractSt
            loc ∈ keys(Covid19ModelVN.LOC_NAMES_US)
         # we considered 1st July 2021 to be the start of the outbreak in the US
         # 30th September 2021 is for getting a long enough period
-        bound!(df, :date, Date(2021, 7, 1), Date(2021, 9, 30))
-        return df
+        Date(2021, 7, 1), Date(2021, 9, 30)
     else
         # data for other locations don't need processing
         return df
