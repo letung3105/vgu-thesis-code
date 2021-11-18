@@ -485,8 +485,8 @@ function train_model(
                 params_save_fpath,
             ),
         )
-        params .= try
-            res = DiffEqFlux.sciml_train(
+        try
+            DiffEqFlux.sciml_train(
                 train_loss,
                 params,
                 conf.optimizer;
@@ -494,12 +494,11 @@ function train_model(
                 maxiters = conf.maxiters,
                 kwargs...,
             )
-            res.minimizer
         catch e
             e isa InterruptException && rethrow(e)
             @warn e
-            cb.state.minimizer
         end
+        params .= cb.state.minimizer
         push!(minimizers, params)
         Serialization.serialize(params_save_fpath, params)
     end
