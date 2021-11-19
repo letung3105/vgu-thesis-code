@@ -992,3 +992,23 @@ function ℜe(
     ℜe = βt ./ pnamed.γ
     return ℜe
 end
+
+function fatality_rate(
+    model::SEIRDFbMobility4,
+    u0::AbstractVector{T},
+    params::AbstractVector{T},
+    tspan::Tuple{T,T},
+    saveat::Ts,
+) where {T<:Real,Ts}
+    sol = default_solve(model, u0, params, tspan, saveat)
+    states = Array(sol)
+    I = @view states[3, :]
+    R = @view states[4, :]
+    D = @view states[5, :]
+    N = @view states[7, :]
+
+    pnamed = namedparams(model, params)
+    α_ann_input = [(I ./ N)'; (R ./ N)'; (D ./ N)']
+    αt = vec(model.α_ann(α_ann_input, pnamed.θ2))
+    return αt
+end
