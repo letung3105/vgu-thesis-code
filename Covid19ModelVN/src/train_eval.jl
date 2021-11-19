@@ -378,6 +378,7 @@ end
     train_model(
         uuid::AbstractString,
         train_loss::Loss,
+        eval_loss::Loss,
         test_loss::Loss,
         p0::AbstractVector{<:Real},
         configs::AbstractVector{TrainConfig},
@@ -394,8 +395,9 @@ the initial set of parameters `params`.
 # Arguments
 
 + `uuid`: unique id for the training session
-+ `train_loss`: a function that will be minimized
-+ `test_loss`: a loss function used for testing
++ `train_loss`: a function that will be used to compute the model loss on each iteration
++ `eval_loss`: a loss function used for choosing the best parameters while training
++ `test_loss`: a loss function used for testing the model performance while training
 + `p0`: the initial set of parameters
 + `configs`: a collection of optimizers and settings used for training the model
 + `snapshots_dir`: a directory for saving the model parameters and training losses
@@ -424,6 +426,8 @@ function train_model(
     end
 
     minimizers = Vector{typeof(p0)}()
+    eval_losses = Vector{Float32}[]
+    test_losses = Vector{Float32}[]
     params = copy(p0)
     params_save_fpath = get_params_save_fpath(snapshots_dir, uuid)
 
@@ -459,11 +463,14 @@ function train_model(
             @warn e
         end
         params .= cb.state.minimizer
-        push!(minimizers, params)
         Serialization.serialize(params_save_fpath, params)
+        push!(minimizers, params)
+        push!(eval_losses, cb.state.eval_losses)
+        push!(test_losses, cb.state.test_losses)
     end
+
     @info "Final evaluation loss of $uuid is $(eval_loss(params))"
-    return minimizers
+    return minimizers, eval_losses, test_losses
 end
 
 """
