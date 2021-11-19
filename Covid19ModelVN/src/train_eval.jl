@@ -33,8 +33,8 @@ struct Predictor{
     problem::P
     solver::SO
     sensealg::SE
-    abstol::Float32
-    reltol::Float32
+    abstol::Float64
+    reltol::Float64
     save_idxs::Vector{Int}
 
     function Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int})
@@ -194,12 +194,12 @@ function (l::Loss{false,Metric,Predict,DataCycle,R})(
     sol = l.predict(params, l.tspan, tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
-        return Inf32
+        return Inf
     end
     pred = @view sol[:, :]
     if size(pred) != size(data)
         # Unstable trajectories / Wrong inputs
-        return Inf32
+        return Inf
     end
     return l.metric(pred, data)
 end
@@ -211,12 +211,12 @@ function (l::Loss{true,Metric,Predict,DataCycle,R})(
     sol = l.predict(params, l.tspan, tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
-        return Inf32
+        return Inf
     end
     pred = @view sol[:, :]
     if size(pred) != size(data)
         # Unstable trajectories / Wrong inputs
-        return Inf32
+        return Inf
     end
     return l.metric(pred, data, params)
 end
@@ -426,8 +426,8 @@ function train_model(
     end
 
     minimizers = Vector{typeof(p0)}()
-    eval_losses = Vector{Float32}[]
-    test_losses = Vector{Float32}[]
+    eval_losses = Vector{Float64}[]
+    test_losses = Vector{Float64}[]
     params = copy(p0)
     params_save_fpath = get_params_save_fpath(snapshots_dir, uuid)
 

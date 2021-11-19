@@ -196,8 +196,8 @@ function parse_commandline(args)
 
         "--adam_lr"
         help = "the learning rate given to the ADAM optimizer"
-        arg_type = Float32
-        default = 1f-2
+        arg_type = Float64
+        default = 1e-2
 
         "--bfgs_maxiters"
         help = "max number of iterations used to run the BFGS optimizer"
@@ -206,8 +206,8 @@ function parse_commandline(args)
 
         "--bfgs_initial_stepnorm"
         help = "the initial_stepnorm given to the BFGS optimizer"
-        arg_type = Float32
-        default = 1f-2
+        arg_type = Float64
+        default = 1e-2
 
         "--train_days"
         help = "number of days used for training"
@@ -235,52 +235,52 @@ function parse_commandline(args)
 
         "--L2_lambda"
         help = "L2-regularization term weight"
-        arg_type = Float32
-        default = 1f-4
+        arg_type = Float64
+        default = 1e-4
 
         "--zeta"
         help = "loss function time weights"
-        arg_type = Float32
-        default = -5f-2
+        arg_type = Float64
+        default = -5e-2
 
         "--gamma0"
         help = "inverse of the mean incubation period"
-        arg_type = Float32
-        default = 1.0f0 / 3.0f0
+        arg_type = Float64
+        default = 1.0 / 3.0
 
         "--lambda0"
         help = "inverse of the mean infectious period"
-        arg_type = Float32
-        default = 1.0f0 / 14.0f0
+        arg_type = Float64
+        default = 1.0 / 14.0
 
         "--alpha0"
         help = "the fatality rate"
-        arg_type = Float32
-        default = 2.5f-2
+        arg_type = Float64
+        default = 2.5e-2
 
         "--beta_bounds"
         help = "lower and upper bounds contraints for the average contact rate"
         nargs = 2
-        arg_type = Float32
-        default = [0.0f0, 1.336f0] # ℜe ∈ [0.0; 6.68]
+        arg_type = Float64
+        default = [0.0, 1.336] # ℜe ∈ [0.0; 6.68]
 
         "--gamma_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean incubation period"
         nargs = 2
-        arg_type = Float32
-        default = [1.0f0 / 5.0f0, 1.0f0 / 2.0f0]
+        arg_type = Float64
+        default = [1.0 / 5.0, 1.0 / 2.0]
 
         "--lambda_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean infectious period"
         nargs = 2
-        arg_type = Float32
-        default = [1.0f0 / 21.0f0, 1.0f0 / 7.0f0]
+        arg_type = Float64
+        default = [1.0 / 21.0, 1.0 / 7.0]
 
         "--alpha_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean infectious period"
         nargs = 2
-        arg_type = Float32
-        default = [0.01f0, 0.06f0]
+        arg_type = Float64
+        default = [0.01, 0.06]
     end
 
     return parse_args(args, s, as_symbols = true)

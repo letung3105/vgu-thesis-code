@@ -57,7 +57,7 @@ function experiment_covid19_data(
     end
 
     df = get_prebuilt_covid_timeseries(loc)
-    df[!, cols] .= Float32.(df[!, cols])
+    df[!, cols] .= Float64.(df[!, cols])
     experiment_covid19_preprocess(df, loc)
     # choose the first date to be when the number of total confirmed cases passed 500
     first_date = first(
@@ -93,7 +93,7 @@ function experiment_movement_range(
 )
     df = get_prebuilt_movement_range(loc)
     cols = ["all_day_bing_tiles_visited_relative_change", "all_day_ratio_single_tile_users"]
-    df[!, cols] .= Float32.(df[!, cols])
+    df[!, cols] .= Float64.(df[!, cols])
     # smooth out weekly seasonality
     if ma7
         moving_average!(df, cols, 7)
@@ -108,7 +108,7 @@ function experiment_social_proximity(
     ma7::Bool,
 )
     df, col = get_prebuilt_social_proximity(loc)
-    df[!, col] .= Float32.(df[!, col])
+    df[!, col] .= Float64.(df[!, col])
     # smooth out weekly seasonality
     if ma7
         moving_average!(df, col, 7)
@@ -128,7 +128,7 @@ function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVect
         E0 = I0 * 2 # exposed individuals
         S0 = population - C0 - E0 # susceptible individuals
         # initial state
-        u0 = Float32[S0, E0, I0, R0, D0, C0, N0]
+        u0 = Float64[S0, E0, I0, R0, D0, C0, N0]
         vars = [5, 6]
         labels = ["deaths", "total confirmed"]
         # return values to outer scope
@@ -159,14 +159,14 @@ function experiment_loss(
 end
 
 SEIRDBaselineHyperparams = @NamedTuple begin
-    L2_λ::Float32
-    ζ::Float32
-    γ0::Float32
-    λ0::Float32
-    α0::Float32
-    γ_bounds::Tuple{Float32,Float32}
-    λ_bounds::Tuple{Float32,Float32}
-    α_bounds::Tuple{Float32,Float32}
+    L2_λ::Float64
+    ζ::Float64
+    γ0::Float64
+    λ0::Float64
+    α0::Float64
+    γ_bounds::Tuple{Float64,Float64}
+    λ_bounds::Tuple{Float64,Float64}
+    α_bounds::Tuple{Float64,Float64}
     train_range::Day
     forecast_range::Day
     ma7::Bool
@@ -202,14 +202,14 @@ function setup_baseline(loc::AbstractString, hyperparams::SEIRDBaselineHyperpara
 end
 
 SEIRDFbMobility1Hyperparams = @NamedTuple begin
-    L2_λ::Float32
-    ζ::Float32
-    γ0::Float32
-    λ0::Float32
-    α0::Float32
-    γ_bounds::Tuple{Float32,Float32}
-    λ_bounds::Tuple{Float32,Float32}
-    α_bounds::Tuple{Float32,Float32}
+    L2_λ::Float64
+    ζ::Float64
+    γ0::Float64
+    λ0::Float64
+    α0::Float64
+    γ_bounds::Tuple{Float64,Float64}
+    λ_bounds::Tuple{Float64,Float64}
+    α_bounds::Tuple{Float64,Float64}
     train_range::Day
     forecast_range::Day
     ma7::Bool
@@ -255,14 +255,14 @@ function setup_fbmobility1(loc::AbstractString, hyperparams::SEIRDFbMobility1Hyp
 end
 
 SEIRDFbMobility2Hyperparams = @NamedTuple begin
-    L2_λ::Float32
-    ζ::Float32
-    γ0::Float32
-    λ0::Float32
-    α0::Float32
-    γ_bounds::Tuple{Float32,Float32}
-    λ_bounds::Tuple{Float32,Float32}
-    α_bounds::Tuple{Float32,Float32}
+    L2_λ::Float64
+    ζ::Float64
+    γ0::Float64
+    λ0::Float64
+    α0::Float64
+    γ_bounds::Tuple{Float64,Float64}
+    λ_bounds::Tuple{Float64,Float64}
+    α_bounds::Tuple{Float64,Float64}
     train_range::Day
     forecast_range::Day
     social_proximity_lag::Day
@@ -319,15 +319,15 @@ function setup_fbmobility2(loc::AbstractString, hyperparams::SEIRDFbMobility2Hyp
 end
 
 SEIRDFbMobility3Hyperparams = @NamedTuple begin
-    L2_λ::Float32
-    ζ::Float32
-    γ0::Float32
-    λ0::Float32
-    α0::Float32
-    β_bounds::Tuple{Float32,Float32}
-    γ_bounds::Tuple{Float32,Float32}
-    λ_bounds::Tuple{Float32,Float32}
-    α_bounds::Tuple{Float32,Float32}
+    L2_λ::Float64
+    ζ::Float64
+    γ0::Float64
+    λ0::Float64
+    α0::Float64
+    β_bounds::Tuple{Float64,Float64}
+    γ_bounds::Tuple{Float64,Float64}
+    λ_bounds::Tuple{Float64,Float64}
+    α_bounds::Tuple{Float64,Float64}
     train_range::Day
     forecast_range::Day
     social_proximity_lag::Day
@@ -385,14 +385,14 @@ function setup_fbmobility3(loc::AbstractString, hyperparams::SEIRDFbMobility3Hyp
 end
 
 SEIRDFbMobility4Hyperparams = @NamedTuple begin
-    L2_λ::Float32
-    ζ::Float32
-    γ0::Float32
-    λ0::Float32
-    β_bounds::Tuple{Float32,Float32}
-    γ_bounds::Tuple{Float32,Float32}
-    λ_bounds::Tuple{Float32,Float32}
-    α_bounds::Tuple{Float32,Float32}
+    L2_λ::Float64
+    ζ::Float64
+    γ0::Float64
+    λ0::Float64
+    β_bounds::Tuple{Float64,Float64}
+    γ_bounds::Tuple{Float64,Float64}
+    λ_bounds::Tuple{Float64,Float64}
+    α_bounds::Tuple{Float64,Float64}
     train_range::Day
     forecast_range::Day
     social_proximity_lag::Day
@@ -564,8 +564,8 @@ function experiment_run(
     savedir::AbstractString,
     kwargs...,
 )
-    minimizers = Vector{Float32}[]
-    final_losses = Float32[]
+    minimizers = Vector{Float64}[]
+    final_losses = Float64[]
     lk = ReentrantLock()
 
     run = function (loc)

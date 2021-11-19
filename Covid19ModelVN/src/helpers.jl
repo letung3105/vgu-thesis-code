@@ -80,12 +80,12 @@ function train_test_split(
     last_date::Date,
 )
     train_data = load_timeseries(config, first_date, split_date)
-    train_tspan = Float32.((0, Dates.value(split_date - first_date)))
+    train_tspan = Float64.((0, Dates.value(split_date - first_date)))
     train_tsteps = train_tspan[1]:1:train_tspan[2]
     train_dataset = TimeseriesDataset(train_data, train_tspan, train_tsteps)
 
     test_data = load_timeseries(config, split_date + Day(1), last_date)
-    test_tspan = Float32.((0, Dates.value(last_date - first_date)))
+    test_tspan = Float64.((0, Dates.value(last_date - first_date)))
     test_tsteps = (train_tspan[2]+1):1:test_tspan[2]
     test_dataset = TimeseriesDataset(test_data, test_tspan, test_tsteps)
 
