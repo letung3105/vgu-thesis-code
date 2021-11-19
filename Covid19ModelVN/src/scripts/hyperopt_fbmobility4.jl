@@ -11,16 +11,15 @@ let
         collect(keys(Covid19ModelVN.LOC_NAMES_US))
     ]
 
-    samples = 100
+    samples = 30
     progress = Progress(samples, showspeed = true)
     ho = @hyperopt for i in samples, # number of samples
         sampler in Hyperband(R = 50, η = 3, inner = RandomSampler()),
-        L2_λ in exp10.(-5:-2),
-        ζ in [-exp10.(-3:-1); 0.0; exp10.(-3:-1)],
         adam_lr in [exp10.(-4:-2); exp10.(-4:-2) .* 5],
-        adam_maxiters in exp10(3) .* (2:2:20),
         bfgs_initial_stepnorm in exp10.(-3:-2),
-        bfgs_maxiters in exp10(2) .* (2:4:10)
+        L2_λ in exp10.(-5:-2),
+        ζ in [-exp10.(-3:-2); 0.0; exp10.(-3:-2)],
+        batchsize in [0, 8, 16]
 
         minimizers, final_losses = experiment_run(
             "fbmobility4",
@@ -28,7 +27,7 @@ let
             locations,
             (
                 L2_λ = L2_λ,
-                ζ = ζ,
+                ζ = 0.0,
                 γ0 = 1 / 3,
                 λ0 = 1 / 14,
                 β_bounds = (0.0, 1.336),
@@ -39,17 +38,19 @@ let
                 forecast_range = Day(28),
                 social_proximity_lag = Day(14),
                 ma7 = true,
+                batchsize = batchsize,
             ),
             TrainConfig[
-                TrainConfig("ADAM", ADAM(adam_lr), Int(adam_maxiters)),
+                TrainConfig("ADAM", ADAM(adam_lr), Int(10000)),
                 TrainConfig(
                     "BFGS",
                     BFGS(initial_stepnorm = bfgs_initial_stepnorm),
-                    Int(bfgs_maxiters),
+                    Int(500),
                 ),
             ];
-            savedir,
+            forecast_horizons = [7, 14, 21, 28],
             multithreading = true,
+            savedir,
         )
         next!(progress)
         mean(final_losses), minimizers
