@@ -137,7 +137,7 @@ function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVect
         # Deaths, Cummulative are observable
         D0 = data[1] # total deaths
         C0 = data[2] # total confirmed
-        I0 = div(C0 - D0, 2) # infective individuals
+        I0 = 500 # infective individuals
         R0 = C0 - I0 - D0 # recovered individuals
         N0 = population - D0 # effective population
         E0 = I0 * 2 # exposed individuals
