@@ -706,8 +706,8 @@ The figure object from Makie that contains the plotting definition for the model
 """
 function plot_forecasts(
     config::EvalConfig,
-    fit::SciMLBase.AbstractTimeseriesSolution,
-    pred::SciMLBase.AbstractTimeseriesSolution,
+    fit,
+    pred,
     train_dataset::TimeseriesDataset,
     test_dataset::TimeseriesDataset,
 )
@@ -715,28 +715,45 @@ function plot_forecasts(
         resolution = (400 * length(config.forecast_ranges), 400 * length(config.labels)),
     )
     for (i, label) ∈ enumerate(config.labels), (j, days) ∈ enumerate(config.forecast_ranges)
-        ax = Axis(
-            fig[i, j],
-            title = "$days-day forecast",
-            xlabel = "Days since the 500th confirmed cases",
-            ylabel = "Cases",
-        )
-        vlines!(ax, [train_dataset.tspan[2]], color = :black, linestyle = :dash)
-        lines!(
-            ax,
-            [train_dataset.data[i, :]; test_dataset.data[i, 1:days]],
-            label = label,
-            linewidth = 4,
-        )
-        lines!(
-            ax,
-            [fit[i, :]; pred[i, 1:days]],
-            label = "model's prediction",
-            linewidth = 4,
-        )
-        axislegend(ax, position = :lt)
+        truth = @views [train_dataset.data[i, :]; test_dataset.data[i, 1:days]]
+        output = [fit[i, :]; pred[i, 1:days]]
+        plot_forecast!(fig[i, j], output, truth, days, train_dataset.tspan[2], label)
     end
     return fig
+end
+
+function plot_forecasts(
+    config::EvalConfig,
+    fit::Observable,
+    pred::Observable,
+    train_dataset::TimeseriesDataset,
+    test_dataset::TimeseriesDataset,
+)
+    fig = Figure(
+        resolution = (400 * length(config.forecast_ranges), 400 * length(config.labels)),
+    )
+    for (i, label) ∈ enumerate(config.labels), (j, days) ∈ enumerate(config.forecast_ranges)
+        truth = @views [train_dataset.data[i, :]; test_dataset.data[i, 1:days]]
+        output = lift(fit, pred) do x, y
+            @views [x[i, :]; y[i, 1:days]]
+        end
+        plot_forecast!(fig[i, j], output, truth, days, train_dataset.tspan[2], label)
+    end
+    return fig
+end
+
+function plot_forecast!(gridpos::GridPosition, output, truth, days::Real, sep::Real, label::AbstractString)
+    ax = Axis(
+        gridpos,
+        title = "$days-day forecast",
+        xlabel = "Days since the 500th confirmed cases",
+        ylabel = "Cases",
+    )
+    vlines!(ax, [sep], color = :black, linestyle = :dash)
+    lines!(ax, truth, label = label, linewidth = 4)
+    lines!(ax, output, label = "model's prediction", linewidth = 4)
+    axislegend(ax, position = :lt)
+    return ax
 end
 
 """
