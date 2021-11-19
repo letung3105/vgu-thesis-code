@@ -742,7 +742,14 @@ function plot_forecasts(
     return fig
 end
 
-function plot_forecast!(gridpos::GridPosition, output, truth, days::Real, sep::Real, label::AbstractString)
+function plot_forecast!(
+    gridpos::GridPosition,
+    output,
+    truth,
+    days::Real,
+    sep::Real,
+    label::AbstractString,
+)
     ax = Axis(
         gridpos,
         title = "$days-day forecast",
