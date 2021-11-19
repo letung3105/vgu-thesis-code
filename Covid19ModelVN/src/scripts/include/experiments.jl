@@ -14,32 +14,34 @@ import Covid19ModelVN.JHUCSSEData,
 has_irdc(loc) = loc == Covid19ModelVN.LOC_CODE_VIETNAM
 
 has_dc(loc) =
+    has_irdc(loc) ||
     loc == Covid19ModelVN.LOC_CODE_UNITED_STATES ||
     loc ∈ keys(Covid19ModelVN.LOC_NAMES_VN) ||
     loc ∈ keys(Covid19ModelVN.LOC_NAMES_US)
 
-function experiment_covid19_counts_reset!(df::AbstractDataFrame, loc::AbstractString)
-    first_date, last_date = if loc == Covid19ModelVN.LOC_CODE_VIETNAM
+function experiment_covid19_preprocess(df::AbstractDataFrame, loc::AbstractString)
+    if loc == Covid19ModelVN.LOC_CODE_VIETNAM
         # we considered 27th April 2021 to be the start of the outbreak in Vietnam
         # 4th August 2021 is when no recovered cases are recorded in JHU data
-        Date(2021, 4, 27), Date(2021, 8, 4)
+        first_date = Date(2021, 4, 27)
+        last_date = typemax(Date)
+        # make the cases count starts from the first date of the considered outbreak
+        bound!(df, :date, first_date - Day(1), last_date)
+        datacols = names(df, Not(:date))
+        starting_states = Array(df[1, datacols])
+        transform!(df, datacols => ByRow((x...) -> x .- starting_states) => datacols)
+        bound!(df, :date, first_date, last_date)
+        return df
     elseif loc == Covid19ModelVN.LOC_CODE_UNITED_STATES ||
            loc ∈ keys(Covid19ModelVN.LOC_NAMES_US)
         # we considered 1st July 2021 to be the start of the outbreak in the US
         # 30th September 2021 is for getting a long enough period
-        Date(2021, 7, 1), Date(2021, 9, 30)
+        bound!(df, :date, Date(2021, 7, 1), typemax(Date))
+        return df
     else
         # data for other locations don't need processing
         return df
     end
-
-    # make the cases count starts from the first date of the considered outbreak
-    bound!(df, :date, first_date - Day(1), last_date)
-    datacols = names(df, Not(:date))
-    starting_states = Array(df[1, datacols])
-    transform!(df, datacols => ByRow((x...) -> x .- starting_states) => datacols)
-    bound!(df, :date, first_date, last_date)
-    return df
 end
 
 function experiment_covid19_data(
@@ -48,9 +50,7 @@ function experiment_covid19_data(
     forecast_range::Day,
     ma7::Bool,
 )
-    cols = if has_irdc(loc)
-        ["infective", "recovered_total", "deaths_total", "confirmed_total"]
-    elseif has_dc(loc)
+    cols = if has_irdc(loc) || has_dc(loc)
         ["deaths_total", "confirmed_total"]
     else
         throw("Unsupported location code '$loc'!")
@@ -58,7 +58,7 @@ function experiment_covid19_data(
 
     df = get_prebuilt_covid_timeseries(loc)
     df[!, cols] .= Float32.(df[!, cols])
-    experiment_covid19_counts_reset!(df, loc)
+    experiment_covid19_preprocess(df, loc)
     # choose the first date to be when the number of total confirmed cases passed 500
     first_date = first(
         subset(
@@ -118,22 +118,7 @@ end
 
 function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVector{<:Real})
     population = get_prebuilt_population(loc)
-    u0, vars, labels = if has_irdc(loc)
-        # Infective, Recovered, Deaths, Cummulative are observable
-        I0 = data[1] # infective individuals
-        R0 = data[2] # recovered individuals
-        D0 = data[3] # total deaths
-        C0 = data[4] # total confirmed
-        N0 = population - D0 # effective population
-        E0 = I0 * 2 # exposed individuals
-        S0 = population - C0 - E0 # susceptible individuals
-        # initial state
-        u0 = Float32[S0, E0, I0, R0, D0, C0, N0]
-        vars = [3, 4, 5, 6]
-        labels = ["infective", "recovered", "deaths", "total confirmed"]
-        # return values to outer scope
-        u0, vars, labels
-    elseif has_dc(loc)
+    u0, vars, labels = if has_irdc(loc) || has_dc(loc)
         # Deaths, Cummulative are observable
         D0 = data[1] # total deaths
         C0 = data[2] # total confirmed
