@@ -1,4 +1,4 @@
-using Dates, Statistics, Serialization
+using Dates, LinearAlgebra, Statistics, Serialization
 using OrdinaryDiffEq, DiffEqFlux
 using CairoMakie
 using DataFrames
@@ -170,7 +170,6 @@ SEIRDBaselineHyperparams = @NamedTuple begin
     train_range::Day
     forecast_range::Day
     ma7::Bool
-    batchsize::Int
 end
 
 function setup_baseline(loc::AbstractString, hyperparams::SEIRDBaselineHyperparams)
@@ -213,7 +212,6 @@ SEIRDFbMobility1Hyperparams = @NamedTuple begin
     train_range::Day
     forecast_range::Day
     ma7::Bool
-    batchsize::Int
 end
 
 function setup_fbmobility1(loc::AbstractString, hyperparams::SEIRDFbMobility1Hyperparams)
@@ -267,7 +265,6 @@ SEIRDFbMobility2Hyperparams = @NamedTuple begin
     forecast_range::Day
     social_proximity_lag::Day
     ma7::Bool
-    batchsize::Int
 end
 
 function setup_fbmobility2(loc::AbstractString, hyperparams::SEIRDFbMobility2Hyperparams)
@@ -332,7 +329,6 @@ SEIRDFbMobility3Hyperparams = @NamedTuple begin
     forecast_range::Day
     social_proximity_lag::Day
     ma7::Bool
-    batchsize::Int
 end
 
 function setup_fbmobility3(loc::AbstractString, hyperparams::SEIRDFbMobility3Hyperparams)
@@ -397,7 +393,6 @@ SEIRDFbMobility4Hyperparams = @NamedTuple begin
     forecast_range::Day
     social_proximity_lag::Day
     ma7::Bool
-    batchsize::Int
 end
 
 function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyperparams)
@@ -453,8 +448,8 @@ end
 function experiment_train(
     uuid::AbstractString,
     setup::Function,
-    batchsize::Integer,
     configs::AbstractVector{TrainConfig},
+    batchsize::Integer,
     snapshots_dir::AbstractString;
     kwargs...,
 )
@@ -476,7 +471,7 @@ function experiment_train(
     @assert !isnothing(dLdθ[1]) # gradient is computable
     @assert any(dLdθ[1] .!= 0.0) # not all gradients are 0
 
-    minimizers = train_model(
+    minimizers, eval_losses, test_losses = train_model(
         uuid,
         train_loss,
         eval_loss,
@@ -487,7 +482,9 @@ function experiment_train(
         kwargs...,
     )
     minimizer = last(minimizers)
-    return minimizer, train_loss(minimizer)
+    all_eval_losses = collect(Iterators.flatten(eval_losses))
+    all_test_losses = collect(Iterators.flatten(test_losses))
+    return minimizer, all_eval_losses, all_test_losses
 end
 
 function experiment_eval(
@@ -558,7 +555,8 @@ function experiment_run(
     model_setup::Function,
     locations::AbstractVector{<:AbstractString},
     hyperparams::NamedTuple,
-    train_configs::AbstractVector{<:TrainConfig};
+    train_configs::AbstractVector{<:TrainConfig},
+    batchsize::Integer;
     multithreading::Bool,
     forecast_horizons::AbstractVector{<:Integer},
     savedir::AbstractString,
@@ -582,11 +580,11 @@ function experiment_run(
             joinpath(snapshots_dir, "$uuid.hyperparams.json"),
             json((; hyperparams..., train_configs), 4),
         )
-        minimizer, final_loss = experiment_train(
+        minimizer, eval_losses, _ = experiment_train(
             uuid,
             setup,
-            hyperparams.batchsize,
             train_configs,
+            batchsize,
             snapshots_dir;
             kwargs...,
         )
@@ -595,7 +593,7 @@ function experiment_run(
         lock(lk)
         try
             push!(minimizers, minimizer)
-            push!(final_losses, final_loss)
+            push!(final_losses, last(eval_losses))
         finally
             unlock(lk)
         end

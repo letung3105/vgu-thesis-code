@@ -11,6 +11,7 @@ function runcmd(args)
         parsed_args[:locations],
         get_hyperparams(parsed_args),
         get_train_configs(parsed_args),
+        parsed_args[:train_batchsize],
         multithreading = parsed_args[:multithreading],
         forecast_horizons = parsed_args[:forecast_horizons],
         savedir = parsed_args[:savedir],
@@ -50,7 +51,6 @@ get_baseline_hyperparams(parsed_args) = (
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
     ma7 = !parsed_args[:ma7_disable],
-    batchsize = parsed_args[:train_batchsize],
 )
 
 get_fbmobility1_hyperparams(parsed_args) = (
@@ -65,7 +65,6 @@ get_fbmobility1_hyperparams(parsed_args) = (
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
     ma7 = !parsed_args[:ma7_disable],
-    batchsize = parsed_args[:train_batchsize],
 )
 
 get_fbmobility2_hyperparams(parsed_args) = (
@@ -81,7 +80,6 @@ get_fbmobility2_hyperparams(parsed_args) = (
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     ma7 = !parsed_args[:ma7_disable],
-    batchsize = parsed_args[:train_batchsize],
 )
 
 get_fbmobility3_hyperparams(parsed_args) = (
@@ -98,7 +96,6 @@ get_fbmobility3_hyperparams(parsed_args) = (
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     ma7 = !parsed_args[:ma7_disable],
-    batchsize = parsed_args[:train_batchsize],
 )
 
 get_fbmobility4_hyperparams(parsed_args) = (
@@ -114,7 +111,6 @@ get_fbmobility4_hyperparams(parsed_args) = (
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     ma7 = !parsed_args[:ma7_disable],
-    batchsize = parsed_args[:train_batchsize],
 )
 
 function get_train_configs(parsed_args)
