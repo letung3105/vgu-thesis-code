@@ -27,11 +27,15 @@ function growing_fit(
     setup;
     snapshots_dir,
     forecast_horizons,
-    lr = 1e-2,
+    η = 1e-1,
+    η_decay_rate = 0.5,
+    η_decay_step = 100,
+    η_limit = 1e-4,
+    weight_decay = 1e-4,
+    maxiters_initial = 100,
+    maxiters_growth = 100,
     batch_initial = 10,
     batch_growth = 10,
-    maxiters = 100,
-    maxiters_growth = 100,
     showprogress = false,
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
@@ -48,7 +52,7 @@ function growing_fit(
         test_dataset,
         eval_config,
     )
-    cb_general = TrainCallback(
+    cb_log = TrainCallback(
         TrainCallbackState(eltype(params), length(params), showprogress),
         TrainCallbackConfig(
             evalloss,
@@ -59,22 +63,29 @@ function growing_fit(
         ),
     )
 
+    opt = Flux.Optimiser(
+        WeightDecay(weight_decay),
+        ExpDecay(η, η_decay_rate, η_decay_step, η_limit),
+        ADAM(),
+    )
+
+    maxiters = maxiters_initial
     batch_max = length(train_dataset.tsteps)
     for k = batch_initial:batch_growth:batch_max
         cb = function (p, l)
             cb_videostream(p)
-            cb_general(p, l)
+            cb_log(p, l)
         end
 
         train_dataset_batch = TimeseriesDataset(
             @view(train_dataset.data[:, 1:k]),
             (train_dataset.tspan[1], train_dataset.tspan[1] + k - 1),
-            @view(train_dataset.tsteps[train_dataset.tsteps .< k])
+            @view(train_dataset.tsteps[train_dataset.tsteps.<k])
         )
         @info "Train on tspan = $(train_dataset_batch.tspan) with tsteps = $(train_dataset.tsteps)"
 
         trainloss = Loss(lossfn, predictor, train_dataset_batch)
-        res = DiffEqFlux.sciml_train(trainloss, params, ADAM(lr); maxiters, cb)
+        res = DiffEqFlux.sciml_train(trainloss, params, opt; maxiters, cb)
         params .= res.minimizer
         maxiters += maxiters_growth
     end
@@ -82,19 +93,77 @@ function growing_fit(
     fpath_vstream = joinpath(snapshots_dir, "$uuid.mp4")
     save(fpath_vstream, vstream)
 
-    return params, cb_general.state.eval_losses, cb_general.state.test_losses
+    return params, cb_log.state.eval_losses, cb_log.state.test_losses
 end
 
-# for loc in union(keys(Covid19ModelVN.LOC_NAMES_US), keys(Covid19ModelVN.LOC_NAMES_VN))
-# for loc in keys(Covid19ModelVN.LOC_NAMES_US)
+function whole_fit(
+    uuid,
+    setup;
+    snapshots_dir,
+    forecast_horizons,
+    η = 1e-1,
+    η_decay_rate = 0.5,
+    η_decay_step = 100,
+    η_limit = 1e-4,
+    weight_decay = 1e-4,
+    maxiters = 1000,
+    minibatching = 0,
+    showprogress = false,
+)
+    model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
+    prob = ODEProblem(model, u0, train_dataset.tspan)
+    predictor = Predictor(prob, vars)
+    evalloss = Loss(lossfn, predictor, train_dataset)
+    testloss = Loss(mae, predictor, test_dataset)
+
+    eval_config = EvalConfig([mae, mape, rmse], forecast_horizons, labels)
+    cb_videostream, vstream = make_video_stream_callback(
+        predictor,
+        params,
+        train_dataset,
+        test_dataset,
+        eval_config,
+    )
+    cb_log = TrainCallback(
+        TrainCallbackState(eltype(params), length(params), showprogress),
+        TrainCallbackConfig(
+            evalloss,
+            testloss,
+            100,
+            get_losses_save_fpath(snapshots_dir, uuid),
+            get_params_save_fpath(snapshots_dir, uuid),
+        ),
+    )
+    cb = function (p, l)
+        cb_videostream(p)
+        cb_log(p, l)
+    end
+
+    trainloss = if minibatching != 0
+        Loss(lossfn, predictor, train_dataset, minibatching)
+    else
+        Loss(lossfn, predictor, train_dataset)
+    end
+    opt = Flux.Optimiser(
+        WeightDecay(weight_decay),
+        ExpDecay(η, η_decay_rate, η_decay_step, η_limit),
+        ADAM(),
+    )
+    res = DiffEqFlux.sciml_train(trainloss, params, opt; maxiters, cb)
+
+    fpath_vstream = joinpath(snapshots_dir, "$uuid.mp4")
+    save(fpath_vstream, vstream)
+
+    return res.minimizer, cb_log.state.eval_losses, cb_log.state.test_losses
+end
+
 let loc = "losangeles_ca"
     model = "fbmobility4"
 
     timestamp = Dates.format(now(), "yyyymmddHHMMSS")
     uuid = "$timestamp.$model.$loc"
 
-    parsed_args =
-        parse_commandline(["--locations=$loc", "--zeta=0", "--", model])
+    parsed_args = parse_commandline(["--locations=$loc", "--zeta=0", "--", model])
     _, gethyper, model_setup = setupcmd(parsed_args)
     hyperparams = gethyper(parsed_args)
     setup = () -> model_setup(loc, hyperparams)
@@ -108,58 +177,44 @@ let loc = "losangeles_ca"
         setup;
         snapshots_dir,
         forecast_horizons,
-        lr = 0.01,
+        maxiters_initial = 400,
+        maxiters_growth = 0,
         batch_initial = 8,
         batch_growth = 8,
-        maxiters = 400,
-        maxiters_growth = 0,
         showprogress = true,
     )
     experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
 end
 
-# for loc in keys(Covid19ModelVN.LOC_NAMES_US)
-let loc = "cook_il"
+
+let loc = "losangeles_ca"
     model = "fbmobility4"
 
     timestamp = Dates.format(now(), "yyyymmddHHMMSS")
     uuid = "$timestamp.$model.$loc"
 
-    runcmd([
-        "--locations=$loc",
-        "--savedir=snapshots/test",
-        "--adam_maxiters=500",
-        "--bfgs_maxiters=0",
-        "--zeta=0",
-        "--train_batchsize=8",
-        "--show_progress",
-        model,
-    ])
-end
-
-let loc = "cook_il"
-    model = "fbmobility4"
-
-    timestamp = Dates.format(now(), "yyyymmddHHMMSS")
-    uuid = "$timestamp.$model.$loc"
-
-    parsed_args =
-        parse_commandline(["--locations=$loc", "--zeta=0", "--", model])
+    parsed_args = parse_commandline(["--locations=$loc", "--zeta=0", "--", model])
     _, gethyper, model_setup = setupcmd(parsed_args)
     hyperparams = gethyper(parsed_args)
     setup = () -> model_setup(loc, hyperparams)
-    model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
-    prob = ODEProblem(model, u0, train_dataset.tspan)
-    predictor = Predictor(prob, vars)
-    evalloss = Loss(lossfn, predictor, train_dataset)
-    testloss = Loss(mae, predictor, test_dataset)
+    forecast_horizons = parsed_args[:forecast_horizons]
 
-    y = train_dataset.data
-    ŷ = train_dataset.data
+    snapshots_dir = joinpath("snapshots", loc)
+    !isdir(snapshots_dir) && mkpath(snapshots_dir)
 
-    min = vec(minimum(y, dims = 2))
-    max = vec(maximum(y, dims = 2))
-    scale = max .- min
-    lossfn = experiment_loss((0.5, 0.5))
-    lossfn(ŷ, y)
+    whole_fit(
+        uuid,
+        setup;
+        snapshots_dir,
+        forecast_horizons,
+        η = 1e-1,
+        η_decay_rate = 0.5,
+        η_decay_step = 100,
+        η_limit = 1e-4,
+        maxiters = 10000,
+        weight_decay = 1e-4,
+        minibatching = 0,
+        showprogress = true,
+    )
+    experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
 end

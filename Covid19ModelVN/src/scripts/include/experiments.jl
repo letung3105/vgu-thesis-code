@@ -148,14 +148,13 @@ cosine_distance(a, b) = (1 - cosine_similarity(a, b)) / 2
 """
 function experiment_loss(w::Tuple{R,R}) where {R<:Real}
     lossfn = function (ŷ::AbstractArray{R}, y) where {R<:Real}
+        s = zero(R)
         sz = size(ŷ)
-        l1 = zero(R)
-        l2 = zero(R)
         @inbounds for j = 1:sz[2]
-            @views l1 += normed_ld(y[:, j], ŷ[:, j])
-            @views l2 += cosine_distance(y[:, j], ŷ[:, j])
+            @views s += w[1] * normed_ld(y[:, j], ŷ[:, j])
+            @views s += w[2] * cosine_distance(y[:, j], ŷ[:, j])
         end
-        return w[1] * l1 + w[2] * l2
+        return s
     end
     return lossfn
 end
