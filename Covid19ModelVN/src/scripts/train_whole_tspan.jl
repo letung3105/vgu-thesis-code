@@ -51,7 +51,7 @@ function whole_fit(
     # NOTE: order must be WeightDecay --> ADAM --> ExpDecay
     opt = Flux.Optimiser(
         WeightDecay(λ_weight_decay),
-        ADAM(),
+        ADAM(η),
         ExpDecay(η, η_decay_rate, η_decay_step, η_limit),
     )
     res = DiffEqFlux.sciml_train(trainloss, params, opt; maxiters, cb)
