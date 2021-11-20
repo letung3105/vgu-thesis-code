@@ -93,7 +93,7 @@ function check_model_methods(loc, model)
     # test if the loss function works
     prob = ODEProblem(model, u0, train_dataset.tspan)
     predictor = Predictor(prob, vars)
-    loss = Loss{true}(lossfn_regularized, predictor, train_dataset)
+    loss = Loss(lossfn_regularized, predictor, train_dataset)
 
     dLdθ = Zygote.gradient(loss, p0)
     @assert !isnothing(dLdθ[1]) # gradient is computable
@@ -142,24 +142,16 @@ function check_model_performance(loc, model; benchmark = false)
     sol = predictor(p0, train_dataset.tspan, train_dataset.tsteps)
     pred = @view sol[:, :]
     # check if loss metric function with regularization is type stable
-    @code_warntype lossfn(pred, train_dataset.data, p0)
+    @code_warntype lossfn(pred, train_dataset.data)
 
-    min = minimum(train_dataset.data, dims = 2)
-    max = maximum(train_dataset.data, dims = 2)
-    exploss = experiment_loss(train_dataset.tsteps, hyperparams.ζ, min, max)
-    # check if loss metric function is type stable
-    @code_warntype exploss(pred, train_dataset.data)
-
-    loss = Loss{true}(lossfn, predictor, train_dataset)
+    loss = Loss(lossfn, predictor, train_dataset)
     # check if training loss is type stable
     @code_warntype loss(p0)
 
     if benchmark
         display(@benchmark $model($du, $u0, $p0, 0))
         display(@benchmark $predictor($p0, $train_dataset.tspan, $train_dataset.tsteps))
-        display(@benchmark $lossfn($pred, $train_dataset.data, $p0))
-        display(@benchmark $exploss($pred, $train_dataset.data))
-        display(@benchmark $lossfn($pred, $train_dataset.data, $p0))
+        display(@benchmark $lossfn($pred, $train_dataset.data))
         display(@benchmark $loss($p0))
         display(@benchmark Zygote.gradient($loss, $p0))
     end

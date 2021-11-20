@@ -77,7 +77,7 @@ function (p::Predictor)(params, tspan, saveat)
 end
 
 """
-    Loss{Regularized,Metric,Predict,DataIter,R<:Real}
+    Loss{Metric,Predict,DataIter,R<:Real}
 
 A callable struct that uses `metric` to calculate the loss between the output of
 `predict` and `dataset`.
@@ -91,7 +91,7 @@ A callable struct that uses `metric` to calculate the loss between the output of
 
 # Constructor
 
-    Loss{Regularized}(
+    Loss(
         metric,
         predict,
         dataset::TimeseriesDataset,
@@ -100,8 +100,6 @@ A callable struct that uses `metric` to calculate the loss between the output of
 
 ## Arguments
 
-* `Regularized`: a parametric boolean that is used to determined the callable to used,
-set to true if `metric` accepts a third argument for the paramters
 * `metric`: a function that computes the error between two data arrays
 * `predict`: the time span that the ODE solver will be run on
 * `dataset`: the dataset that contains the ground truth data
@@ -109,7 +107,7 @@ set to true if `metric` accepts a third argument for the paramters
 
 # Callable
 
-    (l::Loss{false,Metric,Predict,DataCycle,R})(
+    (l::Loss{Metric,Predict,DataCycle,R})(
         params,
     ) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful,R<:Real}
 
@@ -120,29 +118,14 @@ truth data.
 ## Arguments
 
 * `params`: the set of parameters of the model
-
-
-# Callable
-
-    (l::Loss{true,Metric,Predict,DataCycle,R})(
-        params,
-    ) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful,R<:Real}
-
-Call an object of the `Loss` struct on a set of parameters to get the loss scalar.
-Here, the field `metric` is used with 3 parameters: the prediction, the ground
-truth data, and the parameters of the system.
-
-## Arguments
-
-* `params`: the set of parameters of the model
 """
-struct Loss{Regularized,Metric,Predict,DataCycle,R<:Real}
+struct Loss{Metric,Predict,DataCycle,R<:Real}
     metric::Metric
     predict::Predict
     datacycle::DataCycle
     tspan::Tuple{R,R}
 
-    function Loss{false}(
+    function Loss(
         metric,
         predict,
         dataset::TimeseriesDataset,
@@ -151,29 +134,6 @@ struct Loss{Regularized,Metric,Predict,DataCycle,R<:Real}
         dataloader = timeseries_dataloader(dataset, batchsize)
         datacycle = dataloader |> Iterators.cycle |> Iterators.Stateful
         return new{
-            false,
-            typeof(metric),
-            typeof(predict),
-            typeof(datacycle),
-            eltype(dataset.tspan),
-        }(
-            metric,
-            predict,
-            datacycle,
-            dataset.tspan,
-        )
-    end
-
-    function Loss{true}(
-        metric,
-        predict,
-        dataset::TimeseriesDataset,
-        batchsize = length(dataset.tsteps),
-    )
-        dataloader = timeseries_dataloader(dataset, batchsize)
-        datacycle = dataloader |> Iterators.cycle |> Iterators.Stateful
-        return new{
-            true,
             typeof(metric),
             typeof(predict),
             typeof(datacycle),
@@ -187,7 +147,7 @@ struct Loss{Regularized,Metric,Predict,DataCycle,R<:Real}
     end
 end
 
-function (l::Loss{false,Metric,Predict,DataCycle,R})(
+function (l::Loss{Metric,Predict,DataCycle,R})(
     params,
 ) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful,R<:Real}
     data, tsteps = popfirst!(l.datacycle)
@@ -202,23 +162,6 @@ function (l::Loss{false,Metric,Predict,DataCycle,R})(
         return Inf
     end
     return l.metric(pred, data)
-end
-
-function (l::Loss{true,Metric,Predict,DataCycle,R})(
-    params,
-) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful,R<:Real}
-    data, tsteps = popfirst!(l.datacycle)
-    sol = l.predict(params, l.tspan, tsteps)
-    if sol.retcode != :Success
-        # Unstable trajectories => hard penalize
-        return Inf
-    end
-    pred = @view sol[:, :]
-    if size(pred) != size(data)
-        # Unstable trajectories / Wrong inputs
-        return Inf
-    end
-    return l.metric(pred, data, params)
 end
 
 """

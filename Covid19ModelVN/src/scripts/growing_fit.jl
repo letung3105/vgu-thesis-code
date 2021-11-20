@@ -37,8 +37,8 @@ function growing_fit(
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
     prob = ODEProblem(model, u0, train_dataset.tspan)
     predictor = Predictor(prob, vars)
-    evalloss = Loss{true}(lossfn, predictor, train_dataset)
-    testloss = Loss{false}(mae, predictor, test_dataset)
+    evalloss = Loss(lossfn, predictor, train_dataset)
+    testloss = Loss(mae, predictor, test_dataset)
 
     eval_config = EvalConfig([mae, mape, rmse], forecast_horizons, labels)
     cb_videostream, vstream = make_video_stream_callback(
@@ -49,18 +49,14 @@ function growing_fit(
         eval_config,
     )
     cb_general = TrainCallback(
-        TrainCallbackState(
-            eltype(params),
-            length(params),
-            showprogress,
-        ),
+        TrainCallbackState(eltype(params), length(params), showprogress),
         TrainCallbackConfig(
             evalloss,
             testloss,
             100,
             get_losses_save_fpath(snapshots_dir, uuid),
             get_params_save_fpath(snapshots_dir, uuid),
-        )
+        ),
     )
 
     batch_max = length(train_dataset.tsteps)
@@ -72,11 +68,12 @@ function growing_fit(
 
         train_dataset_batch = TimeseriesDataset(
             @view(train_dataset.data[:, 1:k]),
-            train_dataset.tspan,
-            @view(train_dataset.tsteps[1:k])
+            (train_dataset.tspan[1], train_dataset.tspan[1] + k - 1),
+            @view(train_dataset.tsteps[train_dataset.tsteps .< k])
         )
-        trainloss = Loss{true}(lossfn, predictor, train_dataset_batch)
+        @info "Train on tspan = $(train_dataset_batch.tspan) with tsteps = $(train_dataset.tsteps)"
 
+        trainloss = Loss(lossfn, predictor, train_dataset_batch)
         res = DiffEqFlux.sciml_train(trainloss, params, ADAM(lr); maxiters, cb)
         params .= res.minimizer
         maxiters += maxiters_growth
@@ -89,22 +86,18 @@ function growing_fit(
 end
 
 # for loc in union(keys(Covid19ModelVN.LOC_NAMES_US), keys(Covid19ModelVN.LOC_NAMES_VN))
-let loc = "hcm"
+# for loc in keys(Covid19ModelVN.LOC_NAMES_US)
+let loc = "losangeles_ca"
     model = "fbmobility4"
 
     timestamp = Dates.format(now(), "yyyymmddHHMMSS")
     uuid = "$timestamp.$model.$loc"
 
-    parsed_args = parse_commandline([
-        "--locations=$loc",
-        "--zeta=0",
-        "--L2_lambda=0",
-        "--",
-        model,
-    ])
+    parsed_args =
+        parse_commandline(["--locations=$loc", "--zeta=0", "--", model])
     _, gethyper, model_setup = setupcmd(parsed_args)
     hyperparams = gethyper(parsed_args)
-    setup = () -> model_setup(loc, hyperparams);
+    setup = () -> model_setup(loc, hyperparams)
     forecast_horizons = parsed_args[:forecast_horizons]
 
     snapshots_dir = joinpath("snapshots", loc)
@@ -116,38 +109,57 @@ let loc = "hcm"
         snapshots_dir,
         forecast_horizons,
         lr = 0.01,
-        batch_initial = 4,
-        batch_growth = 4,
-        maxiters = 300,
+        batch_initial = 8,
+        batch_growth = 8,
+        maxiters = 400,
         maxiters_growth = 0,
         showprogress = true,
     )
     experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
 end
 
-let
-    loc = "losangeles_ca"
+# for loc in keys(Covid19ModelVN.LOC_NAMES_US)
+let loc = "cook_il"
     model = "fbmobility4"
 
-    parsed_args = parse_commandline([
+    timestamp = Dates.format(now(), "yyyymmddHHMMSS")
+    uuid = "$timestamp.$model.$loc"
+
+    runcmd([
         "--locations=$loc",
+        "--savedir=snapshots/test",
+        "--adam_maxiters=500",
+        "--bfgs_maxiters=0",
         "--zeta=0",
-        "--L2_lambda=0",
-        "--train_days=32",
+        "--train_batchsize=8",
+        "--show_progress",
         model,
     ])
+end
+
+let loc = "cook_il"
+    model = "fbmobility4"
+
+    timestamp = Dates.format(now(), "yyyymmddHHMMSS")
+    uuid = "$timestamp.$model.$loc"
+
+    parsed_args =
+        parse_commandline(["--locations=$loc", "--zeta=0", "--", model])
     _, gethyper, model_setup = setupcmd(parsed_args)
     hyperparams = gethyper(parsed_args)
-    minimizer = Serialization.deserialize("snapshots/losangeles_ca/20211119135242.fbmobility4.losangeles_ca.params.jls")
-    model, u0, params, lossfn, train_dataset, test_dataset, vars, labels =
-        model_setup(loc, hyperparams)
+    setup = () -> model_setup(loc, hyperparams)
+    model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
+    prob = ODEProblem(model, u0, train_dataset.tspan)
+    predictor = Predictor(prob, vars)
+    evalloss = Loss(lossfn, predictor, train_dataset)
+    testloss = Loss(mae, predictor, test_dataset)
 
-    αt = fatality_rate(
-        model,
-        u0,
-        minimizer,
-        train_dataset.tspan,
-        train_dataset.tsteps,
-    )
-    lines(αt)
+    y = train_dataset.data
+    ŷ = train_dataset.data
+
+    min = vec(minimum(y, dims = 2))
+    max = vec(maximum(y, dims = 2))
+    scale = max .- min
+    lossfn = experiment_loss((0.5, 0.5))
+    lossfn(ŷ, y)
 end

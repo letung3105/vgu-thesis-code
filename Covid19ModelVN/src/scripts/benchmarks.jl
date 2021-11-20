@@ -21,15 +21,15 @@ let
             setup(parsed_args[:locations][1], hyperparams)
         prob = ODEProblem(model, u0, train_dataset.tspan)
         predictor = Predictor(prob, vars)
-        loss1 = Loss{true}(lossfn, predictor, train_dataset)
-        loss2 = Loss{false}(mae, predictor, test_dataset)
+        loss1 = Loss(lossfn, predictor, train_dataset)
+        loss2 = Loss(mae, predictor, test_dataset)
 
         sol = predictor(p0, train_dataset.tspan, train_dataset.tsteps)
         pred = @view sol[:, :]
         du = similar(u0)
 
         @code_warntype model(du, u0, p0, 0)
-        @code_warntype lossfn(pred, train_dataset.data, p0)
+        @code_warntype lossfn(pred, train_dataset.data)
         @code_warntype predictor(p0, train_dataset.tspan, train_dataset.tsteps)
         @code_warntype loss1(p0)
         @code_warntype loss2(p0)
@@ -38,7 +38,7 @@ let
 
         display(@benchmark $model($du, $u0, $p0, 0))
         println()
-        display(@benchmark $lossfn($pred, $train_dataset.data, $p0))
+        display(@benchmark $lossfn($pred, $train_dataset.data))
         println()
         display(@benchmark $predictor($p0, $train_dataset.tspan, $train_dataset.tsteps))
         println()

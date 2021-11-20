@@ -40,7 +40,6 @@ function setupcmd(parsed_args)
 end
 
 get_baseline_hyperparams(parsed_args) = (
-    L2_λ = parsed_args[:L2_lambda],
     ζ = parsed_args[:zeta],
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
@@ -54,7 +53,6 @@ get_baseline_hyperparams(parsed_args) = (
 )
 
 get_fbmobility1_hyperparams(parsed_args) = (
-    L2_λ = parsed_args[:L2_lambda],
     ζ = parsed_args[:zeta],
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
@@ -68,7 +66,6 @@ get_fbmobility1_hyperparams(parsed_args) = (
 )
 
 get_fbmobility2_hyperparams(parsed_args) = (
-    L2_λ = parsed_args[:L2_lambda],
     ζ = parsed_args[:zeta],
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
@@ -83,7 +80,6 @@ get_fbmobility2_hyperparams(parsed_args) = (
 )
 
 get_fbmobility3_hyperparams(parsed_args) = (
-    L2_λ = parsed_args[:L2_lambda],
     ζ = parsed_args[:zeta],
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
@@ -99,7 +95,6 @@ get_fbmobility3_hyperparams(parsed_args) = (
 )
 
 get_fbmobility4_hyperparams(parsed_args) = (
-    L2_λ = parsed_args[:L2_lambda],
     ζ = parsed_args[:zeta],
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
@@ -228,11 +223,6 @@ function parse_commandline(args)
         help = "separate dataset into batches for training"
         arg_type = Int
         default = 0
-
-        "--L2_lambda"
-        help = "L2-regularization term weight"
-        arg_type = Float64
-        default = 1e-4
 
         "--zeta"
         help = "loss function time weights"
