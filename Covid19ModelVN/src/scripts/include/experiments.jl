@@ -160,10 +160,9 @@ function experiment_loss(w::Tuple{R,R}) where {R<:Real}
 end
 
 function experiment_loss(
-    tsteps::Ts,
     min::AbstractMatrix{R},
     max::AbstractMatrix{R},
-) where {Ts,R<:Real}
+) where {R<:Real}
     scale = max .- min
     lossfn = function (ŷ::AbstractArray{R}, y) where {R<:Real}
         s = zero(R)
@@ -207,7 +206,7 @@ function setup_baseline(loc::AbstractString, hyperparams::SEIRDBaselineHyperpara
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
     train_data_min = minimum(train_dataset.data, dims = 2)
     train_data_max = maximum(train_dataset.data, dims = 2)
-    lossfn = experiment_loss((0.8, 0.2))
+    lossfn = experiment_loss((0.5, 0.5))
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -252,7 +251,7 @@ function setup_fbmobility1(loc::AbstractString, hyperparams::SEIRDFbMobility1Hyp
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
     train_data_min = minimum(train_dataset.data, dims = 2)
     train_data_max = maximum(train_dataset.data, dims = 2)
-    lossfn = experiment_loss((0.8, 0.2))
+    lossfn = experiment_loss((0.5, 0.5))
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -308,7 +307,7 @@ function setup_fbmobility2(loc::AbstractString, hyperparams::SEIRDFbMobility2Hyp
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
     train_data_min = minimum(train_dataset.data, dims = 2)
     train_data_max = maximum(train_dataset.data, dims = 2)
-    lossfn = experiment_loss((0.8, 0.2))
+    lossfn = experiment_loss((0.5, 0.5))
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -366,7 +365,7 @@ function setup_fbmobility3(loc::AbstractString, hyperparams::SEIRDFbMobility3Hyp
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
     train_data_min = minimum(train_dataset.data, dims = 2)
     train_data_max = maximum(train_dataset.data, dims = 2)
-    lossfn = experiment_loss((0.8, 0.2))
+    lossfn = experiment_loss((0.5, 0.5))
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -423,7 +422,7 @@ function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyp
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0)
     train_data_min = minimum(train_dataset.data, dims = 2)
     train_data_max = maximum(train_dataset.data, dims = 2)
-    lossfn = experiment_loss((0.8, 0.2))
+    lossfn = experiment_loss((0.5, 0.5))
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
