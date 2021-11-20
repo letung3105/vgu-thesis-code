@@ -160,8 +160,8 @@ function experiment_loss(w::Tuple{R,R}) where {R<:Real}
 end
 
 function experiment_loss(
-    min::AbstractMatrix{R},
-    max::AbstractMatrix{R},
+    min::AbstractVector{R},
+    max::AbstractVector{R},
 ) where {R<:Real}
     scale = max .- min
     lossfn = function (ŷ::AbstractArray{R}, y) where {R<:Real}
@@ -204,8 +204,8 @@ function setup_baseline(loc::AbstractString, hyperparams::SEIRDBaselineHyperpara
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
-    train_data_min = minimum(train_dataset.data, dims = 2)
-    train_data_max = maximum(train_dataset.data, dims = 2)
+    train_data_min = vec(minimum(train_dataset.data, dims = 2))
+    train_data_max = vec(maximum(train_dataset.data, dims = 2))
     lossfn = experiment_loss((0.5, 0.5))
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
@@ -249,8 +249,8 @@ function setup_fbmobility1(loc::AbstractString, hyperparams::SEIRDFbMobility1Hyp
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
-    train_data_min = minimum(train_dataset.data, dims = 2)
-    train_data_max = maximum(train_dataset.data, dims = 2)
+    train_data_min = vec(minimum(train_dataset.data, dims = 2))
+    train_data_max = vec(maximum(train_dataset.data, dims = 2))
     lossfn = experiment_loss((0.5, 0.5))
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
@@ -305,8 +305,8 @@ function setup_fbmobility2(loc::AbstractString, hyperparams::SEIRDFbMobility2Hyp
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
-    train_data_min = minimum(train_dataset.data, dims = 2)
-    train_data_max = maximum(train_dataset.data, dims = 2)
+    train_data_min = vec(minimum(train_dataset.data, dims = 2))
+    train_data_max = vec(maximum(train_dataset.data, dims = 2))
     lossfn = experiment_loss((0.5, 0.5))
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
@@ -363,8 +363,8 @@ function setup_fbmobility3(loc::AbstractString, hyperparams::SEIRDFbMobility3Hyp
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
-    train_data_min = minimum(train_dataset.data, dims = 2)
-    train_data_max = maximum(train_dataset.data, dims = 2)
+    train_data_min = vec(minimum(train_dataset.data, dims = 2))
+    train_data_max = vec(maximum(train_dataset.data, dims = 2))
     lossfn = experiment_loss((0.5, 0.5))
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
@@ -420,8 +420,8 @@ function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyp
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0)
-    train_data_min = minimum(train_dataset.data, dims = 2)
-    train_data_max = maximum(train_dataset.data, dims = 2)
+    train_data_min = vec(minimum(train_dataset.data, dims = 2))
+    train_data_max = vec(maximum(train_dataset.data, dims = 2))
     lossfn = experiment_loss((0.5, 0.5))
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
