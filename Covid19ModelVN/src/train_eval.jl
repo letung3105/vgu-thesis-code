@@ -133,12 +133,7 @@ struct Loss{Metric,Predict,DataCycle,R<:Real}
     )
         dataloader = timeseries_dataloader(dataset, batchsize)
         datacycle = dataloader |> Iterators.cycle |> Iterators.Stateful
-        return new{
-            typeof(metric),
-            typeof(predict),
-            typeof(datacycle),
-            eltype(dataset.tspan),
-        }(
+        return new{typeof(metric),typeof(predict),typeof(datacycle),eltype(dataset.tspan)}(
             metric,
             predict,
             datacycle,
