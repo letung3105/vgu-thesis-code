@@ -40,7 +40,6 @@ function setupcmd(parsed_args)
 end
 
 get_baseline_hyperparams(parsed_args) = (
-    ζ = parsed_args[:zeta],
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
     α0 = parsed_args[:alpha0],
@@ -53,7 +52,6 @@ get_baseline_hyperparams(parsed_args) = (
 )
 
 get_fbmobility1_hyperparams(parsed_args) = (
-    ζ = parsed_args[:zeta],
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
     α0 = parsed_args[:alpha0],
@@ -66,7 +64,6 @@ get_fbmobility1_hyperparams(parsed_args) = (
 )
 
 get_fbmobility2_hyperparams(parsed_args) = (
-    ζ = parsed_args[:zeta],
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
     α0 = parsed_args[:alpha0],
@@ -80,7 +77,6 @@ get_fbmobility2_hyperparams(parsed_args) = (
 )
 
 get_fbmobility3_hyperparams(parsed_args) = (
-    ζ = parsed_args[:zeta],
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
     α0 = parsed_args[:alpha0],
@@ -95,7 +91,6 @@ get_fbmobility3_hyperparams(parsed_args) = (
 )
 
 get_fbmobility4_hyperparams(parsed_args) = (
-    ζ = parsed_args[:zeta],
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
     β_bounds = (parsed_args[:beta_bounds][1], parsed_args[:beta_bounds][2]),
@@ -223,11 +218,6 @@ function parse_commandline(args)
         help = "separate dataset into batches for training"
         arg_type = Int
         default = 0
-
-        "--zeta"
-        help = "loss function time weights"
-        arg_type = Float64
-        default = -5e-2
 
         "--gamma0"
         help = "inverse of the mean incubation period"

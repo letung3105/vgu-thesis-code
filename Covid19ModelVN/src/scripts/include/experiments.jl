@@ -161,17 +161,15 @@ end
 
 function experiment_loss(
     tsteps::Ts,
-    ζ::R,
     min::AbstractMatrix{R},
     max::AbstractMatrix{R},
 ) where {Ts,R<:Real}
-    weights = exp.(collect(tsteps) .* ζ)
     scale = max .- min
     lossfn = function (ŷ::AbstractArray{R}, y) where {R<:Real}
         s = zero(R)
         sz = size(y)
         @inbounds for j ∈ 1:sz[2], i ∈ 1:sz[1]
-            s += ((ŷ[i, j] - y[i, j]) / scale[i])^2 * weights[j]
+            s += ((ŷ[i, j] - y[i, j]) / scale[i])^2
         end
         return s
     end
@@ -179,7 +177,6 @@ function experiment_loss(
 end
 
 SEIRDBaselineHyperparams = @NamedTuple begin
-    ζ::Float64
     γ0::Float64
     λ0::Float64
     α0::Float64
@@ -215,7 +212,6 @@ function setup_baseline(loc::AbstractString, hyperparams::SEIRDBaselineHyperpara
 end
 
 SEIRDFbMobility1Hyperparams = @NamedTuple begin
-    ζ::Float64
     γ0::Float64
     λ0::Float64
     α0::Float64
@@ -261,7 +257,6 @@ function setup_fbmobility1(loc::AbstractString, hyperparams::SEIRDFbMobility1Hyp
 end
 
 SEIRDFbMobility2Hyperparams = @NamedTuple begin
-    ζ::Float64
     γ0::Float64
     λ0::Float64
     α0::Float64
@@ -318,7 +313,6 @@ function setup_fbmobility2(loc::AbstractString, hyperparams::SEIRDFbMobility2Hyp
 end
 
 SEIRDFbMobility3Hyperparams = @NamedTuple begin
-    ζ::Float64
     γ0::Float64
     λ0::Float64
     α0::Float64
@@ -377,7 +371,6 @@ function setup_fbmobility3(loc::AbstractString, hyperparams::SEIRDFbMobility3Hyp
 end
 
 SEIRDFbMobility4Hyperparams = @NamedTuple begin
-    ζ::Float64
     γ0::Float64
     λ0::Float64
     β_bounds::Tuple{Float64,Float64}

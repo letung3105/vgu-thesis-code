@@ -163,7 +163,7 @@ let loc = "losangeles_ca"
     timestamp = Dates.format(now(), "yyyymmddHHMMSS")
     uuid = "$timestamp.$model.$loc"
 
-    parsed_args = parse_commandline(["--locations=$loc", "--zeta=0", "--", model])
+    parsed_args = parse_commandline(["--locations=$loc", "--", model])
     _, gethyper, model_setup = setupcmd(parsed_args)
     hyperparams = gethyper(parsed_args)
     setup = () -> model_setup(loc, hyperparams)
@@ -193,7 +193,7 @@ let loc = "losangeles_ca"
     timestamp = Dates.format(now(), "yyyymmddHHMMSS")
     uuid = "$timestamp.$model.$loc"
 
-    parsed_args = parse_commandline(["--locations=$loc", "--zeta=0", "--", model])
+    parsed_args = parse_commandline(["--locations=$loc", "--", model])
     _, gethyper, model_setup = setupcmd(parsed_args)
     hyperparams = gethyper(parsed_args)
     setup = () -> model_setup(loc, hyperparams)
@@ -211,9 +211,9 @@ let loc = "losangeles_ca"
         η_decay_rate = 0.5,
         η_decay_step = 100,
         η_limit = 1e-4,
-        maxiters = 10000,
+        maxiters = 1000,
         weight_decay = 1e-4,
-        minibatching = 0,
+        minibatching = 8,
         showprogress = true,
     )
     experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
