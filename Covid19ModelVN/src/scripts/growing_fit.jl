@@ -63,10 +63,11 @@ function growing_fit(
         ),
     )
 
+    # NOTE: order must be WeightDecay --> ADAM --> ExpDecay
     opt = Flux.Optimiser(
         WeightDecay(weight_decay),
-        ExpDecay(η, η_decay_rate, η_decay_step, η_limit),
         ADAM(),
+        ExpDecay(η, η_decay_rate, η_decay_step, η_limit),
     )
 
     maxiters = maxiters_initial
@@ -144,10 +145,11 @@ function whole_fit(
     else
         Loss(lossfn, predictor, train_dataset)
     end
+    # NOTE: order must be WeightDecay --> ADAM --> ExpDecay
     opt = Flux.Optimiser(
         WeightDecay(weight_decay),
-        ExpDecay(η, η_decay_rate, η_decay_step, η_limit),
         ADAM(),
+        ExpDecay(η, η_decay_rate, η_decay_step, η_limit),
     )
     res = DiffEqFlux.sciml_train(trainloss, params, opt; maxiters, cb)
 
