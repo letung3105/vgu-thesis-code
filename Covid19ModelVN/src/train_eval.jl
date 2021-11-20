@@ -295,26 +295,6 @@ function (cb::TrainCallback)(params::AbstractVector{R}, train_loss::R) where {R<
     return false
 end
 
-function make_video_stream_callback(
-    predictor::Predictor,
-    params::AbstractVector{<:Real},
-    train_dataset::TimeseriesDataset,
-    test_dataset::TimeseriesDataset,
-    eval_config::EvalConfig,
-)
-    model_fit = Node(predictor(params, train_dataset.tspan, train_dataset.tsteps))
-    model_pred = Node(predictor(params, test_dataset.tspan, test_dataset.tsteps))
-    fig = plot_forecasts(eval_config, model_fit, model_pred, train_dataset, test_dataset)
-    vs = VideoStream(fig, framerate = 60)
-    cb = function (params)
-        model_fit[] = predictor(params, train_dataset.tspan, train_dataset.tsteps)
-        model_pred[] = predictor(params, test_dataset.tspan, test_dataset.tsteps)
-        autolimits!.(contents(fig[:, :]))
-        recordframe!(vs)
-    end
-    return cb, vs
-end
-
 """
     TrainConfig{Opt}
 
@@ -446,6 +426,26 @@ struct EvalConfig
     metrics::Vector{Function}
     forecast_ranges::Vector{Int}
     labels::Vector{String}
+end
+
+function make_video_stream_callback(
+    predictor::Predictor,
+    params::AbstractVector{<:Real},
+    train_dataset::TimeseriesDataset,
+    test_dataset::TimeseriesDataset,
+    eval_config::EvalConfig,
+)
+    model_fit = Node(predictor(params, train_dataset.tspan, train_dataset.tsteps))
+    model_pred = Node(predictor(params, test_dataset.tspan, test_dataset.tsteps))
+    fig = plot_forecasts(eval_config, model_fit, model_pred, train_dataset, test_dataset)
+    vs = VideoStream(fig, framerate = 60)
+    cb = function (params)
+        model_fit[] = predictor(params, train_dataset.tspan, train_dataset.tsteps)
+        model_pred[] = predictor(params, test_dataset.tspan, test_dataset.tsteps)
+        autolimits!.(contents(fig[:, :]))
+        recordframe!(vs)
+    end
+    return cb, vs
 end
 
 """
