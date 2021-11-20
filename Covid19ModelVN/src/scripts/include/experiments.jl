@@ -143,6 +143,9 @@ normed_ld(a, b) = abs(norm(a) - norm(b)) / (norm(a) + norm(b))
 cosine_similarity(a, b) = dot(a, b) / (norm(a) * norm(b))
 cosine_distance(a, b) = (1 - cosine_similarity(a, b)) / 2
 
+"""
+[1] R. Vortmeyer-Kley, P. Nieters, and G. Pipa, “A trajectory-based loss function to learn missing terms in bifurcating dynamical systems,” Sci Rep, vol. 11, no. 1, p. 20394, Oct. 2021, doi: 10.1038/s41598-021-99609-x.
+"""
 function experiment_loss(w::Tuple{R,R}) where {R<:Real}
     lossfn = function (ŷ::AbstractArray{R}, y) where {R<:Real}
         sz = size(ŷ)
