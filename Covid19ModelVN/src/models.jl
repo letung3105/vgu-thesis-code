@@ -12,7 +12,7 @@ The default SEIRD! dynamics function used for OrdinaryDiffEq.jl
 
 # Model states
 
-The system contains 7 compartments S, E, I, R, D, C, and N. The states and derivatives
+The system contains 6 compartments S, E, I, R, D, and N. The states and derivatives
 of the compartments can be access using index 1..7 with the same order as listed.
 
 + **S**: Compartment for susceptible individuals
@@ -20,7 +20,6 @@ of the compartments can be access using index 1..7 with the same order as listed
 + **I**: Compartment for infectious individuals
 + **R**: Compartment for recovered individuals
 + **D**: Compartment for total deaths
-+ **C**: Compartment for total confirmed cases
 + **N**: Compartment for the effective population
 
 # Model parameters
@@ -42,8 +41,7 @@ function SEIRD!(du, u, p, t)
         du[3] = γ * E - λ * I
         du[4] = (1 - α) * λ * I
         du[5] = α * λ * I
-        du[6] = γ * E
-        du[7] = -α * λ * I
+        du[6] = -α * λ * I
     end
     return nothing
 end
