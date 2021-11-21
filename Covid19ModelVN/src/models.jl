@@ -147,7 +147,7 @@ the contact rate
 function (model::SEIRDBaseline)(du, u, p, t)
     @inbounds begin
         # states and params
-        S, _, I, _, _, _, N = u
+        S, _, I, _, _, N = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         β = first(model.β_ann(SVector{2}(S / N, I / N), pnamed.θ))
@@ -312,7 +312,7 @@ function (model::SEIRDFbMobility1)(du, u, p, t)
     @inbounds begin
         time_idx = Int(floor(t + 1))
         # states and params
-        S, _, I, _, _, _, N = u
+        S, _, I, _, _, N = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         β = first(
@@ -495,7 +495,7 @@ function (model::SEIRDFbMobility2)(du, u, p, t)
     @inbounds begin
         time_idx = Int(floor(t + 1))
         # states and params
-        S, _, I, _, _, _, N = u
+        S, _, I, _, _, N = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         β = first(
@@ -688,7 +688,7 @@ function (model::SEIRDFbMobility3)(du, u, p, t)
     @inbounds begin
         time_idx = Int(floor(t + 1))
         # states and params
-        S, _, I, _, _, _, N = u
+        S, _, I, _, _, N = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         β = first(
@@ -893,7 +893,7 @@ function (model::SEIRDFbMobility4)(du, u, p, t)
     @inbounds begin
         time_idx = Int(floor(t + 1))
         # states and params
-        S, _, I, R, D, _, N = u
+        S, _, I, R, D, N = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         β = first(
