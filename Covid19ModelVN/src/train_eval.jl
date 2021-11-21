@@ -211,13 +211,10 @@ mutable struct TrainCallbackState{R<:Real}
         T::Type{R},
         params_length::Integer,
         show_progress::Bool,
-    ) where {R<:Real} = new{T}(
-        0,
+    ) where {R<:Real} = TrainCallbackState(
+        T,
+        params_length,
         ProgressUnknown(showspeed = true, enabled = show_progress),
-        T[],
-        T[],
-        Vector{T}(undef, params_length),
-        typemax(T),
     )
 
     TrainCallbackState(

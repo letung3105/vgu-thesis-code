@@ -72,6 +72,8 @@ function train_growing_trajectory(
     setup::Function;
     snapshots_dir::AbstractString,
     forecast_horizons::AbstractVector{<:Integer},
+    show_progress::Bool,
+    make_animation::Bool,
     lr::Real,
     lr_decay_rate::Real,
     lr_decay_step::Integer,
@@ -81,8 +83,6 @@ function train_growing_trajectory(
     maxiters_growth::Integer,
     tspan_size_initial::Integer,
     tspan_size_growth::Integer,
-    show_progress::Bool,
-    make_animation::Bool,
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
     predictor, eval_loss, test_loss =
@@ -138,6 +138,8 @@ function train_whole_trajectory(
     setup::Function;
     snapshots_dir::AbstractString,
     forecast_horizons::AbstractVector{<:Integer},
+    show_progress::Bool,
+    make_animation::Bool,
     lr::Real,
     lr_decay_rate::Real,
     lr_decay_step::Integer,
@@ -145,7 +147,6 @@ function train_whole_trajectory(
     weight_decay::Real,
     maxiters::Integer,
     minibatching::Integer,
-    show_progress::Bool,
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
     predictor, eval_loss, test_loss =
