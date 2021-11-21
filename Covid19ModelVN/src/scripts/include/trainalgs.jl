@@ -1,6 +1,62 @@
 using Covid19ModelVN
 using DiffEqFlux
 
+function setup_model_training(model, u0, lossfn, train_dataset, test_dataset, vars)
+    prob = ODEProblem(model, u0, train_dataset.tspan)
+    predictor = Predictor(prob, vars)
+    eval_loss = Loss(lossfn, predictor, train_dataset)
+    test_loss = Loss(mae, predictor, test_dataset)
+    return predictor, eval_loss, test_loss
+end
+
+function setup_training_callback(
+    uuid,
+    predictor,
+    eval_loss,
+    test_loss,
+    params,
+    train_dataset,
+    test_dataset,
+    labels,
+    forecast_horizons,
+    snapshots_dir,
+    show_progress,
+    make_animation
+)
+    cb_log = TrainCallback(
+        TrainCallbackState(eltype(params), length(params), show_progress),
+        TrainCallbackConfig(
+            eval_loss,
+            test_loss,
+            100,
+            get_losses_save_fpath(snapshots_dir, uuid),
+            get_params_save_fpath(snapshots_dir, uuid),
+        ),
+    )
+    cb = if make_animation
+        eval_config = EvalConfig([mae, mape, rmse], forecast_horizons, labels)
+        cb_animation = ForecastsAnimationCallback(
+            predictor,
+            params,
+            train_dataset,
+            test_dataset,
+            eval_config;
+            framerate = 60,
+        )
+        function (p, l)
+            cb_animation(p)
+            cb_log(p, l)
+            return false
+        end
+    else
+        function (p, l)
+            cb_log(p, l)
+            return false
+        end
+    end
+    return cb
+end
+
 function growing_fit(
     uuid::AbstractString,
     setup::Function;
@@ -15,36 +71,26 @@ function growing_fit(
     maxiters_growth::Integer,
     tspan_size_initial::Integer,
     tspan_size_growth::Integer,
-    showprogress::Bool,
+    show_progress::Bool,
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
-    prob = ODEProblem(model, u0, train_dataset.tspan)
-    predictor = Predictor(prob, vars)
-    evalloss = Loss(lossfn, predictor, train_dataset)
-    testloss = Loss(mae, predictor, test_dataset)
+    predictor, eval_loss, test_loss =
+        setup_model_training(model, u0, lossfn, train_dataset, test_dataset, vars)
 
-    eval_config = EvalConfig([mae, mape, rmse], forecast_horizons, labels)
-    cb_videostream, vstream = make_video_stream_callback(
+    cb = setup_training_callback(
+        uuid,
         predictor,
+        eval_loss,
+        test_loss,
         params,
         train_dataset,
         test_dataset,
-        eval_config,
+        labels,
+        forecast_horizons,
+        snapshots_dir,
+        show_progress,
+        true,
     )
-    cb_log = TrainCallback(
-        TrainCallbackState(eltype(params), length(params), showprogress),
-        TrainCallbackConfig(
-            evalloss,
-            testloss,
-            100,
-            get_losses_save_fpath(snapshots_dir, uuid),
-            get_params_save_fpath(snapshots_dir, uuid),
-        ),
-    )
-    cb = function (p, l)
-        cb_videostream(p)
-        cb_log(p, l)
-    end
 
     maxiters = maxiters_initial
     tspan_size_max = length(train_dataset.tsteps)
@@ -56,20 +102,20 @@ function growing_fit(
         )
         @info "Train on tspan = $(train_dataset_batch.tspan) with tsteps = $(train_dataset_batch.tsteps)"
 
-        trainloss = Loss(lossfn, predictor, train_dataset_batch)
+        train_loss = Loss(lossfn, predictor, train_dataset_batch)
         # NOTE: order must be WeightDecay --> ADAM --> ExpDecay
         opt = Flux.Optimiser(
             WeightDecay(weight_decay),
             ADAM(lr),
             ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit),
         )
-        res = DiffEqFlux.sciml_train(trainloss, params, opt; maxiters, cb)
+        res = DiffEqFlux.sciml_train(train_loss, params, opt; maxiters, cb)
         params .= res.minimizer
         maxiters += maxiters_growth
     end
 
     fpath_vstream = joinpath(snapshots_dir, "$uuid.mp4")
-    save(fpath_vstream, vstream)
+    save(fpath_vstream, cb_videostream.vs)
 
     return params, cb_log.state.eval_losses, cb_log.state.test_losses
 end
@@ -86,38 +132,28 @@ function whole_fit(
     weight_decay::Real,
     maxiters::Integer,
     minibatching::Integer,
-    showprogress::Bool,
+    show_progress::Bool,
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
-    prob = ODEProblem(model, u0, train_dataset.tspan)
-    predictor = Predictor(prob, vars)
-    evalloss = Loss(lossfn, predictor, train_dataset)
-    testloss = Loss(mae, predictor, test_dataset)
+    predictor, eval_loss, test_loss =
+        setup_model_training(model, u0, lossfn, train_dataset, test_dataset, vars)
 
-    eval_config = EvalConfig([mae, mape, rmse], forecast_horizons, labels)
-    cb_videostream, vstream = make_video_stream_callback(
+    cb = setup_training_callback(
+        uuid,
         predictor,
+        eval_loss,
+        test_loss,
         params,
         train_dataset,
         test_dataset,
-        eval_config,
+        labels,
+        forecast_horizons,
+        snapshots_dir,
+        show_progress,
+        true,
     )
-    cb_log = TrainCallback(
-        TrainCallbackState(eltype(params), length(params), showprogress),
-        TrainCallbackConfig(
-            evalloss,
-            testloss,
-            100,
-            get_losses_save_fpath(snapshots_dir, uuid),
-            get_params_save_fpath(snapshots_dir, uuid),
-        ),
-    )
-    cb = function (p, l)
-        cb_videostream(p)
-        cb_log(p, l)
-    end
 
-    trainloss = if minibatching != 0
+    train_loss = if minibatching != 0
         Loss(lossfn, predictor, train_dataset, minibatching)
     else
         Loss(lossfn, predictor, train_dataset)
@@ -128,10 +164,10 @@ function whole_fit(
         ADAM(lr),
         ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit),
     )
-    res = DiffEqFlux.sciml_train(trainloss, params, opt; maxiters, cb)
+    res = DiffEqFlux.sciml_train(train_loss, params, opt; maxiters, cb)
 
     fpath_vstream = joinpath(snapshots_dir, "$uuid.mp4")
-    save(fpath_vstream, vstream)
+    save(fpath_vstream, cb_videostream.vs)
 
     return res.minimizer, cb_log.state.eval_losses, cb_log.state.test_losses
 end

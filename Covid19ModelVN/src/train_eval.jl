@@ -250,23 +250,31 @@ struct TrainCallbackConfig{L1<:Loss,L2<:Loss}
 end
 
 """
-A callable struct that is used for handling callback for `sciml_train`
-"""
-struct TrainCallback{R<:Real,L<:Loss}
-    state::TrainCallbackState{R}
-    config::TrainCallbackConfig{L}
-end
+    TrainCallback{R<:Real,L<:Loss}
 
-"""
+A callable struct that is used for handling callback for `sciml_train`. The callback will
+keep track of the losses, the minimizer, and show a progress that keeps track of the
+training process
+
+# Fields
+
+* `state`: current state of the object
+* `config`: callback configuration
+
+# Callable
+
     (cb::TrainCallback)(params::AbstractVector{R}, train_loss::R) where {R<:Real}
-
-Call an object of type `TrainCallback`
 
 # Arguments
 
 * `params`: the model's parameters
 * `train_loss`: loss from the training step
 """
+struct TrainCallback{R<:Real,L<:Loss}
+    state::TrainCallbackState{R}
+    config::TrainCallbackConfig{L}
+end
+
 function (cb::TrainCallback)(params::AbstractVector{R}, train_loss::R) where {R<:Real}
     eval_loss = cb.config.eval_loss(params)
     test_loss = cb.config.test_loss(params)
@@ -312,24 +320,91 @@ struct EvalConfig
     labels::Vector{String}
 end
 
-function make_video_stream_callback(
-    predictor::Predictor,
-    params::AbstractVector{<:Real},
-    train_dataset::TimeseriesDataset,
-    test_dataset::TimeseriesDataset,
-    eval_config::EvalConfig,
-)
-    model_fit = Node(predictor(params, train_dataset.tspan, train_dataset.tsteps))
-    model_pred = Node(predictor(params, test_dataset.tspan, test_dataset.tsteps))
-    fig = plot_forecasts(eval_config, model_fit, model_pred, train_dataset, test_dataset)
-    vs = VideoStream(fig, framerate = 60)
-    cb = function (params)
-        model_fit[] = predictor(params, train_dataset.tspan, train_dataset.tsteps)
-        model_pred[] = predictor(params, test_dataset.tspan, test_dataset.tsteps)
-        autolimits!.(contents(fig[:, :]))
-        recordframe!(vs)
+"""
+    ForecastsAnimationCallback{Predict<:Predictor}
+
+A callable struct that is used for handling callback for `sciml_train`. The callback will
+use the parameters returned from `sciml_train` to make forecasts and create a animation of
+the model's learning process.
+
+# Fields
+
+* `vs`: the video stream object from `Makie`
+* `fig`: the figure that is shown in the animation
+* `model_fit`: an observable object that keeps track of the model's fit
+* `model_pred`: an observable object that keeps track of the model's extrapolation
+* `train_dataset`: ground truth data for fitting
+* `test_dataset`: ground truth data for the extrapolation
+* `predictor`: an object of struct `Predictor` that produce the model's output
+
+# Constructor
+
+    ForecastsAnimationCallback(
+        predictor::Predictor,
+        p0::AbstractVector{<:Real},
+        train_dataset::TimeseriesDataset,
+        test_dataset::TimeseriesDataset,
+        eval_config::EvalConfig;
+        kwargs...,
+    )
+
+## Arguments
+
+* `predictor`: an object of struct `Predictor` that produce the model's output
+* `p0`: the model's initial set of parameters
+* `train_dataset`: ground truth data for fitting
+* `test_dataset`: ground truth data for the extrapolation
+* `eval_config`: configuration for creating the forecast plot
+* `kwargs`: keyword arguments that will be splatted to `Makie.VideoStream`
+
+# Callable
+
+    (cb::ForecastsAnimationCallback)(params)
+
+# Arguments
+
+* `params`: the model's parameters
+"""
+struct ForecastsAnimationCallback{Predict<:Predictor}
+    vs::VideoStream
+    fig::Figure
+    model_fit::Observable
+    model_pred::Observable
+    train_dataset::TimeseriesDataset
+    test_dataset::TimeseriesDataset
+    predictor::Predict
+
+    function ForecastsAnimationCallback(
+        predictor::Predictor,
+        p0::AbstractVector{<:Real},
+        train_dataset::TimeseriesDataset,
+        test_dataset::TimeseriesDataset,
+        eval_config::EvalConfig;
+        kwargs...,
+    )
+        model_fit = Node(predictor(p0, train_dataset.tspan, train_dataset.tsteps))
+        model_pred = Node(predictor(p0, test_dataset.tspan, test_dataset.tsteps))
+        fig =
+            plot_forecasts(eval_config, model_fit, model_pred, train_dataset, test_dataset)
+        vs = VideoStream(fig; kwargs...)
+        return new{typeof(predictor)}(
+            vs,
+            fig,
+            model_fit,
+            model_pred,
+            train_dataset,
+            test_dataset,
+            predictor,
+        )
     end
-    return cb, vs
+end
+
+function (cb::ForecastsAnimationCallback)(params)
+    cb.model_fit[] = cb.predictor(params, cb.train_dataset.tspan, cb.train_dataset.tsteps)
+    cb.model_pred[] = cb.predictor(params, cb.test_dataset.tspan, cb.test_dataset.tsteps)
+    autolimits!.(contents(cb.fig[:, :]))
+    recordframe!(cb.vs)
+    return false
 end
 
 """
