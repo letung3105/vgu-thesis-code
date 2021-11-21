@@ -5,15 +5,15 @@ function growing_fit(
     setup;
     snapshots_dir,
     forecast_horizons,
-    η = 1e-1,
-    η_decay_rate = 0.5,
-    η_decay_step = 100,
-    η_limit = 1e-4,
-    λ_weight_decay = 1e-4,
+    lr = 1e-1,
+    lr_decay_rate = 0.5,
+    lr_decay_step = 100,
+    lr_limit = 1e-4,
+    weight_decay = 1e-4,
     maxiters_initial = 100,
     maxiters_growth = 100,
-    batch_initial = 10,
-    batch_growth = 10,
+    tspan_size_initial = 10,
+    tspan_size_growth = 10,
     showprogress = false,
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
@@ -40,15 +40,14 @@ function growing_fit(
             get_params_save_fpath(snapshots_dir, uuid),
         ),
     )
+    cb = function (p, l)
+        cb_videostream(p)
+        cb_log(p, l)
+    end
 
     maxiters = maxiters_initial
-    batch_max = length(train_dataset.tsteps)
-    for k = batch_initial:batch_growth:batch_max
-        cb = function (p, l)
-            cb_videostream(p)
-            cb_log(p, l)
-        end
-
+    tspan_size_max = length(train_dataset.tsteps)
+    for k = tspan_size_initial:tspan_size_growth:tspan_size_max
         train_dataset_batch = TimeseriesDataset(
             @view(train_dataset.data[:, 1:k]),
             (train_dataset.tspan[1], train_dataset.tspan[1] + k - 1),
@@ -59,9 +58,9 @@ function growing_fit(
         trainloss = Loss(lossfn, predictor, train_dataset_batch)
         # NOTE: order must be WeightDecay --> ADAM --> ExpDecay
         opt = Flux.Optimiser(
-            WeightDecay(λ_weight_decay),
-            ADAM(η),
-            ExpDecay(η, η_decay_rate, η_decay_step, η_limit),
+            WeightDecay(weight_decay),
+            ADAM(lr),
+            ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit),
         )
         res = DiffEqFlux.sciml_train(trainloss, params, opt; maxiters, cb)
         params .= res.minimizer
@@ -79,11 +78,11 @@ function whole_fit(
     setup;
     snapshots_dir,
     forecast_horizons,
-    η = 1e-1,
-    η_decay_rate = 0.5,
-    η_decay_step = 100,
-    η_limit = 1e-4,
-    λ_weight_decay = 1e-4,
+    lr = 1e-1,
+    lr_decay_rate = 0.5,
+    lr_decay_step = 100,
+    lr_limit = 1e-4,
+    weight_decay = 1e-4,
     maxiters = 1000,
     minibatching = 0,
     showprogress = false,
@@ -124,9 +123,9 @@ function whole_fit(
     end
     # NOTE: order must be WeightDecay --> ADAM --> ExpDecay
     opt = Flux.Optimiser(
-        WeightDecay(λ_weight_decay),
-        ADAM(η),
-        ExpDecay(η, η_decay_rate, η_decay_step, η_limit),
+        WeightDecay(weight_decay),
+        ADAM(lr),
+        ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit),
     )
     res = DiffEqFlux.sciml_train(trainloss, params, opt; maxiters, cb)
 
