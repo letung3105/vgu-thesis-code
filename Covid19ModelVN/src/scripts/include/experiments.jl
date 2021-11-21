@@ -461,4 +461,6 @@ function experiment_run(
         # program will crash when multiple threads trying to plot at the same time
         experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
     end
+
+    return minimizers, final_losses
 end
