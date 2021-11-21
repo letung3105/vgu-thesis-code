@@ -11,8 +11,6 @@ import Covid19ModelVN.JHUCSSEData,
     Covid19ModelVN.VnExpressData,
     Covid19ModelVN.VnCdcData
 
-include("trainalgs.jl")
-
 has_irdc(loc) = loc == Covid19ModelVN.LOC_CODE_VIETNAM
 
 has_dc(loc) =
@@ -454,7 +452,7 @@ function experiment_run(
         end
 
         push!(minimizers, minimizer)
-        push!(final_losses, eval_losses)
+        push!(final_losses, last(eval_losses))
 
         # program will crash when multiple threads trying to plot at the same time
         experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
