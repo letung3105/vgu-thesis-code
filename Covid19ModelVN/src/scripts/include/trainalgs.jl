@@ -115,7 +115,7 @@ function growing_fit(
     end
 
     fpath_vstream = joinpath(snapshots_dir, "$uuid.mp4")
-    save(fpath_vstream, cb_videostream.vs)
+    save(fpath_vstream, cb_animation.vs)
 
     return params, cb_log.state.eval_losses, cb_log.state.test_losses
 end
@@ -167,7 +167,7 @@ function whole_fit(
     res = DiffEqFlux.sciml_train(train_loss, params, opt; maxiters, cb)
 
     fpath_vstream = joinpath(snapshots_dir, "$uuid.mp4")
-    save(fpath_vstream, cb_videostream.vs)
+    save(fpath_vstream, cb_animation.vs)
 
     return res.minimizer, cb_log.state.eval_losses, cb_log.state.test_losses
 end
