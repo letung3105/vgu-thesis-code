@@ -405,6 +405,7 @@ function experiment_run(
     forecast_horizons::AbstractVector{<:Integer},
     savedir::AbstractString,
     show_progress::Bool,
+    make_animation::Bool,
 )
     minimizers = Vector{Float64}[]
     final_losses = Float64[]
@@ -416,31 +417,27 @@ function experiment_run(
         snapshots_dir = joinpath(savedir, loc)
         !isdir(snapshots_dir) && mkpath(snapshots_dir)
 
-        @info "Running $uuid"
         write(
             joinpath(snapshots_dir, "$uuid.hyperparams.json"),
             json((; hyperparams..., train_algorithm, train_config...), 4),
         )
 
-        minimizer, eval_losses, _ = if train_algorithm == :train_whole_trajectory
-            whole_fit(
-                uuid,
-                setup;
-                snapshots_dir,
-                forecast_horizons,
-                show_progress,
-                train_config...,
-            )
-        elseif train_algorithm == :train_growing_trajectory
-            growing_fit(
-                uuid,
-                setup;
-                snapshots_dir,
-                forecast_horizons,
-                show_progress,
-                train_config...,
-            )
+        trainfn = if train_algorithm == :train_growing_trajectory
+            train_growing_trajectory
+        elseif train_algorithm == :train_whole_trajectory
+            train_whole_trajectory
         end
+
+        @info "Training $uuid"
+        minimizer, eval_losses, _ = trainfn(
+            uuid,
+            setup;
+            snapshots_dir,
+            forecast_horizons,
+            show_progress,
+            make_animation,
+            train_config...,
+        )
 
         push!(minimizers, minimizer)
         push!(final_losses, last(eval_losses))

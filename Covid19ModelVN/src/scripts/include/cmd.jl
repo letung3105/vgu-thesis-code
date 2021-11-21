@@ -15,6 +15,7 @@ function runcmd(args)
         forecast_horizons = parsed_args[:forecast_horizons],
         savedir = parsed_args[:savedir],
         show_progress = parsed_args[:show_progress],
+        make_animation = parsed_args[:make_animation],
     )
 end
 
@@ -141,6 +142,10 @@ function parse_commandline(args)
         action = :store_true
 
         "--show_progress"
+        help = "show a progress meter that keeps track of the training sessions"
+        action = :store_true
+
+        "--make_animation"
         help = "show a progress meter that keeps track of the training sessions"
         action = :store_true
 

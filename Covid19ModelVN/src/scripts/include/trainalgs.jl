@@ -21,7 +21,7 @@ function setup_training_callback(
     forecast_horizons,
     snapshots_dir,
     show_progress,
-    make_animation
+    make_animation,
 )
     cb_log = TrainCallback(
         TrainCallbackState(eltype(params), length(params), show_progress),
@@ -33,16 +33,18 @@ function setup_training_callback(
             get_params_save_fpath(snapshots_dir, uuid),
         ),
     )
+
+    eval_config = EvalConfig([mae, mape, rmse], forecast_horizons, labels)
+    cb_animation = ForecastsAnimationCallback(
+        predictor,
+        params,
+        train_dataset,
+        test_dataset,
+        eval_config;
+        framerate = 60,
+    )
+
     cb = if make_animation
-        eval_config = EvalConfig([mae, mape, rmse], forecast_horizons, labels)
-        cb_animation = ForecastsAnimationCallback(
-            predictor,
-            params,
-            train_dataset,
-            test_dataset,
-            eval_config;
-            framerate = 60,
-        )
         function (p, l)
             cb_animation(p)
             cb_log(p, l)
@@ -54,10 +56,11 @@ function setup_training_callback(
             return false
         end
     end
-    return cb
+
+    return cb, cb_log, cb_animation
 end
 
-function growing_fit(
+function train_growing_trajectory(
     uuid::AbstractString,
     setup::Function;
     snapshots_dir::AbstractString,
@@ -72,12 +75,13 @@ function growing_fit(
     tspan_size_initial::Integer,
     tspan_size_growth::Integer,
     show_progress::Bool,
+    make_animation::Bool,
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
     predictor, eval_loss, test_loss =
         setup_model_training(model, u0, lossfn, train_dataset, test_dataset, vars)
 
-    cb = setup_training_callback(
+    cb, cb_log, cb_animation = setup_training_callback(
         uuid,
         predictor,
         eval_loss,
@@ -89,7 +93,7 @@ function growing_fit(
         forecast_horizons,
         snapshots_dir,
         show_progress,
-        true,
+        make_animation,
     )
 
     maxiters = maxiters_initial
@@ -114,13 +118,15 @@ function growing_fit(
         maxiters += maxiters_growth
     end
 
-    fpath_vstream = joinpath(snapshots_dir, "$uuid.mp4")
-    save(fpath_vstream, cb_animation.vs)
+    if make_animation
+        fpath_vstream = joinpath(snapshots_dir, "$uuid.mp4")
+        save(fpath_vstream, cb_animation.vs)
+    end
 
     return params, cb_log.state.eval_losses, cb_log.state.test_losses
 end
 
-function whole_fit(
+function train_whole_trajectory(
     uuid::AbstractString,
     setup::Function;
     snapshots_dir::AbstractString,
@@ -138,7 +144,7 @@ function whole_fit(
     predictor, eval_loss, test_loss =
         setup_model_training(model, u0, lossfn, train_dataset, test_dataset, vars)
 
-    cb = setup_training_callback(
+    cb, cb_log, cb_animation = setup_training_callback(
         uuid,
         predictor,
         eval_loss,
@@ -166,8 +172,10 @@ function whole_fit(
     )
     res = DiffEqFlux.sciml_train(train_loss, params, opt; maxiters, cb)
 
-    fpath_vstream = joinpath(snapshots_dir, "$uuid.mp4")
-    save(fpath_vstream, cb_animation.vs)
+    if make_animation
+        fpath_vstream = joinpath(snapshots_dir, "$uuid.mp4")
+        save(fpath_vstream, cb_animation.vs)
+    end
 
     return res.minimizer, cb_log.state.eval_losses, cb_log.state.test_losses
 end
