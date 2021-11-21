@@ -147,10 +147,7 @@ function experiment_loss(w::Tuple{R,R}) where {R<:Real}
     return lossfn
 end
 
-function experiment_loss(
-    min::AbstractVector{R},
-    max::AbstractVector{R},
-) where {R<:Real}
+function experiment_loss(min::AbstractVector{R}, max::AbstractVector{R}) where {R<:Real}
     scale = max .- min
     lossfn = function (ŷ::AbstractArray{R}, y) where {R<:Real}
         s = zero(R)
@@ -420,7 +417,7 @@ function experiment_train(
     configs::AbstractVector{TrainConfig},
     batchsize::Integer,
     snapshots_dir::AbstractString;
-    kwargs...
+    kwargs...,
 )
     # get model and data
     model, u0, p0, lossfn, train_dataset, test_dataset, vars, _ = setup()
@@ -448,7 +445,7 @@ function experiment_train(
         p0,
         configs,
         snapshots_dir;
-        kwargs...
+        kwargs...,
     )
     minimizer = last(minimizers)
     all_eval_losses = collect(Iterators.flatten(eval_losses))
@@ -529,7 +526,7 @@ function experiment_run(
     multithreading::Bool,
     forecast_horizons::AbstractVector{<:Integer},
     savedir::AbstractString,
-    kwargs...
+    kwargs...,
 )
     minimizers = Vector{Float64}[]
     final_losses = Float64[]
@@ -555,7 +552,7 @@ function experiment_run(
             train_configs,
             batchsize,
             snapshots_dir;
-            kwargs...
+            kwargs...,
         )
 
         # access shared arrays

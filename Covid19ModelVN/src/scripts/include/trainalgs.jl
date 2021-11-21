@@ -14,7 +14,7 @@ function growing_fit(
     maxiters_growth = 100,
     batch_initial = 10,
     batch_growth = 10,
-    showprogress = false
+    showprogress = false,
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
     prob = ODEProblem(model, u0, train_dataset.tspan)
