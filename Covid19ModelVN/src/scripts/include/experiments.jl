@@ -454,7 +454,7 @@ function experiment_run(
         end
 
         push!(minimizers, minimizer)
-        push!(final_losses, eval_losses)
+        push!(final_losses, last(eval_losses))
 
         # program will crash when multiple threads trying to plot at the same time
         experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
