@@ -436,11 +436,13 @@ function experiment_run(
     minimizers = Vector{Float64}[]
     final_losses = Float64[]
 
+    batch_timestamp = Dates.format(now(), "yyyymmddHHMMSS")
+
     runexp = function (loc)
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         uuid = "$timestamp.$model_name.$loc"
         setup = () -> model_setup(loc; hyperparams...)
-        snapshots_dir = joinpath(savedir, loc)
+        snapshots_dir = joinpath(savedir, batch_timestamp, loc)
         !isdir(snapshots_dir) && mkpath(snapshots_dir)
 
         write(
