@@ -419,6 +419,8 @@ function experiment_eval(
     return nothing
 end
 
+const LOCK_EVALUATION = ReentrantLock()
+
 function experiment_run(
     model_name::AbstractString,
     model_setup::Function,
@@ -429,11 +431,12 @@ function experiment_run(
     forecast_horizons::AbstractVector{<:Integer},
     savedir::AbstractString,
     show_progress::Bool,
+    multithreading::Bool,
 )
     minimizers = Vector{Float64}[]
     final_losses = Float64[]
 
-    for loc ∈ locations
+    runexp = function (loc)
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         uuid = "$timestamp.$model_name.$loc"
         setup = () -> model_setup(loc; hyperparams...)
@@ -459,7 +462,22 @@ function experiment_run(
         push!(final_losses, last(eval_losses))
 
         # program will crash when multiple threads trying to plot at the same time
-        experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
+        lock(LOCK_EVALUATION)
+        try
+            experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
+        finally
+            unlock(LOCK_EVALUATION)
+        end
+    end
+
+    if multithreading
+        Threads.@threads for loc ∈ locations
+            runexp(loc)
+        end
+    else
+        for loc ∈ locations
+            runexp(loc)
+        end
     end
 
     return minimizers, final_losses
