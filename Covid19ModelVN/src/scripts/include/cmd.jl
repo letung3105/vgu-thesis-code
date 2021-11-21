@@ -14,7 +14,7 @@ function runcmd(args)
         parsed_args[parsed_args[:_COMMAND_]],
         forecast_horizons = parsed_args[:forecast_horizons],
         savedir = parsed_args[:savedir],
-        showprogress = parsed_args[:showprogress],
+        show_progress = parsed_args[:show_progress],
     )
 end
 
@@ -140,7 +140,7 @@ function parse_commandline(args)
         help = "use multiple threads to train the model at multiple locations at once"
         action = :store_true
 
-        "--showprogress"
+        "--show_progress"
         help = "show a progress meter that keeps track of the training sessions"
         action = :store_true
 

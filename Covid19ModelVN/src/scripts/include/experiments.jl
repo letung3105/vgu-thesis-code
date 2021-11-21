@@ -141,219 +141,208 @@ function experiment_loss(min::AbstractVector{R}, max::AbstractVector{R}) where {
     return lossfn
 end
 
-SEIRDBaselineHyperparams = @NamedTuple begin
-    γ0::Float64
-    λ0::Float64
-    α0::Float64
-    γ_bounds::Tuple{Float64,Float64}
-    λ_bounds::Tuple{Float64,Float64}
-    α_bounds::Tuple{Float64,Float64}
-    train_range::Day
-    forecast_range::Day
-end
-
-function setup_baseline(loc::AbstractString, hyperparams::SEIRDBaselineHyperparams)
+function setup_baseline(
+    loc::AbstractString;
+    γ0::Float64,
+    λ0::Float64,
+    α0::Float64,
+    γ_bounds::Tuple{Float64,Float64},
+    λ_bounds::Tuple{Float64,Float64},
+    α_bounds::Tuple{Float64,Float64},
+    train_range::Day,
+    forecast_range::Day,
+)
     # get data for model
-    train_dataset, test_dataset =
-        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
-    @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
-    @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
+    train_dataset, test_dataset = experiment_covid19_data(loc, train_range, forecast_range)
+    @assert size(train_dataset.data, 2) == Dates.value(train_range)
+    @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
     # initialize the model
-    model = SEIRDBaseline(hyperparams.γ_bounds, hyperparams.λ_bounds, hyperparams.α_bounds)
+    model = SEIRDBaseline(γ_bounds, λ_bounds, α_bounds)
     # get the initial states and available observations depending on the model type
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
-    p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
+    p0 = initparams(model, γ0, λ0, α0)
     train_data_min = vec(minimum(train_dataset.data, dims = 2))
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
     lossfn = experiment_loss(train_data_min, train_data_max)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
-SEIRDFbMobility1Hyperparams = @NamedTuple begin
-    γ0::Float64
-    λ0::Float64
-    α0::Float64
-    γ_bounds::Tuple{Float64,Float64}
-    λ_bounds::Tuple{Float64,Float64}
-    α_bounds::Tuple{Float64,Float64}
-    train_range::Day
-    forecast_range::Day
-end
-
-function setup_fbmobility1(loc::AbstractString, hyperparams::SEIRDFbMobility1Hyperparams)
+function setup_fbmobility1(
+    loc::AbstractString;
+    γ0::Float64,
+    λ0::Float64,
+    α0::Float64,
+    γ_bounds::Tuple{Float64,Float64},
+    λ_bounds::Tuple{Float64,Float64},
+    α_bounds::Tuple{Float64,Float64},
+    train_range::Day,
+    forecast_range::Day,
+)
     # get data for model
     train_dataset, test_dataset, first_date, last_date =
-        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
-    @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
-    @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
+        experiment_covid19_data(loc, train_range, forecast_range)
+    @assert size(train_dataset.data, 2) == Dates.value(train_range)
+    @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
     movement_range_data = experiment_movement_range(loc, first_date, last_date)
     @assert size(movement_range_data, 2) ==
-            Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
+            Dates.value(train_range) + Dates.value(forecast_range)
 
     # initialize the model
-    model = SEIRDFbMobility1(
-        hyperparams.γ_bounds,
-        hyperparams.λ_bounds,
-        hyperparams.α_bounds,
-        movement_range_data,
-    )
+    model = SEIRDFbMobility1(γ_bounds, λ_bounds, α_bounds, movement_range_data)
     # get the initial states and available observations depending on the model type
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
-    p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
+    p0 = initparams(model, γ0, λ0, α0)
     train_data_min = vec(minimum(train_dataset.data, dims = 2))
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
     lossfn = experiment_loss(train_data_min, train_data_max)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
-SEIRDFbMobility2Hyperparams = @NamedTuple begin
-    γ0::Float64
-    λ0::Float64
-    α0::Float64
-    γ_bounds::Tuple{Float64,Float64}
-    λ_bounds::Tuple{Float64,Float64}
-    α_bounds::Tuple{Float64,Float64}
-    train_range::Day
-    forecast_range::Day
-    social_proximity_lag::Day
-end
-
-function setup_fbmobility2(loc::AbstractString, hyperparams::SEIRDFbMobility2Hyperparams)
+function setup_fbmobility2(
+    loc::AbstractString;
+    γ0::Float64,
+    λ0::Float64,
+    α0::Float64,
+    γ_bounds::Tuple{Float64,Float64},
+    λ_bounds::Tuple{Float64,Float64},
+    α_bounds::Tuple{Float64,Float64},
+    train_range::Day,
+    forecast_range::Day,
+    social_proximity_lag::Day,
+)
     # get data for model
     train_dataset, test_dataset, first_date, last_date =
-        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
-    @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
-    @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
+        experiment_covid19_data(loc, train_range, forecast_range)
+    @assert size(train_dataset.data, 2) == Dates.value(train_range)
+    @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
     movement_range_data = experiment_movement_range(loc, first_date, last_date)
     @assert size(movement_range_data, 2) ==
-            Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
+            Dates.value(train_range) + Dates.value(forecast_range)
 
     social_proximity_data = experiment_social_proximity(
         loc,
-        first_date - hyperparams.social_proximity_lag,
-        last_date - hyperparams.social_proximity_lag,
+        first_date - social_proximity_lag,
+        last_date - social_proximity_lag,
     )
     @assert size(social_proximity_data, 2) ==
-            Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
+            Dates.value(train_range) + Dates.value(forecast_range)
 
     # build the model
     model = SEIRDFbMobility2(
-        hyperparams.γ_bounds,
-        hyperparams.λ_bounds,
-        hyperparams.α_bounds,
+        γ_bounds,
+        λ_bounds,
+        α_bounds,
         movement_range_data,
         social_proximity_data,
     )
     # get the initial states and available observations depending on the model type
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
-    p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
+    p0 = initparams(model, γ0, λ0, α0)
     train_data_min = vec(minimum(train_dataset.data, dims = 2))
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
     lossfn = experiment_loss(train_data_min, train_data_max)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
-SEIRDFbMobility3Hyperparams = @NamedTuple begin
-    γ0::Float64
-    λ0::Float64
-    α0::Float64
-    β_bounds::Tuple{Float64,Float64}
-    γ_bounds::Tuple{Float64,Float64}
-    λ_bounds::Tuple{Float64,Float64}
-    α_bounds::Tuple{Float64,Float64}
-    train_range::Day
-    forecast_range::Day
-    social_proximity_lag::Day
-end
-
-function setup_fbmobility3(loc::AbstractString, hyperparams::SEIRDFbMobility3Hyperparams)
+function setup_fbmobility3(
+    loc::AbstractString;
+    γ0::Float64,
+    λ0::Float64,
+    α0::Float64,
+    β_bounds::Tuple{Float64,Float64},
+    γ_bounds::Tuple{Float64,Float64},
+    λ_bounds::Tuple{Float64,Float64},
+    α_bounds::Tuple{Float64,Float64},
+    train_range::Day,
+    forecast_range::Day,
+    social_proximity_lag::Day,
+)
     # get data for model
     train_dataset, test_dataset, first_date, last_date =
-        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
-    @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
-    @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
+        experiment_covid19_data(loc, train_range, forecast_range)
+    @assert size(train_dataset.data, 2) == Dates.value(train_range)
+    @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
     movement_range_data = experiment_movement_range(loc, first_date, last_date)
     @assert size(movement_range_data, 2) ==
-            Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
+            Dates.value(train_range) + Dates.value(forecast_range)
 
     social_proximity_data = experiment_social_proximity(
         loc,
-        first_date - hyperparams.social_proximity_lag,
-        last_date - hyperparams.social_proximity_lag,
+        first_date - social_proximity_lag,
+        last_date - social_proximity_lag,
     )
     @assert size(social_proximity_data, 2) ==
-            Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
+            Dates.value(train_range) + Dates.value(forecast_range)
 
     # build the model
     model = SEIRDFbMobility3(
-        hyperparams.β_bounds,
-        hyperparams.γ_bounds,
-        hyperparams.λ_bounds,
-        hyperparams.α_bounds,
+        β_bounds,
+        γ_bounds,
+        λ_bounds,
+        α_bounds,
         movement_range_data,
         social_proximity_data,
     )
     # get the initial states and available observations depending on the model type
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
-    p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
+    p0 = initparams(model, γ0, λ0, α0)
     train_data_min = vec(minimum(train_dataset.data, dims = 2))
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
     lossfn = experiment_loss(train_data_min, train_data_max)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
-SEIRDFbMobility4Hyperparams = @NamedTuple begin
-    γ0::Float64
-    λ0::Float64
-    β_bounds::Tuple{Float64,Float64}
-    γ_bounds::Tuple{Float64,Float64}
-    λ_bounds::Tuple{Float64,Float64}
-    α_bounds::Tuple{Float64,Float64}
-    train_range::Day
-    forecast_range::Day
-    social_proximity_lag::Day
-end
-
-function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyperparams)
+function setup_fbmobility4(
+    loc::AbstractString;
+    γ0::Float64,
+    λ0::Float64,
+    β_bounds::Tuple{Float64,Float64},
+    γ_bounds::Tuple{Float64,Float64},
+    λ_bounds::Tuple{Float64,Float64},
+    α_bounds::Tuple{Float64,Float64},
+    train_range::Day,
+    forecast_range::Day,
+    social_proximity_lag::Day,
+)
     # get data for model
     train_dataset, test_dataset, first_date, last_date =
-        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
-    @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
-    @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
+        experiment_covid19_data(loc, train_range, forecast_range)
+    @assert size(train_dataset.data, 2) == Dates.value(train_range)
+    @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
     movement_range_data = experiment_movement_range(loc, first_date, last_date)
     @assert size(movement_range_data, 2) ==
-            Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
+            Dates.value(train_range) + Dates.value(forecast_range)
 
     social_proximity_data = experiment_social_proximity(
         loc,
-        first_date - hyperparams.social_proximity_lag,
-        last_date - hyperparams.social_proximity_lag,
+        first_date - social_proximity_lag,
+        last_date - social_proximity_lag,
     )
     @assert size(social_proximity_data, 2) ==
-            Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
+            Dates.value(train_range) + Dates.value(forecast_range)
 
     # build the model
     model = SEIRDFbMobility4(
-        hyperparams.β_bounds,
-        hyperparams.γ_bounds,
-        hyperparams.λ_bounds,
-        hyperparams.α_bounds,
+        β_bounds,
+        γ_bounds,
+        λ_bounds,
+        α_bounds,
         movement_range_data,
         social_proximity_data,
     )
     # get the initial states and available observations depending on the model type
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
-    p0 = initparams(model, hyperparams.γ0, hyperparams.λ0)
+    p0 = initparams(model, γ0, λ0)
     train_data_min = vec(minimum(train_dataset.data, dims = 2))
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
     lossfn = experiment_loss(train_data_min, train_data_max)
@@ -415,7 +404,7 @@ function experiment_run(
     train_config::Dict{Symbol,Any};
     forecast_horizons::AbstractVector{<:Integer},
     savedir::AbstractString,
-    showprogress::Bool,
+    show_progress::Bool,
 )
     minimizers = Vector{Float64}[]
     final_losses = Float64[]
@@ -423,7 +412,7 @@ function experiment_run(
     for loc ∈ locations
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         uuid = "$timestamp.$model_name.$loc"
-        setup = () -> model_setup(loc, hyperparams)
+        setup = () -> model_setup(loc; hyperparams...)
         snapshots_dir = joinpath(savedir, loc)
         !isdir(snapshots_dir) && mkpath(snapshots_dir)
 
@@ -439,7 +428,7 @@ function experiment_run(
                 setup;
                 snapshots_dir,
                 forecast_horizons,
-                showprogress,
+                show_progress,
                 train_config...,
             )
         elseif train_algorithm == :train_growing_trajectory
@@ -448,7 +437,7 @@ function experiment_run(
                 setup;
                 snapshots_dir,
                 forecast_horizons,
-                showprogress,
+                show_progress,
                 train_config...,
             )
         end

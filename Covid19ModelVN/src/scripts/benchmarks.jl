@@ -14,11 +14,12 @@ let
     for (name, gethyperparams, setup) ∈ models
         @info "Benchmark $name"
 
-        parsed_args = parse_commandline(["--locations=hcm", "--", name, name])
+        parsed_args =
+            parse_commandline([name, "--locations=hcm", "--", "train_whole_trajectory"])
         hyperparams = gethyperparams(parsed_args)
 
         model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels =
-            setup(parsed_args[:locations][1], hyperparams)
+            setup(parsed_args[:locations][1]; hyperparams...)
         prob = ODEProblem(model, u0, train_dataset.tspan)
         predictor = Predictor(prob, vars)
         loss1 = Loss(lossfn, predictor, train_dataset)
