@@ -2,20 +2,20 @@ using Covid19ModelVN
 using DiffEqFlux
 
 function growing_fit(
-    uuid,
-    setup;
-    snapshots_dir,
-    forecast_horizons,
-    lr,
-    lr_decay_rate,
-    lr_decay_step,
-    lr_limit,
-    weight_decay,
-    maxiters_initial,
-    maxiters_growth,
-    tspan_size_initial,
-    tspan_size_growth,
-    showprogress,
+    uuid::AbstractString,
+    setup::Function;
+    snapshots_dir::AbstractString,
+    forecast_horizons::AbstractVector{<:Integer},
+    lr::Real,
+    lr_decay_rate::Real,
+    lr_decay_step::Integer,
+    lr_limit::Real,
+    weight_decay::Real,
+    maxiters_initial::Integer,
+    maxiters_growth::Integer,
+    tspan_size_initial::Integer,
+    tspan_size_growth::Integer,
+    showprogress::Bool,
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
     prob = ODEProblem(model, u0, train_dataset.tspan)
@@ -75,18 +75,18 @@ function growing_fit(
 end
 
 function whole_fit(
-    uuid,
-    setup;
-    snapshots_dir,
-    forecast_horizons,
-    lr,
-    lr_decay_rate,
-    lr_decay_step,
-    lr_limit,
-    weight_decay,
-    maxiters,
-    minibatching,
-    showprogress,
+    uuid::AbstractString,
+    setup::Function;
+    snapshots_dir::AbstractString,
+    forecast_horizons::AbstractVector{<:Integer},
+    lr::Real,
+    lr_decay_rate::Real,
+    lr_decay_step::Integer,
+    lr_limit::Real,
+    weight_decay::Real,
+    maxiters::Integer,
+    minibatching::Integer,
+    showprogress::Bool,
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
     prob = ODEProblem(model, u0, train_dataset.tspan)
