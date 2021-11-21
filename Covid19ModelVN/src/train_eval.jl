@@ -596,8 +596,14 @@ function plot_forecast!(
         ylabel = "Cases",
     )
     vlines!(ax, [sep], color = :black, linestyle = :dash)
-    lines!(ax, truth, label = label, linewidth = 4)
-    lines!(ax, output, label = "model's prediction", linewidth = 4)
+    barplot!(ax, truth, label = label, linewidth = 4, color = Makie.ColorSchemes.tab10[1])
+    lines!(
+        ax,
+        output,
+        label = "model's prediction",
+        linewidth = 4,
+        color = Makie.ColorSchemes.tab10[2],
+    )
     axislegend(ax, position = :lt)
     return ax
 end
