@@ -26,56 +26,51 @@ function experiment_covid19_data(
     ma7::Bool,
 )
     df = get_prebuilt_covid_timeseries(loc)
-    df[!, "confirmed"] .= df[!, "confirmed_total"]
-    df[2:end, "confirmed"] .= diff(df[!, "confirmed_total"])
+    df[!, Not(:date)] .= Float64.(df[!, Not(:date)])
+    # derive newly confirmed from total confirmed
+    df[!, :confirmed] .= df[!, :confirmed_total]
+    df[2:end, :confirmed] .= diff(df[!, :confirmed_total])
 
+    if loc == Covid19ModelVN.LOC_CODE_VIETNAM
+        # we considered 27th April 2021 to be the start of the outbreak in Vietnam
+        first_date = Date(2021, 4, 27)
+        last_date = typemax(Date)
+        reset_date = first_date - Day(1)
+        # make the cases count starts from the first date of the considered outbreak
+        bound!(df, :date, reset_date, last_date)
+        df[!, Not(:date)] .= df[!, Not(:date)] .- df[1, Not(:date)]
+        bound!(df, :date, first_date, last_date)
+    elseif loc == Covid19ModelVN.LOC_CODE_UNITED_STATES ||
+           loc ∈ keys(Covid19ModelVN.LOC_NAMES_US)
+        # we considered 1st July 2021 to be the start of the outbreak in the US
+        bound!(df, :date, Date(2021, 7, 1), typemax(Date))
+    end
+
+    # select data starting from when total deaths >= 5 and total confirmed >= 500
+    subset!(df, :deaths_total => x -> x .>= 5, :confirmed_total => x -> x .>= 500)
+    first_date = first(df.date)
+    split_date = first_date + train_range - Day(1)
+    last_date = split_date + forecast_range
+
+    @info "Getting Covid-19 data for '$loc'\n" *
+          "+ First train date $first_date\n" *
+          "+ Last train date $split_date\n" *
+          "+ Last evaluated date $last_date"
+
+    # observable compartments
     cols = if has_irdc(loc) || has_dc(loc)
         ["confirmed", "deaths_total"]
     else
         throw("Unsupported location code '$loc'!")
     end
-    df[!, cols] .= Float64.(df[!, cols])
 
-    if loc == Covid19ModelVN.LOC_CODE_VIETNAM
-        # we considered 27th April 2021 to be the start of the outbreak in Vietnam
-        # 4th August 2021 is when no recovered cases are recorded in JHU data
-        first_date = Date(2021, 4, 27)
-        last_date = typemax(Date)
-        # make the cases count starts from the first date of the considered outbreak
-        bound!(df, :date, first_date - Day(1), last_date)
-        datacols = names(df, Not(:date))
-        starting_states = Array(df[1, datacols])
-        transform!(df, datacols => ByRow((x...) -> x .- starting_states) => datacols)
-        bound!(df, :date, first_date, last_date)
-    elseif loc == Covid19ModelVN.LOC_CODE_UNITED_STATES ||
-           loc ∈ keys(Covid19ModelVN.LOC_NAMES_US)
-        # we considered 1st July 2021 to be the start of the outbreak in the US
-        # 30th September 2021 is for getting a long enough period
-        bound!(df, :date, Date(2021, 7, 1), typemax(Date))
-    end
-    # choose the first date to be when the number of total confirmed cases passed 500
-    first_date = first(
-        subset(
-            df,
-            [:deaths_total, :confirmed_total] => (x, y) -> (x .>= 5) .& (y .>= 500),
-            view = true,
-        ).date,
-    )
-    split_date = first_date + train_range - Day(1)
-    last_date = split_date + forecast_range
     # smooth out weekly seasonality
     if ma7
         moving_average!(df, cols, 7)
     end
+
     conf = TimeseriesConfig(df, "date", cols)
-    # split data into 2 parts for training and testing
     train_dataset, test_dataset = train_test_split(conf, first_date, split_date, last_date)
-
-    @info "Got Covid-19 data for '$loc'\n" *
-          "+ First train date $first_date\n" *
-          "+ Last train date $split_date\n" *
-          "+ Last evaluated date $last_date"
-
     return train_dataset, test_dataset, first_date, last_date
 end
 
@@ -116,13 +111,12 @@ function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVect
         # Deaths, Cummulative are observable
         I0 = data[1] # infective individuals
         D0 = data[2] # total deaths
-        C0 = 0 # total confirmed
-        R0 = C0 - I0 - D0 # recovered individuals
+        R0 = 500 # recovered individuals
         N0 = population - D0 # effective population
         E0 = I0 * 2 # exposed individuals
         S0 = population - I0 - D0 - R0 - E0 # susceptible individuals
         # initial state
-        u0 = Float64[S0, E0, I0, R0, D0, C0, N0]
+        u0 = Float64[S0, E0, I0, R0, D0, N0]
         vars = [3, 5]
         labels = ["new confirmed", "deaths"]
         # return values to outer scope
@@ -200,7 +194,7 @@ function setup_baseline(loc::AbstractString, hyperparams::SEIRDBaselineHyperpara
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
     train_data_min = vec(minimum(train_dataset.data, dims = 2))
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
-    lossfn = experiment_loss((0.5, 0.5))
+    lossfn = experiment_loss(train_data_min, train_data_max)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -245,7 +239,7 @@ function setup_fbmobility1(loc::AbstractString, hyperparams::SEIRDFbMobility1Hyp
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
     train_data_min = vec(minimum(train_dataset.data, dims = 2))
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
-    lossfn = experiment_loss((0.5, 0.5))
+    lossfn = experiment_loss(train_data_min, train_data_max)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -301,7 +295,7 @@ function setup_fbmobility2(loc::AbstractString, hyperparams::SEIRDFbMobility2Hyp
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
     train_data_min = vec(minimum(train_dataset.data, dims = 2))
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
-    lossfn = experiment_loss((0.5, 0.5))
+    lossfn = experiment_loss(train_data_min, train_data_max)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -359,7 +353,7 @@ function setup_fbmobility3(loc::AbstractString, hyperparams::SEIRDFbMobility3Hyp
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0, hyperparams.α0)
     train_data_min = vec(minimum(train_dataset.data, dims = 2))
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
-    lossfn = experiment_loss((0.5, 0.5))
+    lossfn = experiment_loss(train_data_min, train_data_max)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -416,7 +410,7 @@ function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyp
     p0 = initparams(model, hyperparams.γ0, hyperparams.λ0)
     train_data_min = vec(minimum(train_dataset.data, dims = 2))
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
-    lossfn = experiment_loss((0.5, 0.5))
+    lossfn = experiment_loss(train_data_min, train_data_max)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -426,7 +420,7 @@ function experiment_train(
     configs::AbstractVector{TrainConfig},
     batchsize::Integer,
     snapshots_dir::AbstractString;
-    kwargs...,
+    kwargs...
 )
     # get model and data
     model, u0, p0, lossfn, train_dataset, test_dataset, vars, _ = setup()
@@ -454,7 +448,7 @@ function experiment_train(
         p0,
         configs,
         snapshots_dir;
-        kwargs...,
+        kwargs...
     )
     minimizer = last(minimizers)
     all_eval_losses = collect(Iterators.flatten(eval_losses))
@@ -535,7 +529,7 @@ function experiment_run(
     multithreading::Bool,
     forecast_horizons::AbstractVector{<:Integer},
     savedir::AbstractString,
-    kwargs...,
+    kwargs...
 )
     minimizers = Vector{Float64}[]
     final_losses = Float64[]
@@ -561,7 +555,7 @@ function experiment_run(
             train_configs,
             batchsize,
             snapshots_dir;
-            kwargs...,
+            kwargs...
         )
 
         # access shared arrays
