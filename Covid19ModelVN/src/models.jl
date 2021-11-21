@@ -222,7 +222,7 @@ function ℜe(
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
-    N = @view states[7, :]
+    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
     β_ann_input = [(S ./ N)'; (I ./ N)']
@@ -397,7 +397,7 @@ function ℜe(
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
-    N = @view states[7, :]
+    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
@@ -581,7 +581,7 @@ function ℜe(
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
-    N = @view states[7, :]
+    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
@@ -773,7 +773,7 @@ function ℜe(
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
-    N = @view states[7, :]
+    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
@@ -979,7 +979,7 @@ function ℜe(
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
-    N = @view states[7, :]
+    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
@@ -1003,7 +1003,7 @@ function fatality_rate(
     I = @view states[3, :]
     R = @view states[4, :]
     D = @view states[5, :]
-    N = @view states[7, :]
+    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
     α_ann_input = [(I ./ N)'; (R ./ N)'; (D ./ N)']
