@@ -19,7 +19,23 @@ has_dc(loc) =
     loc ∈ keys(Covid19ModelVN.LOC_NAMES_VN) ||
     loc ∈ keys(Covid19ModelVN.LOC_NAMES_US)
 
-function experiment_covid19_preprocess(df::AbstractDataFrame, loc::AbstractString)
+function experiment_covid19_data(
+    loc::AbstractString,
+    train_range::Day,
+    forecast_range::Day,
+    ma7::Bool,
+)
+    df = get_prebuilt_covid_timeseries(loc)
+    df[!, "confirmed"] .= df[!, "confirmed_total"]
+    df[2:end, "confirmed"] .= diff(df[!, "confirmed_total"])
+
+    cols = if has_irdc(loc) || has_dc(loc)
+        ["confirmed", "deaths_total"]
+    else
+        throw("Unsupported location code '$loc'!")
+    end
+    df[!, cols] .= Float64.(df[!, cols])
+
     if loc == Covid19ModelVN.LOC_CODE_VIETNAM
         # we considered 27th April 2021 to be the start of the outbreak in Vietnam
         # 4th August 2021 is when no recovered cases are recorded in JHU data
@@ -31,34 +47,12 @@ function experiment_covid19_preprocess(df::AbstractDataFrame, loc::AbstractStrin
         starting_states = Array(df[1, datacols])
         transform!(df, datacols => ByRow((x...) -> x .- starting_states) => datacols)
         bound!(df, :date, first_date, last_date)
-        return df
     elseif loc == Covid19ModelVN.LOC_CODE_UNITED_STATES ||
            loc ∈ keys(Covid19ModelVN.LOC_NAMES_US)
         # we considered 1st July 2021 to be the start of the outbreak in the US
         # 30th September 2021 is for getting a long enough period
         bound!(df, :date, Date(2021, 7, 1), typemax(Date))
-        return df
-    else
-        # data for other locations don't need processing
-        return df
     end
-end
-
-function experiment_covid19_data(
-    loc::AbstractString,
-    train_range::Day,
-    forecast_range::Day,
-    ma7::Bool,
-)
-    cols = if has_irdc(loc) || has_dc(loc)
-        ["deaths_total", "confirmed_total"]
-    else
-        throw("Unsupported location code '$loc'!")
-    end
-
-    df = get_prebuilt_covid_timeseries(loc)
-    df[!, cols] .= Float64.(df[!, cols])
-    experiment_covid19_preprocess(df, loc)
     # choose the first date to be when the number of total confirmed cases passed 500
     first_date = first(
         subset(
@@ -120,17 +114,17 @@ function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVect
     population = get_prebuilt_population(loc)
     u0, vars, labels = if has_irdc(loc) || has_dc(loc)
         # Deaths, Cummulative are observable
-        D0 = data[1] # total deaths
-        C0 = data[2] # total confirmed
-        I0 = 500 # infective individuals
+        I0 = data[1] # infective individuals
+        D0 = data[2] # total deaths
+        C0 = 0 # total confirmed
         R0 = C0 - I0 - D0 # recovered individuals
         N0 = population - D0 # effective population
         E0 = I0 * 2 # exposed individuals
-        S0 = population - C0 - E0 # susceptible individuals
+        S0 = population - I0 - D0 - R0 - E0 # susceptible individuals
         # initial state
         u0 = Float64[S0, E0, I0, R0, D0, C0, N0]
-        vars = [5, 6]
-        labels = ["deaths", "total confirmed"]
+        vars = [3, 5]
+        labels = ["new confirmed", "deaths"]
         # return values to outer scope
         u0, vars, labels
     else
