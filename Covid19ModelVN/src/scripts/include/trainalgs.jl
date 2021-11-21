@@ -1,20 +1,21 @@
-include("experiments.jl")
+using Covid19ModelVN
+using DiffEqFlux
 
 function growing_fit(
     uuid,
     setup;
     snapshots_dir,
     forecast_horizons,
-    lr = 1e-1,
-    lr_decay_rate = 0.5,
-    lr_decay_step = 100,
-    lr_limit = 1e-4,
-    weight_decay = 1e-4,
-    maxiters_initial = 100,
-    maxiters_growth = 100,
-    tspan_size_initial = 10,
-    tspan_size_growth = 10,
-    showprogress = false,
+    lr,
+    lr_decay_rate,
+    lr_decay_step,
+    lr_limit,
+    weight_decay,
+    maxiters_initial,
+    maxiters_growth,
+    tspan_size_initial,
+    tspan_size_growth,
+    showprogress,
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
     prob = ODEProblem(model, u0, train_dataset.tspan)
@@ -78,14 +79,14 @@ function whole_fit(
     setup;
     snapshots_dir,
     forecast_horizons,
-    lr = 1e-1,
-    lr_decay_rate = 0.5,
-    lr_decay_step = 100,
-    lr_limit = 1e-4,
-    weight_decay = 1e-4,
-    maxiters = 1000,
-    minibatching = 0,
-    showprogress = false,
+    lr,
+    lr_decay_rate,
+    lr_decay_step,
+    lr_limit,
+    weight_decay,
+    maxiters,
+    minibatching,
+    showprogress,
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
     prob = ODEProblem(model, u0, train_dataset.tspan)

@@ -4,39 +4,33 @@ include("experiments.jl")
 
 function runcmd(args)
     parsed_args = parse_commandline(args)
-    name, get_hyperparams, setup = setupcmd(parsed_args)
+    model_name, get_hyperparams, model_setup = setupcmd(parsed_args)
     experiment_run(
-        name,
-        setup,
+        model_name,
+        model_setup,
         parsed_args[:locations],
         get_hyperparams(parsed_args),
-        get_train_configs(parsed_args),
-        parsed_args[:train_batchsize],
-        multithreading = parsed_args[:multithreading],
+        parsed_args[:_COMMAND_],
+        parsed_args[parsed_args[:_COMMAND_]],
         forecast_horizons = parsed_args[:forecast_horizons],
         savedir = parsed_args[:savedir],
-        show_progress = parsed_args[:show_progress],
+        showprogress = parsed_args[:showprogress],
     )
 end
 
 function setupcmd(parsed_args)
     cmdmappings = Dict(
-        [
-            :baseline => ("baseline", get_baseline_hyperparams, setup_baseline)
-            :fbmobility1 =>
-                ("fbmobility1", get_fbmobility1_hyperparams, setup_fbmobility1)
-            :fbmobility2 =>
-                ("fbmobility2", get_fbmobility2_hyperparams, setup_fbmobility2)
-            :fbmobility3 =>
-                ("fbmobility3", get_fbmobility3_hyperparams, setup_fbmobility3)
-            :fbmobility4 =>
-                ("fbmobility4", get_fbmobility4_hyperparams, setup_fbmobility4)
-        ],
+        "baseline" => ("baseline", get_baseline_hyperparams, setup_baseline),
+        "fbmobility1" =>
+            ("fbmobility1", get_fbmobility1_hyperparams, setup_fbmobility1),
+        "fbmobility2" =>
+            ("fbmobility2", get_fbmobility2_hyperparams, setup_fbmobility2),
+        "fbmobility3" =>
+            ("fbmobility3", get_fbmobility3_hyperparams, setup_fbmobility3),
+        "fbmobility4" =>
+            ("fbmobility4", get_fbmobility4_hyperparams, setup_fbmobility4),
     )
-    if !haskey(cmdmappings, parsed_args[:_COMMAND_])
-        error("Unsupported command '$(parse_args[:_COMMAND_])'")
-    end
-    return cmdmappings[parsed_args[:_COMMAND_]]
+    return cmdmappings[parsed_args[:model_name]]
 end
 
 get_baseline_hyperparams(parsed_args) = (
@@ -48,7 +42,6 @@ get_baseline_hyperparams(parsed_args) = (
     α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
-    ma7 = !parsed_args[:ma7_disable],
 )
 
 get_fbmobility1_hyperparams(parsed_args) = (
@@ -60,7 +53,6 @@ get_fbmobility1_hyperparams(parsed_args) = (
     α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
-    ma7 = !parsed_args[:ma7_disable],
 )
 
 get_fbmobility2_hyperparams(parsed_args) = (
@@ -73,7 +65,6 @@ get_fbmobility2_hyperparams(parsed_args) = (
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
-    ma7 = !parsed_args[:ma7_disable],
 )
 
 get_fbmobility3_hyperparams(parsed_args) = (
@@ -87,7 +78,6 @@ get_fbmobility3_hyperparams(parsed_args) = (
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
-    ma7 = !parsed_args[:ma7_disable],
 )
 
 get_fbmobility4_hyperparams(parsed_args) = (
@@ -100,52 +90,31 @@ get_fbmobility4_hyperparams(parsed_args) = (
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
-    ma7 = !parsed_args[:ma7_disable],
 )
-
-function get_train_configs(parsed_args)
-    train_configs = TrainConfig[]
-    if parsed_args[:adam_maxiters] > 0
-        push!(
-            train_configs,
-            TrainConfig("ADAM", ADAM(parsed_args[:adam_lr]), parsed_args[:adam_maxiters]),
-        )
-    end
-    if parsed_args[:bfgs_maxiters] > 0
-        push!(
-            train_configs,
-            TrainConfig(
-                "BFGS",
-                BFGS(initial_stepnorm = parsed_args[:bfgs_initial_stepnorm]),
-                parsed_args[:bfgs_maxiters],
-            ),
-        )
-    end
-    return train_configs
-end
 
 function parse_commandline(args)
     s = ArgParseSettings()
 
+    isvalidmodel(name) =
+        name == "baseline" ||
+        name == "fbmobility1" ||
+        name == "fbmobility2" ||
+        name == "fbmobility3" ||
+        name == "fbmobility4"
+
     @add_arg_table s begin
-        "baseline"
-        help = "train and inference with the baseline model"
+        "model_name"
+        help = "name of the model that will be used"
+        arg_type = String
+        range_tester = isvalidmodel
+        required = true
+
+        "train_growing_trajectory"
+        help = "train the model by iteratively growing time span"
         action = :command
 
-        "fbmobility1"
-        help = "train and inference with the fbmobility1 model"
-        action = :command
-
-        "fbmobility2"
-        help = "train and inference with the fbmobility2 model"
-        action = :command
-
-        "fbmobility3"
-        help = "train and inference with the fbmobility3 model"
-        action = :command
-
-        "fbmobility4"
-        help = "train and inference with the fbmobility4 model"
+        "train_whole_trajectory"
+        help = "train the model on the whole time span"
         action = :command
 
         "--locations"
@@ -162,38 +131,18 @@ function parse_commandline(args)
         arg_type = Int32
         default = Int32[7, 14, 21, 28]
 
-        "--multithreading"
-        help = "use multiple threads to train the model at multiple locations at once"
-        action = :store_true
-
         "--savedir"
         help = "path to the directory where the model outputs are saved"
         arg_type = String
         default = "./snapshots"
 
-        "--show_progress"
-        help = "show a progress meter that keeps track of the training sessions"
+        "--multithreading"
+        help = "use multiple threads to train the model at multiple locations at once"
         action = :store_true
 
-        "--adam_maxiters"
-        help = "max number of iterations used to run the ADAM optimizer"
-        arg_type = Int
-        default = 500
-
-        "--adam_lr"
-        help = "the learning rate given to the ADAM optimizer"
-        arg_type = Float64
-        default = 1e-2
-
-        "--bfgs_maxiters"
-        help = "max number of iterations used to run the BFGS optimizer"
-        arg_type = Int
-        default = 500
-
-        "--bfgs_initial_stepnorm"
-        help = "the initial_stepnorm given to the BFGS optimizer"
-        arg_type = Float64
-        default = 1e-2
+        "--showprogress"
+        help = "show a progress meter that keeps track of the training sessions"
+        action = :store_true
 
         "--train_days"
         help = "number of days used for training"
@@ -209,15 +158,6 @@ function parse_commandline(args)
         help = "number of lag days that is used when reading the Social Proximity to Cases index"
         arg_type = Int
         default = 14
-
-        "--ma7_disable"
-        help = "do not apply a 7-day moving average to all the time series datasets"
-        action = :store_true
-
-        "--train_batchsize"
-        help = "separate dataset into batches for training"
-        arg_type = Int
-        default = 0
 
         "--gamma0"
         help = "inverse of the mean incubation period"
@@ -257,6 +197,90 @@ function parse_commandline(args)
         nargs = 2
         arg_type = Float64
         default = [0.01, 0.06]
+    end
+
+    @add_arg_table s["train_growing_trajectory"] begin
+        "--lr"
+        help = "learning rate to be given to ADAM"
+        arg_type = Float64
+        default = 1e-2
+
+        "--lr_decay_rate"
+        help = "learning rate exponential decay rate"
+        arg_type = Float64
+        default = 0.5
+
+        "--lr_decay_step"
+        help = "number of iterations taken before decaying the learning rate"
+        arg_type = Int
+        default = 100
+
+        "--lr_limit"
+        help = "the minimum value at which learning rate decay is stopped"
+        arg_type = Float64
+        default = 1e-4
+
+        "--weight_decay"
+        help = "scaling factor for the weight decay term"
+        arg_type = Float64
+        default = 1e-4
+
+        "--maxiters_initial"
+        help = "the max number of iterations used for fiting the first time span"
+        arg_type = Int
+        default = 200
+
+        "--maxiters_growth"
+        help = "increase the max number of iterations by a fixed amount when growing the time span"
+        arg_type = Int
+        default = 200
+
+        "--tspan_size_initial"
+        help = "number of data points in the initial time span"
+        arg_type = Int
+        default = 10
+
+        "--tspan_size_growth"
+        help = "number of new data points taken when growing the time span"
+        arg_type = Int
+        default = 10
+    end
+
+    @add_arg_table s["train_whole_trajectory"] begin
+        "--lr"
+        help = "learning rate to be given to ADAM"
+        arg_type = Float64
+        default = 1e-2
+
+        "--lr_decay_rate"
+        help = "learning rate exponential decay rate"
+        arg_type = Float64
+        default = 0.5
+
+        "--lr_decay_step"
+        help = "number of iterations taken before decaying the learning rate"
+        arg_type = Int
+        default = 100
+
+        "--lr_limit"
+        help = "the minimum value at which learning rate decay is stopped"
+        arg_type = Float64
+        default = 1e-4
+
+        "--weight_decay"
+        help = "scaling factor for the weight decay term"
+        arg_type = Float64
+        default = 1e-4
+
+        "--maxiters"
+        help = "the max number of iterations used"
+        arg_type = Int
+        default = 200
+
+        "--minibatching"
+        help = "size of the minibatch used when training, 0 means no minibatching"
+        arg_type = Int
+        default = 0
     end
 
     return parse_args(args, s, as_symbols = true)

@@ -11,6 +11,8 @@ import Covid19ModelVN.JHUCSSEData,
     Covid19ModelVN.VnExpressData,
     Covid19ModelVN.VnCdcData
 
+include("trainalgs.jl")
+
 has_irdc(loc) = loc == Covid19ModelVN.LOC_CODE_VIETNAM
 
 has_dc(loc) =
@@ -19,12 +21,7 @@ has_dc(loc) =
     loc ∈ keys(Covid19ModelVN.LOC_NAMES_VN) ||
     loc ∈ keys(Covid19ModelVN.LOC_NAMES_US)
 
-function experiment_covid19_data(
-    loc::AbstractString,
-    train_range::Day,
-    forecast_range::Day,
-    ma7::Bool,
-)
+function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast_range::Day)
     df = get_prebuilt_covid_timeseries(loc)
     df[!, Not(:date)] .= Float64.(df[!, Not(:date)])
     # derive newly confirmed from total confirmed
@@ -65,43 +62,27 @@ function experiment_covid19_data(
     end
 
     # smooth out weekly seasonality
-    if ma7
-        moving_average!(df, cols, 7)
-    end
-
+    moving_average!(df, cols, 7)
+    # train/test split
     conf = TimeseriesConfig(df, "date", cols)
     train_dataset, test_dataset = train_test_split(conf, first_date, split_date, last_date)
     return train_dataset, test_dataset, first_date, last_date
 end
 
-function experiment_movement_range(
-    loc::AbstractString,
-    first_date::Date,
-    last_date::Date,
-    ma7::Bool,
-)
+function experiment_movement_range(loc::AbstractString, first_date::Date, last_date::Date)
     df = get_prebuilt_movement_range(loc)
     cols = ["all_day_bing_tiles_visited_relative_change", "all_day_ratio_single_tile_users"]
     df[!, cols] .= Float64.(df[!, cols])
     # smooth out weekly seasonality
-    if ma7
-        moving_average!(df, cols, 7)
-    end
+    moving_average!(df, cols, 7)
     return load_timeseries(TimeseriesConfig(df, "ds", cols), first_date, last_date)
 end
 
-function experiment_social_proximity(
-    loc::AbstractString,
-    first_date::Date,
-    last_date::Date,
-    ma7::Bool,
-)
+function experiment_social_proximity(loc::AbstractString, first_date::Date, last_date::Date)
     df, col = get_prebuilt_social_proximity(loc)
     df[!, col] .= Float64.(df[!, col])
     # smooth out weekly seasonality
-    if ma7
-        moving_average!(df, col, 7)
-    end
+    moving_average!(df, col, 7)
     return load_timeseries(TimeseriesConfig(df, "date", [col]), first_date, last_date)
 end
 
@@ -169,17 +150,12 @@ SEIRDBaselineHyperparams = @NamedTuple begin
     α_bounds::Tuple{Float64,Float64}
     train_range::Day
     forecast_range::Day
-    ma7::Bool
 end
 
 function setup_baseline(loc::AbstractString, hyperparams::SEIRDBaselineHyperparams)
     # get data for model
-    train_dataset, test_dataset = experiment_covid19_data(
-        loc,
-        hyperparams.train_range,
-        hyperparams.forecast_range,
-        hyperparams.ma7,
-    )
+    train_dataset, test_dataset =
+        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
     @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
     @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
 
@@ -204,22 +180,16 @@ SEIRDFbMobility1Hyperparams = @NamedTuple begin
     α_bounds::Tuple{Float64,Float64}
     train_range::Day
     forecast_range::Day
-    ma7::Bool
 end
 
 function setup_fbmobility1(loc::AbstractString, hyperparams::SEIRDFbMobility1Hyperparams)
     # get data for model
-    train_dataset, test_dataset, first_date, last_date = experiment_covid19_data(
-        loc,
-        hyperparams.train_range,
-        hyperparams.forecast_range,
-        hyperparams.ma7,
-    )
+    train_dataset, test_dataset, first_date, last_date =
+        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
     @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
     @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
 
-    movement_range_data =
-        experiment_movement_range(loc, first_date, last_date, hyperparams.ma7)
+    movement_range_data = experiment_movement_range(loc, first_date, last_date)
     @assert size(movement_range_data, 2) ==
             Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
 
@@ -250,22 +220,16 @@ SEIRDFbMobility2Hyperparams = @NamedTuple begin
     train_range::Day
     forecast_range::Day
     social_proximity_lag::Day
-    ma7::Bool
 end
 
 function setup_fbmobility2(loc::AbstractString, hyperparams::SEIRDFbMobility2Hyperparams)
     # get data for model
-    train_dataset, test_dataset, first_date, last_date = experiment_covid19_data(
-        loc,
-        hyperparams.train_range,
-        hyperparams.forecast_range,
-        hyperparams.ma7,
-    )
+    train_dataset, test_dataset, first_date, last_date =
+        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
     @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
     @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
 
-    movement_range_data =
-        experiment_movement_range(loc, first_date, last_date, hyperparams.ma7)
+    movement_range_data = experiment_movement_range(loc, first_date, last_date)
     @assert size(movement_range_data, 2) ==
             Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
 
@@ -273,7 +237,6 @@ function setup_fbmobility2(loc::AbstractString, hyperparams::SEIRDFbMobility2Hyp
         loc,
         first_date - hyperparams.social_proximity_lag,
         last_date - hyperparams.social_proximity_lag,
-        hyperparams.ma7,
     )
     @assert size(social_proximity_data, 2) ==
             Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
@@ -307,22 +270,16 @@ SEIRDFbMobility3Hyperparams = @NamedTuple begin
     train_range::Day
     forecast_range::Day
     social_proximity_lag::Day
-    ma7::Bool
 end
 
 function setup_fbmobility3(loc::AbstractString, hyperparams::SEIRDFbMobility3Hyperparams)
     # get data for model
-    train_dataset, test_dataset, first_date, last_date = experiment_covid19_data(
-        loc,
-        hyperparams.train_range,
-        hyperparams.forecast_range,
-        hyperparams.ma7,
-    )
+    train_dataset, test_dataset, first_date, last_date =
+        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
     @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
     @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
 
-    movement_range_data =
-        experiment_movement_range(loc, first_date, last_date, hyperparams.ma7)
+    movement_range_data = experiment_movement_range(loc, first_date, last_date)
     @assert size(movement_range_data, 2) ==
             Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
 
@@ -330,7 +287,6 @@ function setup_fbmobility3(loc::AbstractString, hyperparams::SEIRDFbMobility3Hyp
         loc,
         first_date - hyperparams.social_proximity_lag,
         last_date - hyperparams.social_proximity_lag,
-        hyperparams.ma7,
     )
     @assert size(social_proximity_data, 2) ==
             Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
@@ -364,22 +320,16 @@ SEIRDFbMobility4Hyperparams = @NamedTuple begin
     train_range::Day
     forecast_range::Day
     social_proximity_lag::Day
-    ma7::Bool
 end
 
 function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyperparams)
     # get data for model
-    train_dataset, test_dataset, first_date, last_date = experiment_covid19_data(
-        loc,
-        hyperparams.train_range,
-        hyperparams.forecast_range,
-        hyperparams.ma7,
-    )
+    train_dataset, test_dataset, first_date, last_date =
+        experiment_covid19_data(loc, hyperparams.train_range, hyperparams.forecast_range)
     @assert size(train_dataset.data, 2) == Dates.value(hyperparams.train_range)
     @assert size(test_dataset.data, 2) == Dates.value(hyperparams.forecast_range)
 
-    movement_range_data =
-        experiment_movement_range(loc, first_date, last_date, hyperparams.ma7)
+    movement_range_data = experiment_movement_range(loc, first_date, last_date)
     @assert size(movement_range_data, 2) ==
             Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
 
@@ -387,7 +337,6 @@ function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyp
         loc,
         first_date - hyperparams.social_proximity_lag,
         last_date - hyperparams.social_proximity_lag,
-        hyperparams.ma7,
     )
     @assert size(social_proximity_data, 2) ==
             Dates.value(hyperparams.train_range) + Dates.value(hyperparams.forecast_range)
@@ -409,48 +358,6 @@ function setup_fbmobility4(loc::AbstractString, hyperparams::SEIRDFbMobility4Hyp
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
     lossfn = experiment_loss(train_data_min, train_data_max)
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
-end
-
-function experiment_train(
-    uuid::AbstractString,
-    setup::Function,
-    configs::AbstractVector{TrainConfig},
-    batchsize::Integer,
-    snapshots_dir::AbstractString;
-    kwargs...,
-)
-    # get model and data
-    model, u0, p0, lossfn, train_dataset, test_dataset, vars, _ = setup()
-    # create a prediction model and loss function
-    prob = ODEProblem(model, u0, train_dataset.tspan)
-    predictor = Predictor(prob, vars)
-    eval_loss = Loss(lossfn, predictor, train_dataset)
-    test_loss = Loss(rmse, predictor, test_dataset)
-    train_loss = if batchsize == 0
-        eval_loss
-    else
-        Loss(lossfn, predictor, train_dataset, batchsize)
-    end
-
-    # check if AD works
-    dLdθ = Zygote.gradient(train_loss, p0)
-    @assert !isnothing(dLdθ[1]) # gradient is computable
-    @assert any(dLdθ[1] .!= 0.0) # not all gradients are 0
-
-    minimizers, eval_losses, test_losses = train_model(
-        uuid,
-        train_loss,
-        eval_loss,
-        test_loss,
-        p0,
-        configs,
-        snapshots_dir;
-        kwargs...,
-    )
-    minimizer = last(minimizers)
-    all_eval_losses = collect(Iterators.flatten(eval_losses))
-    all_test_losses = collect(Iterators.flatten(test_losses))
-    return minimizer, all_eval_losses, all_test_losses
 end
 
 function experiment_eval(
@@ -499,92 +406,57 @@ function experiment_eval(
     return nothing
 end
 
-JSON.lower(x::AbstractVector{TrainConfig}) = x
-
-JSON.lower(x::TrainConfig{ADAM}) =
-    (name = x.name, maxiters = x.maxiters, eta = x.optimizer.eta, beta = x.optimizer.beta)
-
-JSON.lower(x::TrainConfig{BFGS{IL,L,H,T,TM}}) where {IL,L,H,T,TM} = (
-    name = x.name,
-    maxiters = x.maxiters,
-    alphaguess = IL.name.wrapper,
-    linesearch = L.name.wrapper,
-    initial_invH = x.optimizer.initial_invH,
-    initial_stepnorm = x.optimizer.initial_stepnorm,
-    manifold = TM.name.wrapper,
-)
-
-const LK_EVALUATION = ReentrantLock()
-
 function experiment_run(
     model_name::AbstractString,
     model_setup::Function,
     locations::AbstractVector{<:AbstractString},
     hyperparams::NamedTuple,
-    train_configs::AbstractVector{<:TrainConfig},
-    batchsize::Integer;
-    multithreading::Bool,
+    train_algorithm::Symbol,
+    train_config::Dict{Symbol,Any};
     forecast_horizons::AbstractVector{<:Integer},
     savedir::AbstractString,
-    kwargs...,
+    showprogress::Bool,
 )
     minimizers = Vector{Float64}[]
     final_losses = Float64[]
-    lk = ReentrantLock()
 
-    run = function (loc)
+    for loc ∈ locations
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         uuid = "$timestamp.$model_name.$loc"
         setup = () -> model_setup(loc, hyperparams)
         snapshots_dir = joinpath(savedir, loc)
-        if !isdir(snapshots_dir)
-            mkpath(snapshots_dir)
-        end
+        !isdir(snapshots_dir) && mkpath(snapshots_dir)
 
         @info "Running $uuid"
         write(
             joinpath(snapshots_dir, "$uuid.hyperparams.json"),
-            json((; hyperparams..., train_configs), 4),
-        )
-        minimizer, eval_losses, _ = experiment_train(
-            uuid,
-            setup,
-            train_configs,
-            batchsize,
-            snapshots_dir;
-            kwargs...,
+            json((; hyperparams..., train_algorithm, train_config...), 4),
         )
 
-        # access shared arrays
-        lock(lk)
-        try
-            push!(minimizers, minimizer)
-            push!(final_losses, last(eval_losses))
-        finally
-            unlock(lk)
+        minimizer, eval_losses, _ = if train_algorithm == :train_whole_trajectory
+            whole_fit(
+                uuid,
+                setup;
+                snapshots_dir,
+                forecast_horizons,
+                showprogress,
+                train_config...,
+            )
+        elseif train_algorithm == :train_growing_trajectory
+            growing_fit(
+                uuid,
+                setup;
+                snapshots_dir,
+                forecast_horizons,
+                showprogress,
+                train_config...,
+            )
         end
 
-        # program crashes when multiple threads trying to plot at the same time
-        lock(LK_EVALUATION)
-        try
-            experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
-        finally
-            unlock(LK_EVALUATION)
-        end
+        push!(minimizers, minimizer)
+        push!(final_losses, eval_losses)
 
-        @info "Finished running $uuid"
-        return nothing
+        # program will crash when multiple threads trying to plot at the same time
+        experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
     end
-
-    if multithreading
-        Threads.@threads for loc ∈ locations
-            run(loc)
-        end
-    else
-        for loc ∈ locations
-            run(loc)
-        end
-    end
-
-    return minimizers, final_losses
 end
