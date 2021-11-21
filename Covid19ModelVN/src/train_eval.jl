@@ -202,6 +202,7 @@ State of the callback struct
 mutable struct TrainCallbackState{R<:Real}
     iters::Int
     progress::ProgressUnknown
+    params_log::Vector{Vector{R}}
     eval_losses::Vector{R}
     test_losses::Vector{R}
     minimizer::Vector{R}
@@ -211,21 +212,25 @@ mutable struct TrainCallbackState{R<:Real}
         T::Type{R},
         params_length::Integer,
         show_progress::Bool,
-    ) where {R<:Real} = new{T}(
-        0,
+    ) where {R<:Real} = TrainCallbackState(
+        T,
+        params_length,
         ProgressUnknown(showspeed = true, enabled = show_progress),
-        T[],
-        T[],
-        Vector{T}(undef, params_length),
-        typemax(T),
     )
 
     TrainCallbackState(
         T::Type{R},
         params_length::Integer,
         progress::ProgressUnknown,
-    ) where {R<:Real} =
-        new{T}(0, progress, T[], T[], Vector{T}(undef, params_length), typemax(T))
+    ) where {R<:Real} = new{T}(
+        0,
+        progress,
+        Vector{R}[],
+        T[],
+        T[],
+        Vector{T}(undef, params_length),
+        typemax(T),
+    )
 end
 
 """
@@ -247,6 +252,7 @@ struct TrainCallbackConfig{L1<:Loss,L2<:Loss}
     save_interval::Int
     losses_save_fpath::String
     params_save_fpath::String
+    minimizer_save_fpath::String
 end
 
 """
@@ -281,11 +287,13 @@ function (cb::TrainCallback)(params::AbstractVector{R}, train_loss::R) where {R<
     showvalues = @SVector [
         :losses_save_fpath => cb.config.losses_save_fpath,
         :params_save_fpath => cb.config.params_save_fpath,
+        :minimizer_save_fpath => cb.config.minimizer_save_fpath,
         :train_loss => train_loss,
         :eval_loss => eval_loss,
         :test_loss => test_loss,
     ]
     next!(cb.state.progress, showvalues = showvalues)
+    push!(cb.state.params_log, params)
     push!(cb.state.eval_losses, eval_loss)
     push!(cb.state.test_losses, test_loss)
     cb.state.iters += 1
@@ -298,7 +306,8 @@ function (cb::TrainCallback)(params::AbstractVector{R}, train_loss::R) where {R<
             cb.config.losses_save_fpath,
             (cb.state.eval_losses, cb.state.test_losses),
         )
-        Serialization.serialize(cb.config.params_save_fpath, cb.state.minimizer)
+        Serialization.serialize(cb.config.params_save_fpath, cb.state.params_log)
+        Serialization.serialize(cb.config.minimizer_save_fpath, cb.state.minimizer)
     end
     return false
 end
@@ -318,93 +327,6 @@ struct EvalConfig
     metrics::Vector{Function}
     forecast_ranges::Vector{Int}
     labels::Vector{String}
-end
-
-"""
-    ForecastsAnimationCallback{Predict<:Predictor}
-
-A callable struct that is used for handling callback for `sciml_train`. The callback will
-use the parameters returned from `sciml_train` to make forecasts and create a animation of
-the model's learning process.
-
-# Fields
-
-* `vs`: the video stream object from `Makie`
-* `fig`: the figure that is shown in the animation
-* `model_fit`: an observable object that keeps track of the model's fit
-* `model_pred`: an observable object that keeps track of the model's extrapolation
-* `train_dataset`: ground truth data for fitting
-* `test_dataset`: ground truth data for the extrapolation
-* `predictor`: an object of struct `Predictor` that produce the model's output
-
-# Constructor
-
-    ForecastsAnimationCallback(
-        predictor::Predictor,
-        p0::AbstractVector{<:Real},
-        train_dataset::TimeseriesDataset,
-        test_dataset::TimeseriesDataset,
-        eval_config::EvalConfig;
-        kwargs...,
-    )
-
-## Arguments
-
-* `predictor`: an object of struct `Predictor` that produce the model's output
-* `p0`: the model's initial set of parameters
-* `train_dataset`: ground truth data for fitting
-* `test_dataset`: ground truth data for the extrapolation
-* `eval_config`: configuration for creating the forecast plot
-* `kwargs`: keyword arguments that will be splatted to `Makie.VideoStream`
-
-# Callable
-
-    (cb::ForecastsAnimationCallback)(params)
-
-# Arguments
-
-* `params`: the model's parameters
-"""
-struct ForecastsAnimationCallback{Predict<:Predictor}
-    vs::VideoStream
-    fig::Figure
-    model_fit::Observable
-    model_pred::Observable
-    train_dataset::TimeseriesDataset
-    test_dataset::TimeseriesDataset
-    predictor::Predict
-
-    function ForecastsAnimationCallback(
-        predictor::Predictor,
-        p0::AbstractVector{<:Real},
-        train_dataset::TimeseriesDataset,
-        test_dataset::TimeseriesDataset,
-        eval_config::EvalConfig;
-        kwargs...,
-    )
-        model_fit = Node(predictor(p0, train_dataset.tspan, train_dataset.tsteps))
-        model_pred = Node(predictor(p0, test_dataset.tspan, test_dataset.tsteps))
-        fig =
-            plot_forecasts(eval_config, model_fit, model_pred, train_dataset, test_dataset)
-        vs = VideoStream(fig; kwargs...)
-        return new{typeof(predictor)}(
-            vs,
-            fig,
-            model_fit,
-            model_pred,
-            train_dataset,
-            test_dataset,
-            predictor,
-        )
-    end
-end
-
-function (cb::ForecastsAnimationCallback)(params)
-    cb.model_fit[] = cb.predictor(params, cb.train_dataset.tspan, cb.train_dataset.tsteps)
-    cb.model_pred[] = cb.predictor(params, cb.test_dataset.tspan, cb.test_dataset.tsteps)
-    autolimits!.(contents(cb.fig[:, :]))
-    recordframe!(cb.vs)
-    return false
 end
 
 """

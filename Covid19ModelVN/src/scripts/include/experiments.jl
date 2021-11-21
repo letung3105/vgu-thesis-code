@@ -368,12 +368,36 @@ function experiment_eval(
             continue
         end
 
-        if datatype == "losses"
+        if datatype == "losses" # plot losses
             train_losses, test_losses = Serialization.deserialize(fpath)
             fig = plot_losses(train_losses, test_losses)
             save(joinpath(snapshots_dir, "$dataname.losses.png"), fig)
 
-        elseif datatype == "params"
+        elseif datatype == "params" # make animation of model's learning process
+            params_log = Serialization.deserialize(fpath)
+            model_fit =
+                Node(predictor(params_log[1], train_dataset.tspan, train_dataset.tsteps))
+            model_pred =
+                Node(predictor(params_log[1], test_dataset.tspan, test_dataset.tsteps))
+            fig = plot_forecasts(
+                eval_config,
+                model_fit,
+                model_pred,
+                train_dataset,
+                test_dataset,
+            )
+            record(
+                fig,
+                joinpath(snapshots_dir, "$dataname.forecasts_animation.mp4"),
+                params_log;
+                framerate = 60,
+            ) do params
+                model_fit[] = predictor(params, train_dataset.tspan, train_dataset.tsteps)
+                model_pred[] = predictor(params, test_dataset.tspan, test_dataset.tsteps)
+                autolimits!.(contents(fig[:, :]))
+            end
+
+        elseif datatype == "minimizer" # plot model forecasts
             minimizer = Serialization.deserialize(fpath)
             fig_forecasts, df_errors = evaluate_model(
                 eval_config,
@@ -405,7 +429,6 @@ function experiment_run(
     forecast_horizons::AbstractVector{<:Integer},
     savedir::AbstractString,
     show_progress::Bool,
-    make_animation::Bool,
 )
     minimizers = Vector{Float64}[]
     final_losses = Float64[]
@@ -429,15 +452,8 @@ function experiment_run(
         end
 
         @info "Training $uuid"
-        minimizer, eval_losses, _ = trainfn(
-            uuid,
-            setup;
-            snapshots_dir,
-            forecast_horizons,
-            show_progress,
-            make_animation,
-            train_config...,
-        )
+        minimizer, eval_losses, _ =
+            trainfn(uuid, setup; snapshots_dir, show_progress, train_config...)
 
         push!(minimizers, minimizer)
         push!(final_losses, last(eval_losses))
