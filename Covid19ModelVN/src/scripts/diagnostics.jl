@@ -28,9 +28,9 @@ function plot_social_proximity(loc, data::AbstractMatrix{<:Real})
     return fig
 end
 
-function visualize_data(loc; train_range = Day(32), forecast_range = Day(28), ma7 = false)
+function visualize_data(loc; train_range = Day(32), forecast_range = Day(28))
     train_dataset, test_dataset, first_date, last_date =
-        experiment_covid19_data(loc, train_range, forecast_range, ma7)
+        experiment_covid19_data(loc, train_range, forecast_range)
 
     fig = Figure()
     ncompartments = size(train_dataset.data, 1)
@@ -42,7 +42,7 @@ function visualize_data(loc; train_range = Day(32), forecast_range = Day(28), ma
     display(fig)
 
     movement_range_data = try
-        experiment_movement_range(loc, first_date, last_date, ma7)
+        experiment_movement_range(loc, first_date, last_date)
     catch e
         @warn e
     end
@@ -52,7 +52,7 @@ function visualize_data(loc; train_range = Day(32), forecast_range = Day(28), ma
     end
 
     social_proximity_data = try
-        experiment_social_proximity(loc, first_date, last_date, ma7)
+        experiment_social_proximity(loc, first_date, last_date)
     catch e
         @warn e
     end
