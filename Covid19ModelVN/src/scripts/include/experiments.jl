@@ -456,12 +456,16 @@ function experiment_run(
             train_whole_trajectory
         end
 
+        if multithreading
+            show_progress = false
+        end
+
         @info "Training $uuid"
         minimizer, eval_losses, _ = trainfn(
             uuid,
             setup;
             snapshots_dir,
-            multithreading ? false : show_progress,
+            show_progress,
             make_animation,
             train_config...,
         )
