@@ -461,7 +461,7 @@ function experiment_run(
             uuid,
             setup;
             snapshots_dir,
-            show_progress,
+            multithreading ? false : show_progress,
             make_animation,
             train_config...,
         )
