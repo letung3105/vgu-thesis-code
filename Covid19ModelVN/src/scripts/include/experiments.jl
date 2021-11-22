@@ -456,9 +456,8 @@ function experiment_run(
             train_whole_trajectory
         end
 
-        if multithreading
-            show_progress = false
-        end
+        shared_progress =
+            multithreading && showprogress ? ProgressUnknown(showspeed = true) : nothing
 
         @info "Training $uuid"
         minimizer, eval_losses, _ = trainfn(
@@ -466,13 +465,13 @@ function experiment_run(
             setup;
             snapshots_dir,
             show_progress,
+            shared_progress,
             make_animation,
             train_config...,
         )
 
         push!(minimizers, minimizer)
         push!(final_losses, last(eval_losses))
-
         put!(ch_eval, (uuid, setup, forecast_horizons, snapshots_dir))
     end
 

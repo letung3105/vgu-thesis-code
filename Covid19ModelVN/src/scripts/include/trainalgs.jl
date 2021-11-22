@@ -1,5 +1,6 @@
 using Covid19ModelVN
 using DiffEqFlux
+using ProgressMeter
 
 function setup_model_training(
     model::AbstractCovidModel,
@@ -17,19 +18,24 @@ function setup_model_training(
 end
 
 function setup_training_callback(
-    uuid,
-    predictor,
-    eval_loss,
-    test_loss,
-    params,
-    train_dataset,
-    test_dataset,
-    snapshots_dir,
-    show_progress,
-    make_animation,
+    uuid::AbstractString,
+    predictor::Predictor,
+    eval_loss::Loss,
+    test_loss::Loss,
+    params::AbstractVector{<:Real},
+    train_dataset::TimeseriesDataset,
+    test_dataset::TimeseriesDataset,
+    snapshots_dir::AbstractString,
+    show_progress::Bool,
+    shared_progress::Union{ProgressUnknown,Nothing},
+    make_animation::Bool,
 )
     cb_log = LogCallback(
-        LogCallbackState(eltype(params), length(params), show_progress),
+        LogCallbackState(
+            eltype(params),
+            length(params),
+            isnothing(shared_progress) ? show_progress : shared_progress,
+        ),
         LogCallbackConfig(
             eval_loss,
             test_loss,
@@ -71,6 +77,7 @@ function train_growing_trajectory(
     setup::Function;
     snapshots_dir::AbstractString,
     show_progress::Bool,
+    shared_progress::Union{ProgressUnknown,Nothing},
     make_animation::Bool,
     lr::Real,
     lr_decay_rate::Real,
@@ -96,6 +103,7 @@ function train_growing_trajectory(
         test_dataset,
         snapshots_dir,
         show_progress,
+        shared_progress,
         make_animation,
     )
 
@@ -129,6 +137,7 @@ function train_whole_trajectory(
     setup::Function;
     snapshots_dir::AbstractString,
     show_progress::Bool,
+    shared_progress::Union{ProgressUnknown,Nothing},
     make_animation::Bool,
     lr::Real,
     lr_decay_rate::Real,
@@ -152,6 +161,7 @@ function train_whole_trajectory(
         test_dataset,
         snapshots_dir,
         show_progress,
+        shared_progress,
         make_animation,
     )
 
