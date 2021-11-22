@@ -457,7 +457,7 @@ function experiment_run(
         end
 
         shared_progress =
-            multithreading && showprogress ? ProgressUnknown(showspeed = true) : nothing
+            multithreading && show_progress ? ProgressUnknown(showspeed = true) : nothing
 
         @info "Training $uuid"
         minimizer, eval_losses, _ = trainfn(
