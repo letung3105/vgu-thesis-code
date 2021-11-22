@@ -388,14 +388,29 @@ function experiment_eval(
             ℜe1 = ℜe(model, u0, minimizer, train_dataset.tspan, train_dataset.tsteps)
             ℜe2 = ℜe(model, u0, minimizer, test_dataset.tspan, test_dataset.tsteps)
             fig_ℜe = plot_ℜe([ℜe1; ℜe2], train_dataset.tspan[2])
-            save(joinpath(snapshots_dir, "$uuid.R_effective.png"), fig_ℜe)
+            save(joinpath(snapshots_dir, "$dataname.R_effective.png"), fig_ℜe)
+
+        elseif datatype == "forecasts"
+            fit, pred = Serialization.deserialize(fpath)
+            obs_fit = Observable(fit[1])
+            obs_pred = Observable(pred[1])
+            fig =
+                plot_forecasts(eval_config, obs_fit, obs_pred, train_dataset, test_dataset)
+            record(
+                fig,
+                "$dataname.forecasts.mp4",
+                zip(fit, pred),
+                framerate = 60,
+            ) do (fit, pred)
+                obs_fit[] = fit
+                obs_pred[] = pred
+                autolimits!.(contents(fig[:, :]))
+            end
         end
     end
 
     return nothing
 end
-
-const LOCK_EVALUATION = ReentrantLock()
 
 function experiment_run(
     model_name::AbstractString,
@@ -410,10 +425,16 @@ function experiment_run(
     make_animation::Bool,
     multithreading::Bool,
 )
+    batch_timestamp = Dates.format(now(), "yyyymmddHHMMSS")
     minimizers = Vector{Float64}[]
     final_losses = Float64[]
 
-    batch_timestamp = Dates.format(now(), "yyyymmddHHMMSS")
+    ch_eval = Channel{Tuple{String,Function,Vector{Int},String}}(length(locations))
+    Threads.@spawn begin
+        for (uuid, setup, forecast_horizons, snapshots_dir) in ch_eval
+            experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
+        end
+    let
 
     runexp = function (loc)
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
@@ -447,13 +468,7 @@ function experiment_run(
         push!(minimizers, minimizer)
         push!(final_losses, last(eval_losses))
 
-        # program will crash when multiple threads trying to plot at the same time
-        lock(LOCK_EVALUATION)
-        try
-            experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
-        finally
-            unlock(LOCK_EVALUATION)
-        end
+        put!(ch_eval, (uuid, setup, forecast_horizons, snapshots_dir))
     end
 
     if multithreading
@@ -465,6 +480,7 @@ function experiment_run(
             runexp(loc)
         end
     end
+    close(ch_eval)
 
     return minimizers, final_losses
 end

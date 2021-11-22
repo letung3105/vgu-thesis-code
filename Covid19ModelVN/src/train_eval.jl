@@ -160,7 +160,7 @@ function (l::Loss{Metric,Predict,DataCycle,R})(
 end
 
 """
-    TrainCallbackState{R<:Real}
+    LogCallbackState{R<:Real}
 
 State of the callback struct
 
@@ -175,7 +175,7 @@ State of the callback struct
 
 # Constructor
 
-    TrainCallbackState(
+    LogCallbackState(
         T::Type{R},
         params_length::Integer,
         show_progress::Bool,
@@ -188,18 +188,18 @@ State of the callback struct
 
 # Constructor
 
-    TrainCallbackState(
+    LogCallbackState(
         T::Type{R},
         params_length::Integer,
         progress::ProgressUnknown,
-    ) where {R<:Real} = TrainCallbackState{T}(
+    ) where {R<:Real} = LogCallbackState{T}(
 
 ## Arguments
 
 + `T`: type of the losses and parameters
 + `progress`: the progress meter object that will be used by the callback function
 """
-mutable struct TrainCallbackState{R<:Real}
+mutable struct LogCallbackState{R<:Real}
     iters::Int
     progress::ProgressUnknown
     eval_losses::Vector{R}
@@ -207,26 +207,26 @@ mutable struct TrainCallbackState{R<:Real}
     minimizer::Vector{R}
     minimizer_loss::R
 
-    TrainCallbackState(
-        T::Type{R},
+    LogCallbackState(
+        t::Type{R},
         params_length::Integer,
         show_progress::Bool,
-    ) where {R<:Real} = TrainCallbackState(
-        T,
+    ) where {R<:Real} = LogCallbackState(
+        t,
         params_length,
         ProgressUnknown(showspeed = true, enabled = show_progress),
     )
 
-    TrainCallbackState(
-        T::Type{R},
+    LogCallbackState(
+        t::Type{R},
         params_length::Integer,
         progress::ProgressUnknown,
     ) where {R<:Real} =
-        new{T}(0, progress, T[], T[], Vector{T}(undef, params_length), typemax(T))
+        new{t}(0, progress, t[], t[], Vector{t}(undef, params_length), typemax(t))
 end
 
 """
-    TrainCallbackConfig{L<:Loss}
+    LogCallbackConfig{L<:Loss}
 
 Configuration of the callback struct
 
@@ -238,7 +238,7 @@ Configuration of the callback struct
 * `losses_save_fpath`: file path to the saved losses figure
 * `params_save_fpath`: file path to the serialized current best set of parameters
 """
-struct TrainCallbackConfig{L1<:Loss,L2<:Loss}
+struct LogCallbackConfig{L1<:Loss,L2<:Loss}
     eval_loss::L1
     test_loss::L2
     save_interval::Int
@@ -247,7 +247,7 @@ struct TrainCallbackConfig{L1<:Loss,L2<:Loss}
 end
 
 """
-    TrainCallback{R<:Real,L<:Loss}
+    LogCallback{R<:Real,L<:Loss}
 
 A callable struct that is used for handling callback for `sciml_train`. The callback will
 keep track of the losses, the minimizer, and show a progress that keeps track of the
@@ -260,19 +260,19 @@ training process
 
 # Callable
 
-    (cb::TrainCallback)(params::AbstractVector{R}, train_loss::R) where {R<:Real}
+    (cb::LogCallback)(params::AbstractVector{R}, train_loss::R) where {R<:Real}
 
 # Arguments
 
 * `params`: the model's parameters
 * `train_loss`: loss from the training step
 """
-struct TrainCallback{R<:Real,L<:Loss}
-    state::TrainCallbackState{R}
-    config::TrainCallbackConfig{L}
+struct LogCallback{R<:Real,L<:Loss}
+    state::LogCallbackState{R}
+    config::LogCallbackConfig{L}
 end
 
-function (cb::TrainCallback)(params::AbstractVector{R}, train_loss::R) where {R<:Real}
+function (cb::LogCallback)(params::AbstractVector{R}, train_loss::R) where {R<:Real}
     eval_loss = cb.config.eval_loss(params)
     test_loss = cb.config.test_loss(params)
     showvalues = @SVector [
@@ -401,6 +401,50 @@ function (cb::ForecastsAnimationCallback)(params)
     cb.model_pred[] = cb.predictor(params, cb.test_dataset.tspan, cb.test_dataset.tsteps)
     autolimits!.(contents(cb.fig[:, :]))
     recordframe!(cb.vs)
+    return false
+end
+
+mutable struct ForecastsCallbackState{R<:Real}
+    iters::Int
+    fit::Vector{Matrix{R}}
+    pred::Vector{Matrix{R}}
+
+    ForecastsCallbackState(t::Type{R}) where {R<:Real} = new{t}(0, Matrix{t}[], Matrix{t}[])
+end
+
+struct ForecastsCallbackConfig{Predict<:Predictor}
+    predictor::Predict
+    train_dataset::TimeseriesDataset
+    test_dataset::TimeseriesDataset
+    save_interval::Int
+    forecasts_save_fpath::String
+end
+
+struct ForecastsCallback{R<:Real,Predict<:Predictor}
+    state::ForecastsCallbackState{R}
+    config::ForecastsCallbackConfig{Predict}
+end
+
+function (cb::ForecastsCallback)(params)
+    fit = cb.config.predictor(
+        params,
+        cb.config.train_dataset.tspan,
+        cb.config.train_dataset.tsteps,
+    )
+    pred = cb.config.predictor(
+        params,
+        cb.config.test_dataset.tspan,
+        cb.config.test_dataset.tsteps,
+    )
+    @views push!(cb.state.fit, fit[:, :])
+    @views push!(cb.state.pred, pred[:, :])
+    cb.state.iters += 1
+    if cb.state.iters % cb.config.save_interval == 0
+        Serialization.serialize(
+            cb.config.forecasts_save_fpath,
+            (cb.state.fit, cb.state.pred),
+        )
+    end
     return false
 end
 

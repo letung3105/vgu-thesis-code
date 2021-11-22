@@ -153,6 +153,19 @@ get_params_save_fpath(fdir::AbstractString, uuid::AbstractString) =
     joinpath(fdir, "$uuid.params.jls")
 
 """
+    get_forecasts_save_fpath(fdir::AbstractString, uuid::AbstractString)
+
+Get default file path for forecasts made during training
+
+# Arguments
+
+* `fdir`: the root directory of the file
+* `uuid`: the file unique identifier
+"""
+get_forecasts_save_fpath(fdir::AbstractString, uuid::AbstractString) =
+    joinpath(fdir, "$uuid.forecasts.jls")
+
+"""
     bound(
         df::AbstractDataFrame,
         col::Union{Symbol,AbstractString},
