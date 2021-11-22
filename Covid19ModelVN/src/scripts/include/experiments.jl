@@ -398,7 +398,7 @@ function experiment_eval(
                 plot_forecasts(eval_config, obs_fit, obs_pred, train_dataset, test_dataset)
             record(
                 fig,
-                "$dataname.forecasts.mp4",
+                joinpath(snapshots_dir, "$dataname.forecasts.mp4"),
                 zip(fit, pred),
                 framerate = 60,
             ) do (fit, pred)
