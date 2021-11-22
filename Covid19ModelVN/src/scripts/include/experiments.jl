@@ -429,12 +429,14 @@ function experiment_run(
     minimizers = Vector{Float64}[]
     final_losses = Float64[]
 
+    evt_finished = Threads.Event()
     ch_eval = Channel{Tuple{String,Function,Vector{Int},String}}(length(locations))
     Threads.@spawn begin
         for (uuid, setup, forecast_horizons, snapshots_dir) in ch_eval
             experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
         end
-    let
+        notify(evt_finished)
+    end
 
     runexp = function (loc)
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
@@ -459,7 +461,6 @@ function experiment_run(
             uuid,
             setup;
             snapshots_dir,
-            forecast_horizons,
             show_progress,
             make_animation,
             train_config...,
@@ -480,7 +481,9 @@ function experiment_run(
             runexp(loc)
         end
     end
+
     close(ch_eval)
+    wait(evt_finished)
 
     return minimizers, final_losses
 end
