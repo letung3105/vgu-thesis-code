@@ -107,7 +107,7 @@ function train_growing_trajectory(
             (train_dataset.tspan[1], train_dataset.tspan[1] + k - 1),
             @view(train_dataset.tsteps[train_dataset.tsteps.<k])
         )
-        @info "Train on tspan = $(train_dataset_batch.tspan) with tsteps = $(train_dataset_batch.tsteps)"
+        @info "Training $uuid on tspan = $(train_dataset_batch.tspan) with tsteps = $(train_dataset_batch.tsteps)"
 
         train_loss = Loss(lossfn, predictor, train_dataset_batch)
         # NOTE: order must be WeightDecay --> ADAM --> ExpDecay
