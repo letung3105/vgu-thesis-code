@@ -86,7 +86,7 @@ function experiment_SEIRD_initial_states(
     D0 = df_first_date.deaths_total[1] # total deaths
     R0 = 0 # recovered individuals
     N0 = population - D0 # effective population
-    E0 = 0 # exposed individuals
+    E0 = I0 # exposed individuals
     S0 = population - E0 - df_first_date.confirmed_total[1] # susceptible individuals
     # initial state
     u0 = Float64[S0, E0, I0, R0, D0, N0]
@@ -474,7 +474,7 @@ function experiment_run(
         end
 
         shared_progress =
-            multithreading && showprogress ? ProgressUnknown(showspeed = true) : nothing
+            multithreading && show_progress ? ProgressUnknown(showspeed = true) : nothing
 
         @info "Training $uuid"
         minimizer, eval_losses, _ = trainfn(
