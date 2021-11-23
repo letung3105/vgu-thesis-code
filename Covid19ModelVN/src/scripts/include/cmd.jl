@@ -115,8 +115,16 @@ function parse_commandline(args)
         help = "train the model by iteratively growing time span"
         action = :command
 
+        "train_growing_trajectory_two_stages"
+        help = "train the model by iteratively growing time span, then use LBFGS"
+        action = :command
+
         "train_whole_trajectory"
         help = "train the model on the whole time span"
+        action = :command
+
+        "train_whole_trajectory_two_stages"
+        help = "train the model on the whole time span, then use LBFGS"
         action = :command
 
         "--locations"
@@ -252,6 +260,58 @@ function parse_commandline(args)
         default = 10
     end
 
+    @add_arg_table s["train_growing_trajectory_two_stages"] begin
+        "--lr"
+        help = "learning rate to be given to ADAM"
+        arg_type = Float64
+        default = 1e-2
+
+        "--lr_decay_rate"
+        help = "learning rate exponential decay rate"
+        arg_type = Float64
+        default = 0.5
+
+        "--lr_decay_step"
+        help = "number of iterations taken before decaying the learning rate"
+        arg_type = Int
+        default = 100
+
+        "--lr_limit"
+        help = "the minimum value at which learning rate decay is stopped"
+        arg_type = Float64
+        default = 1e-4
+
+        "--weight_decay"
+        help = "scaling factor for the weight decay term"
+        arg_type = Float64
+        default = 1e-4
+
+        "--maxiters_initial"
+        help = "the max number of iterations used for fiting the first time span"
+        arg_type = Int
+        default = 200
+
+        "--maxiters_growth"
+        help = "increase the max number of iterations by a fixed amount when growing the time span"
+        arg_type = Int
+        default = 200
+
+        "--maxiters_second"
+        help = "max number of interations used for the second stage"
+        arg_type = Int
+        default = 1000
+
+        "--tspan_size_initial"
+        help = "number of data points in the initial time span"
+        arg_type = Int
+        default = 10
+
+        "--tspan_size_growth"
+        help = "number of new data points taken when growing the time span"
+        arg_type = Int
+        default = 10
+    end
+
     @add_arg_table s["train_whole_trajectory"] begin
         "--lr"
         help = "learning rate to be given to ADAM"
@@ -285,6 +345,48 @@ function parse_commandline(args)
 
         "--minibatching"
         help = "size of the minibatch used when training, 0 means no minibatching"
+        arg_type = Int
+        default = 0
+    end
+
+    @add_arg_table s["train_whole_trajectory_two_stages"] begin
+        "--lr"
+        help = "learning rate to be given to ADAM"
+        arg_type = Float64
+        default = 1e-2
+
+        "--lr_decay_rate"
+        help = "learning rate exponential decay rate"
+        arg_type = Float64
+        default = 0.5
+
+        "--lr_decay_step"
+        help = "number of iterations taken before decaying the learning rate"
+        arg_type = Int
+        default = 100
+
+        "--lr_limit"
+        help = "the minimum value at which learning rate decay is stopped"
+        arg_type = Float64
+        default = 1e-4
+
+        "--weight_decay"
+        help = "scaling factor for the weight decay term"
+        arg_type = Float64
+        default = 1e-4
+
+        "--maxiters_first"
+        help = "the max number of iterations used in the first stage"
+        arg_type = Int
+        default = 200
+
+        "--maxiters_second"
+        help = "the max number of iterations used in the second stage"
+        arg_type = Int
+        default = 1000
+
+        "--minibatching"
+        help = "size of the minibatch used when training in the first stage, 0 means no minibatching"
         arg_type = Int
         default = 0
     end
