@@ -13,17 +13,12 @@ import Covid19ModelVN.JHUCSSEData,
 
 include("trainalgs.jl")
 
-has_irdc(loc) = loc == Covid19ModelVN.LOC_CODE_VIETNAM
-
-has_dc(loc) =
-    has_irdc(loc) ||
-    loc == Covid19ModelVN.LOC_CODE_UNITED_STATES ||
-    loc ∈ keys(Covid19ModelVN.LOC_NAMES_VN) ||
-    loc ∈ keys(Covid19ModelVN.LOC_NAMES_US)
-
 function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast_range::Day)
     df = get_prebuilt_covid_timeseries(loc)
-    df[!, Not(:date)] .= Float64.(df[!, Not(:date)])
+    datacols = names(df, Not(:date))
+    df[!, datacols] .= Float64.(df[!, datacols])
+    # smooth out weekly seasonality
+    moving_average!(df, datacols, 7)
     # derive newly confirmed from total confirmed
     df[!, :confirmed] .= df[!, :confirmed_total]
     df[2:end, :confirmed] .= diff(df[!, :confirmed_total])
@@ -35,7 +30,7 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
         reset_date = first_date - Day(1)
         # make the cases count starts from the first date of the considered outbreak
         bound!(df, :date, reset_date, last_date)
-        df[!, Not(:date)] .= df[!, Not(:date)] .- df[1, Not(:date)]
+        df[!, datacols] .= df[!, datacols] .- df[1, datacols]
         bound!(df, :date, first_date, last_date)
     elseif loc == Covid19ModelVN.LOC_CODE_UNITED_STATES ||
            loc ∈ keys(Covid19ModelVN.LOC_NAMES_US)
@@ -43,9 +38,15 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
         bound!(df, :date, Date(2021, 7, 1), typemax(Date))
     end
 
-    # select data starting from when total deaths >= 5 and total confirmed >= 500
-    subset!(df, :deaths_total => x -> x .>= 5, :confirmed_total => x -> x .>= 500)
-    first_date = first(df.date)
+    # select data starting from when total deaths >= 1 and confirmed >= 500
+    dates =
+        subset(
+            df,
+            :deaths_total => x -> x .>= 1,
+            :confirmed => x -> x .>= 500,
+            view = true,
+        ).date
+    first_date = first(dates)
     split_date = first_date + train_range - Day(1)
     last_date = split_date + forecast_range
 
@@ -55,18 +56,8 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
           "+ Last evaluated date $last_date"
 
     # observable compartments
-    cols = if has_irdc(loc) || has_dc(loc)
-        ["confirmed", "deaths_total"]
-    else
-        throw("Unsupported location code '$loc'!")
-    end
-
-    # smooth out weekly seasonality
-    moving_average!(df, cols, 7)
-    # train/test split
-    conf = TimeseriesConfig(df, "date", cols)
-    train_dataset, test_dataset = train_test_split(conf, first_date, split_date, last_date)
-    return train_dataset, test_dataset, first_date, last_date
+    conf = TimeseriesConfig(df, "date", ["confirmed", "deaths_total"])
+    return conf, first_date, split_date, last_date
 end
 
 function experiment_movement_range(loc::AbstractString, first_date::Date, last_date::Date)
@@ -86,25 +77,21 @@ function experiment_social_proximity(loc::AbstractString, first_date::Date, last
     return load_timeseries(TimeseriesConfig(df, "date", [col]), first_date, last_date)
 end
 
-function experiment_SEIRD_initial_states(loc::AbstractString, data::AbstractVector{<:Real})
+function experiment_SEIRD_initial_states(
+    loc::AbstractString,
+    df_first_date::AbstractDataFrame,
+)
     population = get_prebuilt_population(loc)
-    u0, vars, labels = if has_irdc(loc) || has_dc(loc)
-        # Deaths, Cummulative are observable
-        I0 = data[1] # infective individuals
-        D0 = data[2] # total deaths
-        R0 = 500 # recovered individuals
-        N0 = population - D0 # effective population
-        E0 = I0 * 2 # exposed individuals
-        S0 = population - I0 - D0 - R0 - E0 # susceptible individuals
-        # initial state
-        u0 = Float64[S0, E0, I0, R0, D0, N0]
-        vars = [3, 5]
-        labels = ["new confirmed", "deaths"]
-        # return values to outer scope
-        u0, vars, labels
-    else
-        throw("Unsupported location code '$loc'!")
-    end
+    I0 = df_first_date.confirmed[1] # infective individuals
+    D0 = df_first_date.deaths_total[1] # total deaths
+    R0 = 0 # recovered individuals
+    N0 = population - D0 # effective population
+    E0 = 0 # exposed individuals
+    S0 = population - E0 - df_first_date.confirmed_total[1] # susceptible individuals
+    # initial state
+    u0 = Float64[S0, E0, I0, R0, D0, N0]
+    vars = [3, 5]
+    labels = ["new confirmed", "deaths"]
     return u0, vars, labels
 end
 
@@ -153,7 +140,10 @@ function setup_baseline(
     forecast_range::Day,
 )
     # get data for model
-    train_dataset, test_dataset = experiment_covid19_data(loc, train_range, forecast_range)
+    dataconf, first_date, split_date, last_date =
+        experiment_covid19_data(loc, train_range, forecast_range)
+    train_dataset, test_dataset =
+        train_test_split(dataconf, first_date, split_date, last_date)
     @assert size(train_dataset.data, 2) == Dates.value(train_range)
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
@@ -161,7 +151,10 @@ function setup_baseline(
     model = SEIRDBaseline(γ_bounds, λ_bounds, α_bounds)
     # get the initial states and available observations depending on the model type
     # and the considered location
-    u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
+    u0, vars, labels = experiment_SEIRD_initial_states(
+        loc,
+        subset(dataconf.df, :date => x -> x .== first_date, view = true),
+    )
     p0 = initparams(model, γ0, λ0, α0)
     train_data_min = vec(minimum(train_dataset.data, dims = 2))
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
@@ -181,8 +174,10 @@ function setup_fbmobility1(
     forecast_range::Day,
 )
     # get data for model
-    train_dataset, test_dataset, first_date, last_date =
+    dataconf, first_date, split_date, last_date =
         experiment_covid19_data(loc, train_range, forecast_range)
+    train_dataset, test_dataset =
+        train_test_split(dataconf, first_date, split_date, last_date)
     @assert size(train_dataset.data, 2) == Dates.value(train_range)
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
@@ -194,7 +189,10 @@ function setup_fbmobility1(
     model = SEIRDFbMobility1(γ_bounds, λ_bounds, α_bounds, movement_range_data)
     # get the initial states and available observations depending on the model type
     # and the considered location
-    u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
+    u0, vars, labels = experiment_SEIRD_initial_states(
+        loc,
+        subset(dataconf.df, :date => x -> x .== first_date, view = true),
+    )
     p0 = initparams(model, γ0, λ0, α0)
     train_data_min = vec(minimum(train_dataset.data, dims = 2))
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
@@ -215,8 +213,10 @@ function setup_fbmobility2(
     social_proximity_lag::Day,
 )
     # get data for model
-    train_dataset, test_dataset, first_date, last_date =
+    dataconf, first_date, split_date, last_date =
         experiment_covid19_data(loc, train_range, forecast_range)
+    train_dataset, test_dataset =
+        train_test_split(dataconf, first_date, split_date, last_date)
     @assert size(train_dataset.data, 2) == Dates.value(train_range)
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
@@ -242,7 +242,10 @@ function setup_fbmobility2(
     )
     # get the initial states and available observations depending on the model type
     # and the considered location
-    u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
+    u0, vars, labels = experiment_SEIRD_initial_states(
+        loc,
+        subset(dataconf.df, :date => x -> x .== first_date, view = true),
+    )
     p0 = initparams(model, γ0, λ0, α0)
     train_data_min = vec(minimum(train_dataset.data, dims = 2))
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
@@ -264,8 +267,10 @@ function setup_fbmobility3(
     social_proximity_lag::Day,
 )
     # get data for model
-    train_dataset, test_dataset, first_date, last_date =
+    dataconf, first_date, split_date, last_date =
         experiment_covid19_data(loc, train_range, forecast_range)
+    train_dataset, test_dataset =
+        train_test_split(dataconf, first_date, split_date, last_date)
     @assert size(train_dataset.data, 2) == Dates.value(train_range)
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
@@ -292,7 +297,10 @@ function setup_fbmobility3(
     )
     # get the initial states and available observations depending on the model type
     # and the considered location
-    u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
+    u0, vars, labels = experiment_SEIRD_initial_states(
+        loc,
+        subset(dataconf.df, :date => x -> x .== first_date, view = true),
+    )
     p0 = initparams(model, γ0, λ0, α0)
     train_data_min = vec(minimum(train_dataset.data, dims = 2))
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
@@ -313,8 +321,10 @@ function setup_fbmobility4(
     social_proximity_lag::Day,
 )
     # get data for model
-    train_dataset, test_dataset, first_date, last_date =
+    dataconf, first_date, split_date, last_date =
         experiment_covid19_data(loc, train_range, forecast_range)
+    train_dataset, test_dataset =
+        train_test_split(dataconf, first_date, split_date, last_date)
     @assert size(train_dataset.data, 2) == Dates.value(train_range)
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
@@ -341,7 +351,10 @@ function setup_fbmobility4(
     )
     # get the initial states and available observations depending on the model type
     # and the considered location
-    u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
+    u0, vars, labels = experiment_SEIRD_initial_states(
+        loc,
+        subset(dataconf.df, :date => x -> x .== first_date, view = true),
+    )
     p0 = initparams(model, γ0, λ0)
     train_data_min = vec(minimum(train_dataset.data, dims = 2))
     train_data_max = vec(maximum(train_dataset.data, dims = 2))
@@ -452,8 +465,12 @@ function experiment_run(
 
         trainfn = if train_algorithm == :train_growing_trajectory
             train_growing_trajectory
+        elseif train_algorithm == :train_growing_trajectory_two_stages
+            train_growing_trajectory_two_stages
         elseif train_algorithm == :train_whole_trajectory
             train_whole_trajectory
+        elseif train_algorithm == :train_whole_trajectory_two_stages
+            train_whole_trajectory_two_stages
         end
 
         shared_progress =
