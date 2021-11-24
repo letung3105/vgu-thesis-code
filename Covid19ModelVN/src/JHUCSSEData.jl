@@ -142,9 +142,13 @@ function save_country_level_timeseries(
         return nothing
     end
 
-    @info "Reading '$fpath_confirmed', '$fpath_recovered', and '$fpath_deaths'"
+    @info("Reading Covid-19 confirmed time series", fpath = fpath_confirmed)
     df_confirmed = CSV.read(fpath_confirmed, DataFrame)
+
+    @info("Reading Covid-19 recovered time series", fpath = fpath_recovered)
     df_recovered = CSV.read(fpath_recovered, DataFrame)
+
+    @info("Reading Covid-19 deaths time series", fpath = fpath_deaths)
     df_deaths = CSV.read(fpath_deaths, DataFrame)
 
     Threads.@threads for f ∈ files
@@ -155,7 +159,11 @@ function save_country_level_timeseries(
             mkpath(dirname(f.path))
         end
 
-        @info "Generating '$(f.path)'"
+        @info(
+            "Generating country's combined Covid-19 time series",
+            fpath = f.path,
+            country = f.country
+        )
         df_combined = combine_country_level_timeseries(
             df_confirmed,
             df_recovered,
@@ -213,8 +221,10 @@ function save_us_county_level_timeseries(
         return nothing
     end
 
-    @info "Reading '$fpath_confirmed' and '$fpath_deaths'"
+    @info("Reading Covid-19 confirmed time series", fpath = fpath_confirmed)
     df_confirmed = CSV.read(fpath_confirmed, DataFrame)
+
+    @info("Reading Covid-19 deaths time series", fpath = fpath_deaths)
     df_deaths = CSV.read(fpath_deaths, DataFrame)
 
     Threads.@threads for f ∈ files
@@ -226,7 +236,12 @@ function save_us_county_level_timeseries(
             mkpath(dirname(f.path))
         end
 
-        @info "Generating '$(f.path)'"
+        @info(
+            "Generating county's combined Covid-19 time series",
+            fpath = f.path,
+            state = f.state,
+            county = f.county,
+        )
         df_combined =
             combine_us_county_level_timeseries(df_confirmed, df_deaths, f.state, f.county)
         CSV.write(f.path, df_combined)
@@ -410,9 +425,10 @@ function save_us_counties_population(
         mkpath(dirname(fpath_output))
     end
 
-    @info "Reading '$fpath_deaths'"
+    @info("Reading Covid-19 deaths time series", fpath = fpath_deaths)
     df_deaths = CSV.read(fpath_deaths, DataFrame)
-    @info "Generating '$fpath_output'"
+
+    @info("Generating counties average population dataset", fpath = fpath_output)
     df_population = get_us_counties_population(df_deaths)
     CSV.write(fpath_output, df_population)
 

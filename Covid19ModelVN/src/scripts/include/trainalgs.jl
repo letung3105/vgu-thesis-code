@@ -106,7 +106,6 @@ function train_growing_trajectory(
         make_animation,
     )
 
-    @info "Training $uuid with ADAM optimizer"
     # NOTE: order must be WeightDecay --> ADAM --> ExpDecay
     opt = Flux.Optimiser(
         WeightDecay(weight_decay),
@@ -115,13 +114,20 @@ function train_growing_trajectory(
     )
     maxiters = maxiters_initial
     tspan_size_max = length(train_dataset.tsteps)
+
+    @info("Training with ADAM optimizer"; uuid, opt)
     for k = tspan_size_initial:tspan_size_growth:tspan_size_max
         train_dataset_batch = TimeseriesDataset(
             @view(train_dataset.data[:, 1:k]),
             (train_dataset.tspan[1], train_dataset.tspan[1] + k - 1),
             @view(train_dataset.tsteps[train_dataset.tsteps.<k])
         )
-        @info "Training $uuid on tspan = $(train_dataset_batch.tspan) with tsteps = $(train_dataset_batch.tsteps)"
+        @info(
+            "Growed fitting time span";
+            uuid,
+            tspan = train_dataset_batch.tspan,
+            tsteps = train_dataset_batch.tsteps
+        )
 
         train_loss = Loss(lossfn, predictor, train_dataset_batch)
         res = DiffEqFlux.sciml_train(train_loss, params, opt; maxiters, cb)
@@ -168,7 +174,6 @@ function train_growing_trajectory_two_stages(
         make_animation,
     )
 
-    @info "Training $uuid with ADAM optimizer"
     # NOTE: order must be WeightDecay --> ADAM --> ExpDecay
     opt1 = Flux.Optimiser(
         WeightDecay(weight_decay),
@@ -177,13 +182,20 @@ function train_growing_trajectory_two_stages(
     )
     maxiters = maxiters_initial
     tspan_size_max = length(train_dataset.tsteps)
+
+    @info("Training with ADAM optimizer"; uuid, opt = opt1)
     for k = tspan_size_initial:tspan_size_growth:tspan_size_max
         train_dataset_batch = TimeseriesDataset(
             @view(train_dataset.data[:, 1:k]),
             (train_dataset.tspan[1], train_dataset.tspan[1] + k - 1),
             @view(train_dataset.tsteps[train_dataset.tsteps.<k])
         )
-        @info "Training $uuid on tspan = $(train_dataset_batch.tspan) with tsteps = $(train_dataset_batch.tsteps)"
+        @info(
+            "Growed fitting time span";
+            uuid,
+            tspan = train_dataset_batch.tspan,
+            tsteps = train_dataset_batch.tsteps
+        )
 
         train_loss = Loss(lossfn, predictor, train_dataset_batch)
         res = DiffEqFlux.sciml_train(train_loss, params, opt1; maxiters, cb)
@@ -191,9 +203,10 @@ function train_growing_trajectory_two_stages(
         maxiters += maxiters_growth
     end
 
-    @info "Training $uuid with LBFGS optimizer"
     train_loss = Loss(lossfn, predictor, train_dataset)
     opt2 = LBFGS()
+
+    @info("Training with LBFGS optimizer"; uuid, opt = opt2)
     res = DiffEqFlux.sciml_train(train_loss, params, opt2; maxiters = maxiters_second, cb)
 
     return res.minimizer, cb_log.state.eval_losses, cb_log.state.test_losses
@@ -232,7 +245,6 @@ function train_whole_trajectory(
         make_animation,
     )
 
-    @info "Training $uuid with ADAM optimizer"
     train_loss = if minibatching != 0
         Loss(lossfn, predictor, train_dataset, minibatching)
     else
@@ -244,6 +256,8 @@ function train_whole_trajectory(
         ADAM(lr),
         ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit),
     )
+
+    @info("Training with ADAM optimizer"; uuid, opt)
     res = DiffEqFlux.sciml_train(train_loss, params, opt; maxiters, cb)
 
     return res.minimizer, cb_log.state.eval_losses, cb_log.state.test_losses
@@ -283,7 +297,6 @@ function train_whole_trajectory_two_stages(
         make_animation,
     )
 
-    @info "Training $uuid with ADAM optimizer"
     train_loss1 = if minibatching != 0
         Loss(lossfn, predictor, train_dataset, minibatching)
     else
@@ -295,11 +308,14 @@ function train_whole_trajectory_two_stages(
         ADAM(lr),
         ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit),
     )
+
+    @info("Training with ADAM optimizer"; uuid, opt = opt1)
     res1 = DiffEqFlux.sciml_train(train_loss1, params, opt1; maxiters = maxiters_first, cb)
 
-    @info "Training $uuid with LBFGS optimizer"
     train_loss2 = Loss(lossfn, predictor, train_dataset)
     opt2 = LBFGS()
+
+    @info("Training with LBFGS optimizer"; uuid, opt = opt2)
     res2 = DiffEqFlux.sciml_train(
         train_loss2,
         res1.minimizer,

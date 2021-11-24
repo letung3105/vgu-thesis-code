@@ -194,7 +194,7 @@ function save_region_average_movement_range(
         return nothing
     end
 
-    @info "Reading '$fpath_movement_range'"
+    @info("Reading Movement Range Maps dataset", fpath = fpath_movement_range)
     df_movement_range = FacebookData.read_movement_range(fpath_movement_range)
 
     Threads.@threads for f ∈ files
@@ -205,7 +205,12 @@ function save_region_average_movement_range(
             mkpath(dirname(f.path))
         end
 
-        @info "Generating '$(f.path)'"
+        @info(
+            "Generating average stay put index and average change in movement",
+            path = f.path,
+            country = f.country,
+            subdivision = f.subdivision
+        )
         df_region_movement_range = FacebookData.region_average_movement_range(
             df_movement_range,
             f.country,
@@ -290,7 +295,7 @@ function save_inter_province_social_connectedness(
         return nothing
     end
 
-    @info "Reading '$fpath_social_connectedness'"
+    @info("Reading Social Connectedness Index dataset", fpath = fpath_social_connectedness)
     df_social_connectedness = read_social_connectedness(fpath_social_connectedness)
 
     Threads.@threads for f ∈ files
@@ -301,7 +306,11 @@ function save_inter_province_social_connectedness(
             mkpath(dirname(f.path))
         end
 
-        @info "Generating '$(f.path)'"
+        @info(
+            "Generating average social connectedness index",
+            path = f.path,
+            country = f.country,
+        )
         df_country_social_connectedness =
             inter_province_social_connectedness(df_social_connectedness, f.country)
         CSV.write(f.path, df_country_social_connectedness)

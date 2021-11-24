@@ -12,7 +12,7 @@ let
     ]
 
     for (name, gethyperparams, setup) ∈ models
-        @info "Benchmark $name"
+        @info("Benchmarking model"; name)
 
         parsed_args =
             parse_commandline([name, "--locations=hcm", "--", "train_whole_trajectory"])

@@ -43,10 +43,7 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
     split_date = first_date + train_range - Day(1)
     last_date = split_date + forecast_range
 
-    @info "Getting Covid-19 data for '$loc'\n" *
-          "+ First train date $first_date\n" *
-          "+ Last train date $split_date\n" *
-          "+ Last evaluated date $last_date"
+    @info("Getting Covid-19 data"; loc, first_date, split_date, last_date)
 
     # smooth out weekly seasonality
     moving_average!(df, datacols, 7)
@@ -435,6 +432,26 @@ function experiment_eval(
             fig_Re = plot_Re([Re1; Re2], train_dataset.tspan[2])
             save(joinpath(snapshots_dir, "$dataname.R_effective.png"), fig_Re)
 
+            # the fatality rate in this model changes over time
+            if model isa SEIRDFbMobility4
+                αt1 = fatality_rate(
+                    model,
+                    u0,
+                    minimizer,
+                    train_dataset.tspan,
+                    train_dataset.tsteps,
+                )
+                αt2 = fatality_rate(
+                    model,
+                    u0,
+                    minimizer,
+                    test_dataset.tspan,
+                    test_dataset.tsteps,
+                )
+                fig_αt = plot_fatality_rate([αt1; αt2], train_dataset.tspan[2])
+                save(joinpath(snapshots_dir, "$dataname.fatality_rate.png"), fig_αt)
+            end
+
         elseif datatype == "forecasts"
             fit, pred = Serialization.deserialize(fpath)
             obs_fit = Observable(fit[1])
@@ -443,7 +460,7 @@ function experiment_eval(
                 plot_forecasts(eval_config, obs_fit, obs_pred, train_dataset, test_dataset)
             record(
                 fig,
-                joinpath(snapshots_dir, "$dataname.forecasts.mp4"),
+                joinpath(snapshots_dir, "$dataname.forecasts.mkv"),
                 zip(fit, pred),
                 framerate = 60,
             ) do (fit, pred)
@@ -508,7 +525,6 @@ function experiment_run(
         shared_progress =
             multithreading && show_progress ? ProgressUnknown(showspeed = true) : nothing
 
-        @info "Training $uuid"
         minimizer, eval_losses, _ = trainfn(
             uuid,
             setup;

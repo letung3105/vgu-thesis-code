@@ -102,11 +102,16 @@ function save_vietnam_province_level_gadm_and_gso_population(
         mkpath(dirname(fpath_output))
     end
 
-    @info "Reading '$fpath_gadm' and '$fpath_population'"
+    @info("Reading GADM dataset", fpath = fpath_gadm)
     df_gadm = GeoDataFrames.read(fpath_gadm, 1)
+
+    @info("Reading GSO population dataset", fpath = fpath_population)
     df_population = CSV.read(fpath_population, DataFrame)
 
-    @info "Generating '$fpath_output'"
+    @info(
+        "Generating Vietnam population dataset with GADM identifiers",
+        fpath = fpath_output
+    )
     df_combined =
         combine_vietnam_province_level_gadm_and_gso_population(df_gadm, df_population)
     CSV.write(fpath_output, df_combined)

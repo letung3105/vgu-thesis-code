@@ -74,7 +74,7 @@ function visualize_data_all_locations()
 end
 
 function check_model_methods(loc, model)
-    @info "Testing loc = $loc, model = $model"
+    @info("Testing model"; loc, model)
 
     # setup model at for a location with the default settings
     parsed_args = parse_commandline(["--locations=$loc", "--", model])
