@@ -102,7 +102,7 @@ cosine_distance(a, b) = (1 - cosine_similarity(a, b)) / 2
 """
 [1] R. Vortmeyer-Kley, P. Nieters, and G. Pipa, “A trajectory-based loss function to learn missing terms in bifurcating dynamical systems,” Sci Rep, vol. 11, no. 1, p. 20394, Oct. 2021, doi: 10.1038/s41598-021-99609-x.
 """
-function experiment_loss(w::Tuple{R,R}) where {R<:Real}
+function experiment_loss_polar(w::Tuple{R,R}) where {R<:Real}
     lossfn = function (ŷ::AbstractArray{R}, y) where {R<:Real}
         s = zero(R)
         sz = size(ŷ)
@@ -115,7 +115,7 @@ function experiment_loss(w::Tuple{R,R}) where {R<:Real}
     return lossfn
 end
 
-function experiment_loss(min::AbstractVector{R}, max::AbstractVector{R}) where {R<:Real}
+function experiment_loss_sse(min::AbstractVector{R}, max::AbstractVector{R}) where {R<:Real}
     scale = max .- min
     lossfn = function (ŷ::AbstractArray{R}, y) where {R<:Real}
         s = zero(R)
@@ -138,6 +138,7 @@ function setup_baseline(
     α_bounds::Tuple{Float64,Float64},
     train_range::Day,
     forecast_range::Day,
+    loss_type::Symbol
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -156,9 +157,15 @@ function setup_baseline(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
-    train_data_min = vec(minimum(train_dataset.data, dims = 2))
-    train_data_max = vec(maximum(train_dataset.data, dims = 2))
-    lossfn = experiment_loss(train_data_min, train_data_max)
+    lossfn = if loss_type == :sse_standardized
+        train_data_min = vec(minimum(train_dataset.data, dims = 2))
+        train_data_max = vec(maximum(train_dataset.data, dims = 2))
+        experiment_loss_sse(train_data_min, train_data_max)
+    elseif loss_type == :polar
+        experiment_loss_polar((0.5, 0.5))
+    else
+        error("Invalid loss function type")
+    end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -172,6 +179,7 @@ function setup_fbmobility1(
     α_bounds::Tuple{Float64,Float64},
     train_range::Day,
     forecast_range::Day,
+    loss_type::Symbol
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -194,9 +202,15 @@ function setup_fbmobility1(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
-    train_data_min = vec(minimum(train_dataset.data, dims = 2))
-    train_data_max = vec(maximum(train_dataset.data, dims = 2))
-    lossfn = experiment_loss(train_data_min, train_data_max)
+    lossfn = if loss_type == :sse_standardized
+        train_data_min = vec(minimum(train_dataset.data, dims = 2))
+        train_data_max = vec(maximum(train_dataset.data, dims = 2))
+        experiment_loss_sse(train_data_min, train_data_max)
+    elseif loss_type == :polar
+        experiment_loss_polar((0.5, 0.5))
+    else
+        error("Invalid loss function type")
+    end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -211,6 +225,7 @@ function setup_fbmobility2(
     train_range::Day,
     forecast_range::Day,
     social_proximity_lag::Day,
+    loss_type::Symbol
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -247,9 +262,15 @@ function setup_fbmobility2(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
-    train_data_min = vec(minimum(train_dataset.data, dims = 2))
-    train_data_max = vec(maximum(train_dataset.data, dims = 2))
-    lossfn = experiment_loss(train_data_min, train_data_max)
+    lossfn = if loss_type == :sse_standardized
+        train_data_min = vec(minimum(train_dataset.data, dims = 2))
+        train_data_max = vec(maximum(train_dataset.data, dims = 2))
+        experiment_loss_sse(train_data_min, train_data_max)
+    elseif loss_type == :polar
+        experiment_loss_polar((0.5, 0.5))
+    else
+        error("Invalid loss function type")
+    end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -265,6 +286,7 @@ function setup_fbmobility3(
     train_range::Day,
     forecast_range::Day,
     social_proximity_lag::Day,
+    loss_type::Symbol
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -302,9 +324,15 @@ function setup_fbmobility3(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
-    train_data_min = vec(minimum(train_dataset.data, dims = 2))
-    train_data_max = vec(maximum(train_dataset.data, dims = 2))
-    lossfn = experiment_loss(train_data_min, train_data_max)
+    lossfn = if loss_type == :sse_standardized
+        train_data_min = vec(minimum(train_dataset.data, dims = 2))
+        train_data_max = vec(maximum(train_dataset.data, dims = 2))
+        experiment_loss_sse(train_data_min, train_data_max)
+    elseif loss_type == :polar
+        experiment_loss_polar((0.5, 0.5))
+    else
+        error("Invalid loss function type")
+    end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -319,6 +347,7 @@ function setup_fbmobility4(
     train_range::Day,
     forecast_range::Day,
     social_proximity_lag::Day,
+    loss_type::Symbol
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -356,9 +385,15 @@ function setup_fbmobility4(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0)
-    train_data_min = vec(minimum(train_dataset.data, dims = 2))
-    train_data_max = vec(maximum(train_dataset.data, dims = 2))
-    lossfn = experiment_loss(train_data_min, train_data_max)
+    lossfn = if loss_type == :sse_standardized
+        train_data_min = vec(minimum(train_dataset.data, dims = 2))
+        train_data_max = vec(maximum(train_dataset.data, dims = 2))
+        experiment_loss_sse(train_data_min, train_data_max)
+    elseif loss_type == :polar
+        experiment_loss_polar((0.5, 0.5))
+    else
+        error("Invalid loss function type")
+    end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
