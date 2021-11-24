@@ -34,7 +34,7 @@ The system accepts 4 parameters β, γ, λ, and α. The parameters can be access
 """
 function SEIRD!(du, u, p, t)
     @inbounds begin
-        S, E, I, _, _, N, C = u
+        S, E, I, _, _, N, C, _ = u
         β, γ, λ, α = p
         du[1] = -β * S * I / N
         du[2] = β * S * I / N - γ * E
@@ -43,6 +43,7 @@ function SEIRD!(du, u, p, t)
         du[5] = α * λ * I
         du[6] = -α * λ * I
         du[7] = -C + γ * E
+        du[8] = γ * E
     end
     return nothing
 end
