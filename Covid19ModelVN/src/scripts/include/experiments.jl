@@ -80,12 +80,13 @@ function experiment_SEIRD_initial_states(
     I0 = df_first_date.confirmed[1] # infective individuals
     D0 = df_first_date.deaths_total[1] # total deaths
     C0 = df_first_date.confirmed[1] # new cases
+    T0 = df_first_date.confirmed_total[1] # total cases
     R0 = 0 # recovered individuals
     N0 = population - D0 # effective population
     E0 = I0 # exposed individuals
     S0 = population - E0 - df_first_date.confirmed_total[1] # susceptible individuals
     # initial state
-    u0 = Float64[S0, E0, I0, R0, D0, N0, C0]
+    u0 = Float64[S0, E0, I0, R0, D0, N0, C0, T0]
     vars = [5, 7]
     labels = ["deaths", "new cases"]
     return u0, vars, labels
