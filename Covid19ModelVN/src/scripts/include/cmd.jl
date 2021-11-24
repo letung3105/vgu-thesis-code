@@ -23,14 +23,10 @@ end
 function setupcmd(parsed_args)
     cmdmappings = Dict(
         :baseline => ("baseline", get_baseline_hyperparams, setup_baseline),
-        :fbmobility1 =>
-            ("fbmobility1", get_fbmobility1_hyperparams, setup_fbmobility1),
-        :fbmobility2 =>
-            ("fbmobility2", get_fbmobility2_hyperparams, setup_fbmobility2),
-        :fbmobility3 =>
-            ("fbmobility3", get_fbmobility3_hyperparams, setup_fbmobility3),
-        :fbmobility4 =>
-            ("fbmobility4", get_fbmobility4_hyperparams, setup_fbmobility4),
+        :fbmobility1 => ("fbmobility1", get_fbmobility1_hyperparams, setup_fbmobility1),
+        :fbmobility2 => ("fbmobility2", get_fbmobility2_hyperparams, setup_fbmobility2),
+        :fbmobility3 => ("fbmobility3", get_fbmobility3_hyperparams, setup_fbmobility3),
+        :fbmobility4 => ("fbmobility4", get_fbmobility4_hyperparams, setup_fbmobility4),
     )
     return cmdmappings[parsed_args[:model_name]]
 end
@@ -44,7 +40,7 @@ get_baseline_hyperparams(parsed_args) = (
     α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
-    loss_type = parsed_args[:loss_type]
+    loss_type = parsed_args[:loss_type],
 )
 
 get_fbmobility1_hyperparams(parsed_args) = (
@@ -56,7 +52,7 @@ get_fbmobility1_hyperparams(parsed_args) = (
     α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
-    loss_type = parsed_args[:loss_type]
+    loss_type = parsed_args[:loss_type],
 )
 
 get_fbmobility2_hyperparams(parsed_args) = (
@@ -69,7 +65,7 @@ get_fbmobility2_hyperparams(parsed_args) = (
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
-    loss_type = parsed_args[:loss_type]
+    loss_type = parsed_args[:loss_type],
 )
 
 get_fbmobility3_hyperparams(parsed_args) = (
@@ -83,7 +79,7 @@ get_fbmobility3_hyperparams(parsed_args) = (
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
-    loss_type = parsed_args[:loss_type]
+    loss_type = parsed_args[:loss_type],
 )
 
 get_fbmobility4_hyperparams(parsed_args) = (
@@ -96,7 +92,7 @@ get_fbmobility4_hyperparams(parsed_args) = (
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
-    loss_type = parsed_args[:loss_type]
+    loss_type = parsed_args[:loss_type],
 )
 
 function parse_commandline(args)
@@ -109,9 +105,7 @@ function parse_commandline(args)
         name == :fbmobility3 ||
         name == :fbmobility4
 
-    isvalidloss(name) =
-        name == :sse_standardized ||
-        name == :polar
+    isvalidloss(name) = name == :sse_standardized || name == :polar
 
     @add_arg_table s begin
         "model_name"
