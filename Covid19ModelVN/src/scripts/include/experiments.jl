@@ -16,22 +16,15 @@ include("trainalgs.jl")
 function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast_range::Day)
     df = get_prebuilt_covid_timeseries(loc)
     datacols = names(df, Not(:date))
+    # ensure data type stability
     df[!, datacols] .= Float64.(df[!, datacols])
-    # smooth out weekly seasonality
-    moving_average!(df, datacols, 7)
     # derive newly confirmed from total confirmed
     df[!, :confirmed] .= df[!, :confirmed_total]
     df[2:end, :confirmed] .= diff(df[!, :confirmed_total])
 
-    if loc == Covid19ModelVN.LOC_CODE_VIETNAM
+    if loc == Covid19ModelVN.LOC_CODE_VIETNAM || loc ∈ keys(Covid19ModelVN.LOC_NAMES_VN)
         # we considered 27th April 2021 to be the start of the outbreak in Vietnam
-        first_date = Date(2021, 4, 27)
-        last_date = typemax(Date)
-        reset_date = first_date - Day(1)
-        # make the cases count starts from the first date of the considered outbreak
-        bound!(df, :date, reset_date, last_date)
-        df[!, datacols] .= df[!, datacols] .- df[1, datacols]
-        bound!(df, :date, first_date, last_date)
+        bound!(df, :date, Date(2021, 4, 27), typemax(Date))
     elseif loc == Covid19ModelVN.LOC_CODE_UNITED_STATES ||
            loc ∈ keys(Covid19ModelVN.LOC_NAMES_US)
         # we considered 1st July 2021 to be the start of the outbreak in the US
@@ -43,7 +36,7 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
         subset(
             df,
             :deaths_total => x -> x .>= 1,
-            :confirmed => x -> x .>= 500,
+            :confirmed_total => x -> x .>= 500,
             view = true,
         ).date
     first_date = first(dates)
@@ -55,8 +48,10 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
           "+ Last train date $split_date\n" *
           "+ Last evaluated date $last_date"
 
+    # smooth out weekly seasonality
+    moving_average!(df, datacols, 7)
     # observable compartments
-    conf = TimeseriesConfig(df, "date", ["confirmed", "deaths_total"])
+    conf = TimeseriesConfig(df, "date", ["deaths_total", "confirmed"])
     return conf, first_date, split_date, last_date
 end
 
@@ -84,14 +79,15 @@ function experiment_SEIRD_initial_states(
     population = get_prebuilt_population(loc)
     I0 = df_first_date.confirmed[1] # infective individuals
     D0 = df_first_date.deaths_total[1] # total deaths
+    C0 = df_first_date.confirmed[1] # new cases
     R0 = 0 # recovered individuals
     N0 = population - D0 # effective population
     E0 = I0 # exposed individuals
     S0 = population - E0 - df_first_date.confirmed_total[1] # susceptible individuals
     # initial state
-    u0 = Float64[S0, E0, I0, R0, D0, N0]
-    vars = [3, 5]
-    labels = ["new confirmed", "deaths"]
+    u0 = Float64[S0, E0, I0, R0, D0, N0, C0]
+    vars = [5, 7]
+    labels = ["deaths", "new cases"]
     return u0, vars, labels
 end
 
@@ -138,7 +134,7 @@ function setup_baseline(
     α_bounds::Tuple{Float64,Float64},
     train_range::Day,
     forecast_range::Day,
-    loss_type::Symbol
+    loss_type::Symbol,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -179,7 +175,7 @@ function setup_fbmobility1(
     α_bounds::Tuple{Float64,Float64},
     train_range::Day,
     forecast_range::Day,
-    loss_type::Symbol
+    loss_type::Symbol,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -225,7 +221,7 @@ function setup_fbmobility2(
     train_range::Day,
     forecast_range::Day,
     social_proximity_lag::Day,
-    loss_type::Symbol
+    loss_type::Symbol,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -286,7 +282,7 @@ function setup_fbmobility3(
     train_range::Day,
     forecast_range::Day,
     social_proximity_lag::Day,
-    loss_type::Symbol
+    loss_type::Symbol,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -347,7 +343,7 @@ function setup_fbmobility4(
     train_range::Day,
     forecast_range::Day,
     social_proximity_lag::Day,
-    loss_type::Symbol
+    loss_type::Symbol,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
