@@ -412,9 +412,10 @@ function experiment_eval(
 
         if datatype == "losses"
             train_losses, test_losses = Serialization.deserialize(fpath)
-            fig = plot_losses(train_losses, test_losses)
-            @info("Generating losses plot", uuid)
-            save(joinpath(snapshots_dir, "$dataname.losses.png"), fig)
+            fig_losses = plot_losses(train_losses, test_losses)
+            fpath_losses = joinpath(snapshots_dir, "$dataname.losses.png")
+            @info("Generating losses plot", uuid, fpath_losses)
+            save(fpath_losses, fig_losses)
 
         elseif datatype == "params"
             minimizer = Serialization.deserialize(fpath)
@@ -425,15 +426,18 @@ function experiment_eval(
                 train_dataset,
                 test_dataset,
             )
-            @info("Generating forecasts plot and errors", uuid)
-            save(joinpath(snapshots_dir, "$dataname.forecasts.png"), fig_forecasts)
-            save_dataframe(df_errors, joinpath(snapshots_dir, "$dataname.errors.csv"))
+            fpath_forecasts = joinpath(snapshots_dir, "$dataname.forecasts.png")
+            fpath_errors = joinpath(snapshots_dir, "$dataname.errors.csv")
+            @info("Generating forecasts plot and errors", uuid, fpath_forecasts, fpath_errors)
+            save(fpath_forecasts, fig_forecasts)
+            save_dataframe(df_errors, fpath_errors)
 
             Re1 = Re(model, u0, minimizer, train_dataset.tspan, train_dataset.tsteps)
             Re2 = Re(model, u0, minimizer, test_dataset.tspan, test_dataset.tsteps)
             fig_Re = plot_Re([Re1; Re2], train_dataset.tspan[2])
-            @info("Generating effective reproduction number plot", uuid)
-            save(joinpath(snapshots_dir, "$dataname.R_effective.png"), fig_Re)
+            fpath_Re = joinpath(snapshots_dir, "$dataname.R_effective.png")
+            @info("Generating effective reproduction number plot", uuid, fpath_Re)
+            save(fpath_Re, fig_Re)
 
             # the fatality rate in this model changes over time
             if model isa SEIRDFbMobility4
@@ -452,26 +456,28 @@ function experiment_eval(
                     test_dataset.tsteps,
                 )
                 fig_αt = plot_fatality_rate([αt1; αt2], train_dataset.tspan[2])
-                @info("Generating effective fatality rate plot", uuid)
-                save(joinpath(snapshots_dir, "$dataname.fatality_rate.png"), fig_αt)
+                fpath_αt = joinpath(snapshots_dir, "$dataname.fatality_rate.png")
+                @info("Generating effective fatality rate plot", uuid, fpath_αt)
+                save(fpath_αt, fig_αt)
             end
 
         elseif datatype == "forecasts"
             fit, pred = Serialization.deserialize(fpath)
             obs_fit = Observable(fit[1])
             obs_pred = Observable(pred[1])
-            fig =
+            fig_animation =
                 plot_forecasts(eval_config, obs_fit, obs_pred, train_dataset, test_dataset)
-            @info("Generating fit animation", uuid)
+            fpath_animation = joinpath(snapshots_dir, "$dataname.forecasts.mkv"),
+            @info("Generating fit animation", uuid, fpath_animation)
             record(
-                fig,
-                joinpath(snapshots_dir, "$dataname.forecasts.mkv"),
+                fig_animation,
+                fpath_animation,
                 zip(fit, pred),
                 framerate = 60,
             ) do (fit, pred)
                 obs_fit[] = fit
                 obs_pred[] = pred
-                autolimits!.(contents(fig[:, :]))
+                autolimits!.(contents(fig_animation[:, :]))
             end
         end
     end

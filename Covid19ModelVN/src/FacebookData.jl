@@ -194,7 +194,7 @@ function save_region_average_movement_range(
         return nothing
     end
 
-    @info("Reading Movement Range Maps dataset", fpath = fpath_movement_range)
+    @info("Reading Movement Range Maps dataset", fpath_movement_range)
     df_movement_range = FacebookData.read_movement_range(fpath_movement_range)
 
     Threads.@threads for f ∈ files
@@ -295,7 +295,7 @@ function save_inter_province_social_connectedness(
         return nothing
     end
 
-    @info("Reading Social Connectedness Index dataset", fpath = fpath_social_connectedness)
+    @info("Reading Social Connectedness Index dataset", fpath_social_connectedness)
     df_social_connectedness = read_social_connectedness(fpath_social_connectedness)
 
     Threads.@threads for f ∈ files

@@ -102,10 +102,10 @@ function save_vietnam_province_level_gadm_and_gso_population(
         mkpath(dirname(fpath_output))
     end
 
-    @info("Reading GADM dataset", fpath = fpath_gadm)
+    @info("Reading GADM dataset", fpath_gadm)
     df_gadm = GeoDataFrames.read(fpath_gadm, 1)
 
-    @info("Reading GSO population dataset", fpath = fpath_population)
+    @info("Reading GSO population dataset", fpath_population)
     df_population = CSV.read(fpath_population, DataFrame)
 
     @info(
