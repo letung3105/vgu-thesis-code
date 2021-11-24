@@ -728,7 +728,7 @@ function plot_forecast!(
 end
 
 """
-    plot_ℜe(ℜe::AbstractVector{R}, sep::R)::Figure where {R<:Real}
+    plot_Re(Re::AbstractVector{R}, sep::R)::Figure where {R<:Real}
 
 Plot the effective reproduction number for the traing period and testing period
 
@@ -739,14 +739,14 @@ effecitve reproduction number
 
 # Arguments
 
-* `ℜe`: the effective reproduction number
+* `Re`: the effective reproduction number
 * `sep`: value at which the data is splitted for training and testing
 """
-function plot_ℜe(ℜe::AbstractVector{R}, sep::R) where {R<:Real}
+function plot_Re(Re::AbstractVector{R}, sep::R) where {R<:Real}
     fig = Figure()
     ax = Axis(fig[2, 1], xlabel = "Days since the 500th confirmed case")
     vln = vlines!(ax, [sep], color = :black, linestyle = :dash)
-    ln = lines!(ax, ℜe, color = :red, linewidth = 3)
+    ln = lines!(ax, Re, color = :red, linewidth = 3)
     Legend(
         fig[1, 1],
         [vln, ln],

@@ -195,7 +195,7 @@ namedparams(model::SEIRDBaseline, params::AbstractVector{<:Real}) = @inbounds (
 )
 
 """
-    ℜe(
+    Re(
         model::SEIRDBaseline,
         u0::AbstractVector{T},
         params::AbstractVector{T},
@@ -213,7 +213,7 @@ Get the effective reproduction rate calculated from the model
 + `tspan`: the simulated time span
 + `saveat`: the collocation points that will be saved
 """
-function ℜe(
+function Re(
     model::SEIRDBaseline,
     u0::AbstractVector{T},
     params::AbstractVector{T},
@@ -230,8 +230,8 @@ function ℜe(
     β_ann_input = [(S ./ N)'; (I ./ N)']
 
     βt = vec(model.β_ann(β_ann_input, pnamed.θ))
-    ℜe = βt ./ pnamed.γ
-    return ℜe
+    Re = βt ./ pnamed.γ
+    return Re
 end
 
 """
@@ -370,7 +370,7 @@ namedparams(model::SEIRDFbMobility1, params::AbstractVector{<:Real}) = @inbounds
 )
 
 """
-    ℜe(
+    Re(
         model::SEIRDFbMobility1,
         u0::AbstractVector{T},
         params::AbstractVector{T},
@@ -388,7 +388,7 @@ Get the effective reproduction rate calculated from the model
 + `tspan`: the simulated time span
 + `saveat`: the collocation points that will be saved
 """
-function ℜe(
+function Re(
     model::SEIRDFbMobility1,
     u0::AbstractVector{T},
     params::AbstractVector{T},
@@ -406,8 +406,8 @@ function ℜe(
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility]
 
     βt = vec(model.β_ann(β_ann_input, pnamed.θ))
-    ℜe = βt ./ pnamed.γ
-    return ℜe
+    Re = βt ./ pnamed.γ
+    return Re
 end
 
 """
@@ -554,7 +554,7 @@ namedparams(model::SEIRDFbMobility2, params::AbstractVector{<:Real}) = @inbounds
 )
 
 """
-    ℜe(
+    Re(
         model::SEIRDFbMobility2,
         u0::AbstractVector{T},
         params::AbstractVector{T},
@@ -572,7 +572,7 @@ Get the effective reproduction rate calculated from the model
 + `tspan`: the simulated time span
 + `saveat`: the collocation points that will be saved
 """
-function ℜe(
+function Re(
     model::SEIRDFbMobility2,
     u0::AbstractVector{T},
     params::AbstractVector{T},
@@ -591,8 +591,8 @@ function ℜe(
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
 
     βt = vec(model.β_ann(β_ann_input, pnamed.θ))
-    ℜe = βt ./ pnamed.γ
-    return ℜe
+    Re = βt ./ pnamed.γ
+    return Re
 end
 
 """
@@ -746,7 +746,7 @@ namedparams(model::SEIRDFbMobility3, params::AbstractVector{<:Real}) = @inbounds
 )
 
 """
-    ℜe(
+    Re(
         model::SEIRDFbMobility3,
         u0::AbstractVector{T},
         params::AbstractVector{T},
@@ -764,7 +764,7 @@ Get the effective reproduction rate calculated from the model
 + `tspan`: the simulated time span
 + `saveat`: the collocation points that will be saved
 """
-function ℜe(
+function Re(
     model::SEIRDFbMobility3,
     u0::AbstractVector{T},
     params::AbstractVector{T},
@@ -783,8 +783,8 @@ function ℜe(
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
 
     βt = vec(model.β_ann(β_ann_input, pnamed.θ))
-    ℜe = βt ./ pnamed.γ
-    return ℜe
+    Re = βt ./ pnamed.γ
+    return Re
 end
 
 """
@@ -952,7 +952,7 @@ namedparams(model::SEIRDFbMobility4, params::AbstractVector{<:Real}) = @inbounds
 )
 
 """
-    function ℜe(
+    function Re(
         model::SEIRDFbMobility4,
         u0::AbstractVector{T},
         params::AbstractVector{T},
@@ -970,7 +970,7 @@ Get the effective reproduction rate calculated from the model
 + `tspan`: the simulated time span
 + `saveat`: the collocation points that will be saved
 """
-function ℜe(
+function Re(
     model::SEIRDFbMobility4,
     u0::AbstractVector{T},
     params::AbstractVector{T},
@@ -989,8 +989,8 @@ function ℜe(
     β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
 
     βt = vec(model.β_ann(β_ann_input, pnamed.θ1))
-    ℜe = βt ./ pnamed.γ
-    return ℜe
+    Re = βt ./ pnamed.γ
+    return Re
 end
 
 function fatality_rate(

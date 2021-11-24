@@ -110,9 +110,9 @@ function check_model_methods(loc, model)
     end
 
     # test effective reproduction number plot
-    ℜ1 = ℜe(model, u0, p0, train_dataset.tspan, train_dataset.tsteps)
-    ℜ2 = ℜe(model, u0, p0, test_dataset.tspan, test_dataset.tsteps)
-    fig = plot_ℜe([ℜ1; ℜ2], train_dataset.tspan[2])
+    R1 = Re(model, u0, p0, train_dataset.tspan, train_dataset.tsteps)
+    R2 = Re(model, u0, p0, test_dataset.tspan, test_dataset.tsteps)
+    fig = plot_Re([R1; R2], train_dataset.tspan[2])
     display(fig)
 
     # test forecasts plot

@@ -430,10 +430,10 @@ function experiment_eval(
             save(joinpath(snapshots_dir, "$dataname.forecasts.png"), fig_forecasts)
             save_dataframe(df_errors, joinpath(snapshots_dir, "$dataname.errors.csv"))
 
-            ℜe1 = ℜe(model, u0, minimizer, train_dataset.tspan, train_dataset.tsteps)
-            ℜe2 = ℜe(model, u0, minimizer, test_dataset.tspan, test_dataset.tsteps)
-            fig_ℜe = plot_ℜe([ℜe1; ℜe2], train_dataset.tspan[2])
-            save(joinpath(snapshots_dir, "$dataname.R_effective.png"), fig_ℜe)
+            Re1 = Re(model, u0, minimizer, train_dataset.tspan, train_dataset.tsteps)
+            Re2 = Re(model, u0, minimizer, test_dataset.tspan, test_dataset.tsteps)
+            fig_Re = plot_Re([Re1; Re2], train_dataset.tspan[2])
+            save(joinpath(snapshots_dir, "$dataname.R_effective.png"), fig_Re)
 
         elseif datatype == "forecasts"
             fit, pred = Serialization.deserialize(fpath)
