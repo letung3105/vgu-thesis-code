@@ -43,7 +43,7 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
     split_date = first_date + train_range - Day(1)
     last_date = split_date + forecast_range
 
-    @info("Getting Covid-19 data"; loc, first_date, split_date, last_date)
+    @info("Getting Covid-19 data", loc, first_date, split_date, last_date)
 
     # smooth out weekly seasonality
     moving_average!(df, datacols, 7)
