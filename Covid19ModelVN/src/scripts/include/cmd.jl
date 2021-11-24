@@ -226,17 +226,17 @@ function parse_commandline(args)
         "--lr"
         help = "learning rate to be given to ADAM"
         arg_type = Float64
-        default = 1e-2
+        default = 1e-1
 
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
         arg_type = Float64
-        default = 0.5
+        default = 1.0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
         arg_type = Int
-        default = 100
+        default = 1000
 
         "--lr_limit"
         help = "the minimum value at which learning rate decay is stopped"
@@ -246,7 +246,7 @@ function parse_commandline(args)
         "--weight_decay"
         help = "scaling factor for the weight decay term"
         arg_type = Float64
-        default = 1e-4
+        default = 0.0
 
         "--maxiters_initial"
         help = "the max number of iterations used for fiting the first time span"
@@ -261,29 +261,29 @@ function parse_commandline(args)
         "--tspan_size_initial"
         help = "number of data points in the initial time span"
         arg_type = Int
-        default = 10
+        default = 8
 
         "--tspan_size_growth"
         help = "number of new data points taken when growing the time span"
         arg_type = Int
-        default = 10
+        default = 8
     end
 
     @add_arg_table s["train_growing_trajectory_two_stages"] begin
         "--lr"
         help = "learning rate to be given to ADAM"
         arg_type = Float64
-        default = 1e-2
+        default = 1e-1
 
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
         arg_type = Float64
-        default = 0.5
+        default = 1.0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
         arg_type = Int
-        default = 100
+        default = 1000
 
         "--lr_limit"
         help = "the minimum value at which learning rate decay is stopped"
@@ -293,7 +293,7 @@ function parse_commandline(args)
         "--weight_decay"
         help = "scaling factor for the weight decay term"
         arg_type = Float64
-        default = 1e-4
+        default = 0.0
 
         "--maxiters_initial"
         help = "the max number of iterations used for fiting the first time span"
@@ -313,29 +313,29 @@ function parse_commandline(args)
         "--tspan_size_initial"
         help = "number of data points in the initial time span"
         arg_type = Int
-        default = 10
+        default = 8
 
         "--tspan_size_growth"
         help = "number of new data points taken when growing the time span"
         arg_type = Int
-        default = 10
+        default = 8
     end
 
     @add_arg_table s["train_whole_trajectory"] begin
         "--lr"
         help = "learning rate to be given to ADAM"
         arg_type = Float64
-        default = 1e-2
+        default = 1e-1
 
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
         arg_type = Float64
-        default = 0.5
+        default = 1.0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
         arg_type = Int
-        default = 100
+        default = 1000
 
         "--lr_limit"
         help = "the minimum value at which learning rate decay is stopped"
@@ -345,7 +345,7 @@ function parse_commandline(args)
         "--weight_decay"
         help = "scaling factor for the weight decay term"
         arg_type = Float64
-        default = 1e-4
+        default = 0.0
 
         "--maxiters"
         help = "the max number of iterations used"
@@ -362,17 +362,17 @@ function parse_commandline(args)
         "--lr"
         help = "learning rate to be given to ADAM"
         arg_type = Float64
-        default = 1e-2
+        default = 1e-1
 
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
         arg_type = Float64
-        default = 0.5
+        default = 1.0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
         arg_type = Int
-        default = 100
+        default = 1000
 
         "--lr_limit"
         help = "the minimum value at which learning rate decay is stopped"
@@ -382,7 +382,7 @@ function parse_commandline(args)
         "--weight_decay"
         help = "scaling factor for the weight decay term"
         arg_type = Float64
-        default = 1e-4
+        default = 0.0
 
         "--maxiters_first"
         help = "the max number of iterations used in the first stage"
