@@ -5,14 +5,13 @@ using ProgressMeter
 function setup_model_training(
     model::AbstractCovidModel,
     u0::AbstractVector{<:Real},
-    lossfn::Function,
     train_dataset::TimeseriesDataset,
     test_dataset::TimeseriesDataset,
     vars::AbstractVector{<:Integer},
 )
     prob = ODEProblem(model, u0, train_dataset.tspan)
     predictor = Predictor(prob, vars)
-    eval_loss = Loss(lossfn, predictor, train_dataset)
+    eval_loss = Loss(mae, predictor, train_dataset)
     test_loss = Loss(mae, predictor, test_dataset)
     return predictor, eval_loss, test_loss
 end
@@ -91,7 +90,7 @@ function train_growing_trajectory(
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
     predictor, eval_loss, test_loss =
-        setup_model_training(model, u0, lossfn, train_dataset, test_dataset, vars)
+        setup_model_training(model, u0, train_dataset, test_dataset, vars)
 
     cb, cb_log, _ = setup_training_callback(
         uuid,
@@ -153,7 +152,7 @@ function train_growing_trajectory_two_stages(
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
     predictor, eval_loss, test_loss =
-        setup_model_training(model, u0, lossfn, train_dataset, test_dataset, vars)
+        setup_model_training(model, u0, train_dataset, test_dataset, vars)
 
     cb, cb_log, _ = setup_training_callback(
         uuid,
@@ -217,7 +216,7 @@ function train_whole_trajectory(
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
     predictor, eval_loss, test_loss =
-        setup_model_training(model, u0, lossfn, train_dataset, test_dataset, vars)
+        setup_model_training(model, u0, train_dataset, test_dataset, vars)
 
     cb, cb_log, _ = setup_training_callback(
         uuid,
@@ -268,7 +267,7 @@ function train_whole_trajectory_two_stages(
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, labels = setup()
     predictor, eval_loss, test_loss =
-        setup_model_training(model, u0, lossfn, train_dataset, test_dataset, vars)
+        setup_model_training(model, u0, train_dataset, test_dataset, vars)
 
     cb, cb_log, _ = setup_training_callback(
         uuid,
