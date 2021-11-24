@@ -413,6 +413,7 @@ function experiment_eval(
         if datatype == "losses"
             train_losses, test_losses = Serialization.deserialize(fpath)
             fig = plot_losses(train_losses, test_losses)
+            @info("Generating losses plot", uuid)
             save(joinpath(snapshots_dir, "$dataname.losses.png"), fig)
 
         elseif datatype == "params"
@@ -424,12 +425,14 @@ function experiment_eval(
                 train_dataset,
                 test_dataset,
             )
+            @info("Generating forecasts plot and errors", uuid)
             save(joinpath(snapshots_dir, "$dataname.forecasts.png"), fig_forecasts)
             save_dataframe(df_errors, joinpath(snapshots_dir, "$dataname.errors.csv"))
 
             Re1 = Re(model, u0, minimizer, train_dataset.tspan, train_dataset.tsteps)
             Re2 = Re(model, u0, minimizer, test_dataset.tspan, test_dataset.tsteps)
             fig_Re = plot_Re([Re1; Re2], train_dataset.tspan[2])
+            @info("Generating effective reproduction number plot", uuid)
             save(joinpath(snapshots_dir, "$dataname.R_effective.png"), fig_Re)
 
             # the fatality rate in this model changes over time
@@ -449,6 +452,7 @@ function experiment_eval(
                     test_dataset.tsteps,
                 )
                 fig_αt = plot_fatality_rate([αt1; αt2], train_dataset.tspan[2])
+                @info("Generating effective fatality rate plot", uuid)
                 save(joinpath(snapshots_dir, "$dataname.fatality_rate.png"), fig_αt)
             end
 
@@ -458,6 +462,7 @@ function experiment_eval(
             obs_pred = Observable(pred[1])
             fig =
                 plot_forecasts(eval_config, obs_fit, obs_pred, train_dataset, test_dataset)
+            @info("Generating fit animation", uuid)
             record(
                 fig,
                 joinpath(snapshots_dir, "$dataname.forecasts.mkv"),
@@ -491,15 +496,7 @@ function experiment_run(
     minimizers = Vector{Float64}[]
     final_losses = Float64[]
 
-    evt_finished = Threads.Event()
-    ch_eval = Channel{Tuple{String,Function,Vector{Int},String}}(length(locations))
-    Threads.@spawn begin
-        for (uuid, setup, forecast_horizons, snapshots_dir) in ch_eval
-            experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
-        end
-        notify(evt_finished)
-    end
-
+    queue_eval = Vector{Tuple{String,Function,Vector{Int},String}}()
     runexp = function (loc)
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         uuid = "$timestamp.$model_name.$loc"
@@ -537,7 +534,8 @@ function experiment_run(
 
         push!(minimizers, minimizer)
         push!(final_losses, last(eval_losses))
-        put!(ch_eval, (uuid, setup, forecast_horizons, snapshots_dir))
+        push!(queue_eval, (uuid, setup, forecast_horizons, snapshots_dir))
+        @info("Finish training session", uuid)
     end
 
     if multithreading
@@ -550,8 +548,10 @@ function experiment_run(
         end
     end
 
-    close(ch_eval)
-    wait(evt_finished)
+    for (uuid, setup, forecast_horizons, snapshots_dir) in queue_eval
+        experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
+        @info("Finish evaluation", uuid)
+    end
 
     return minimizers, final_losses
 end
