@@ -15,12 +15,12 @@ include("trainalgs.jl")
 
 function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast_range::Day)
     df = get_prebuilt_covid_timeseries(loc)
-    datacols = names(df, Not(:date))
-    # ensure data type stability
-    df[!, datacols] .= Float64.(df[!, datacols])
     # derive newly confirmed from total confirmed
     df[!, :confirmed] .= df[!, :confirmed_total]
     df[2:end, :confirmed] .= diff(df[!, :confirmed_total])
+    # ensure data type stability
+    datacols = names(df, Not(:date))
+    df[!, datacols] .= Float64.(df[!, datacols])
 
     if loc == Covid19ModelVN.LOC_CODE_VIETNAM || loc ∈ keys(Covid19ModelVN.LOC_NAMES_VN)
         # we considered 27th April 2021 to be the start of the outbreak in Vietnam
