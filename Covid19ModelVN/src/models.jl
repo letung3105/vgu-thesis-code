@@ -171,9 +171,9 @@ Get the initial values for the trainable parameters
 * `α0`: initial mean fatality rate
 """
 initparams(model::SEIRDBaseline, γ0::R, λ0::R, α0::R) where {R<:Real} = [
-    boxconst_inv(γ0, model.γ_bounds)
-    boxconst_inv(λ0, model.λ_bounds)
-    boxconst_inv(α0, model.α_bounds)
+    model.γ_bounds[1] == model.γ_bounds[2] ? γ0 : boxconst_inv(γ0, model.γ_bounds)
+    model.λ_bounds[1] == model.λ_bounds[2] ? λ0 : boxconst_inv(λ0, model.λ_bounds)
+    model.α_bounds[1] == model.α_bounds[2] ? α0 : boxconst_inv(α0, model.α_bounds)
     DiffEqFlux.initial_params(model.β_ann)
 ]
 
@@ -346,9 +346,9 @@ Get the initial values for the trainable parameters
 * `α0`: initial mean fatality rate
 """
 initparams(model::SEIRDFbMobility1, γ0::R, λ0::R, α0::R) where {R<:Real} = [
-    boxconst_inv(γ0, model.γ_bounds)
-    boxconst_inv(λ0, model.λ_bounds)
-    boxconst_inv(α0, model.α_bounds)
+    model.γ_bounds[1] == model.γ_bounds[2] ? γ0 : boxconst_inv(γ0, model.γ_bounds)
+    model.λ_bounds[1] == model.λ_bounds[2] ? λ0 : boxconst_inv(λ0, model.λ_bounds)
+    model.α_bounds[1] == model.α_bounds[2] ? α0 : boxconst_inv(α0, model.α_bounds)
     DiffEqFlux.initial_params(model.β_ann)
 ]
 
@@ -530,9 +530,9 @@ Get the initial values for the trainable parameters
 * `α0`: initial mean fatality rate
 """
 initparams(model::SEIRDFbMobility2, γ0::R, λ0::R, α0::R) where {R<:Real} = [
-    boxconst_inv(γ0, model.γ_bounds)
-    boxconst_inv(λ0, model.λ_bounds)
-    boxconst_inv(α0, model.α_bounds)
+    model.γ_bounds[1] == model.γ_bounds[2] ? γ0 : boxconst_inv(γ0, model.γ_bounds)
+    model.λ_bounds[1] == model.λ_bounds[2] ? λ0 : boxconst_inv(λ0, model.λ_bounds)
+    model.α_bounds[1] == model.α_bounds[2] ? α0 : boxconst_inv(α0, model.α_bounds)
     DiffEqFlux.initial_params(model.β_ann)
 ]
 
@@ -722,9 +722,9 @@ Get the initial values for the trainable parameters
 * `λ0`: initial mean infectious period
 """
 initparams(model::SEIRDFbMobility3, γ0::R, λ0::R, α0::R) where {R<:Real} = [
-    boxconst_inv(γ0, model.γ_bounds)
-    boxconst_inv(λ0, model.λ_bounds)
-    boxconst_inv(α0, model.α_bounds)
+    model.γ_bounds[1] == model.γ_bounds[2] ? γ0 : boxconst_inv(γ0, model.γ_bounds)
+    model.λ_bounds[1] == model.λ_bounds[2] ? λ0 : boxconst_inv(λ0, model.λ_bounds)
+    model.α_bounds[1] == model.α_bounds[2] ? α0 : boxconst_inv(α0, model.α_bounds)
     DiffEqFlux.initial_params(model.β_ann)
 ]
 
@@ -928,8 +928,8 @@ Get the initial values for the trainable parameters
 * `λ0`: initial mean infectious period
 """
 initparams(model::SEIRDFbMobility4, γ0::R, λ0::R) where {R<:Real} = [
-    boxconst_inv(γ0, model.γ_bounds)
-    boxconst_inv(λ0, model.λ_bounds)
+    model.γ_bounds[1] == model.γ_bounds[2] ? γ0 : boxconst_inv(γ0, model.γ_bounds)
+    model.λ_bounds[1] == model.λ_bounds[2] ? λ0 : boxconst_inv(λ0, model.λ_bounds)
     DiffEqFlux.initial_params(model.β_ann)
     DiffEqFlux.initial_params(model.α_ann)
 ]
