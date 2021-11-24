@@ -159,11 +159,7 @@ function save_country_level_timeseries(
             mkpath(dirname(f.path))
         end
 
-        @info(
-            "Generating country's combined Covid-19 time series",
-            fpath = f.path,
-            country = f.country
-        )
+        @info("Generating country's combined Covid-19 time series", f.path, f.country)
         df_combined = combine_country_level_timeseries(
             df_confirmed,
             df_recovered,
@@ -238,9 +234,9 @@ function save_us_county_level_timeseries(
 
         @info(
             "Generating county's combined Covid-19 time series",
-            fpath = f.path,
-            state = f.state,
-            county = f.county,
+            f.path,
+            f.state,
+            f.county,
         )
         df_combined =
             combine_us_county_level_timeseries(df_confirmed, df_deaths, f.state, f.county)

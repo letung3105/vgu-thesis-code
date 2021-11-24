@@ -207,9 +207,9 @@ function save_region_average_movement_range(
 
         @info(
             "Generating average stay put index and average change in movement",
-            path = f.path,
-            country = f.country,
-            subdivision = f.subdivision
+            f.path,
+            f.country,
+            f.subdivision
         )
         df_region_movement_range = FacebookData.region_average_movement_range(
             df_movement_range,
@@ -306,11 +306,7 @@ function save_inter_province_social_connectedness(
             mkpath(dirname(f.path))
         end
 
-        @info(
-            "Generating average social connectedness index",
-            path = f.path,
-            country = f.country,
-        )
+        @info("Generating average social connectedness index", f.path, f.country,)
         df_country_social_connectedness =
             inter_province_social_connectedness(df_social_connectedness, f.country)
         CSV.write(f.path, df_country_social_connectedness)

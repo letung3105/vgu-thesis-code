@@ -32,13 +32,7 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
     end
 
     # select data starting from when total deaths >= 1 and confirmed >= 500
-    dates =
-        subset(
-            df,
-            :deaths_total => x -> x .>= 1,
-            :confirmed_total => x -> x .>= 500,
-            view = true,
-        ).date
+    dates = subset(df, :confirmed => x -> x .>= 500, view = true).date
     first_date = first(dates)
     split_date = first_date + train_range - Day(1)
     last_date = split_date + forecast_range
@@ -109,13 +103,12 @@ function experiment_loss_polar(w::Tuple{R,R}) where {R<:Real}
     return lossfn
 end
 
-function experiment_loss_sse(min::AbstractVector{R}, max::AbstractVector{R}) where {R<:Real}
-    scale = max .- min
+function experiment_loss_ssle() where {R<:Real}
     lossfn = function (ŷ::AbstractArray{R}, y) where {R<:Real}
         s = zero(R)
         sz = size(y)
         @inbounds for j ∈ 1:sz[2], i ∈ 1:sz[1]
-            s += ((ŷ[i, j] - y[i, j]) / scale[i])^2
+            s += (log(ŷ[i, j] + 1) - log(y[i, j] + 1))^2
         end
         return s
     end
@@ -151,10 +144,8 @@ function setup_baseline(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
-    lossfn = if loss_type == :sse_standardized
-        train_data_min = vec(minimum(train_dataset.data, dims = 2))
-        train_data_max = vec(maximum(train_dataset.data, dims = 2))
-        experiment_loss_sse(train_data_min, train_data_max)
+    lossfn = if loss_type == :ssle
+        experiment_loss_ssle()
     elseif loss_type == :polar
         experiment_loss_polar((0.5, 0.5))
     else
@@ -196,10 +187,8 @@ function setup_fbmobility1(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
-    lossfn = if loss_type == :sse_standardized
-        train_data_min = vec(minimum(train_dataset.data, dims = 2))
-        train_data_max = vec(maximum(train_dataset.data, dims = 2))
-        experiment_loss_sse(train_data_min, train_data_max)
+    lossfn = if loss_type == :ssle
+        experiment_loss_ssle()
     elseif loss_type == :polar
         experiment_loss_polar((0.5, 0.5))
     else
@@ -256,10 +245,8 @@ function setup_fbmobility2(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
-    lossfn = if loss_type == :sse_standardized
-        train_data_min = vec(minimum(train_dataset.data, dims = 2))
-        train_data_max = vec(maximum(train_dataset.data, dims = 2))
-        experiment_loss_sse(train_data_min, train_data_max)
+    lossfn = if loss_type == :ssle
+        experiment_loss_ssle()
     elseif loss_type == :polar
         experiment_loss_polar((0.5, 0.5))
     else
@@ -318,10 +305,8 @@ function setup_fbmobility3(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
-    lossfn = if loss_type == :sse_standardized
-        train_data_min = vec(minimum(train_dataset.data, dims = 2))
-        train_data_max = vec(maximum(train_dataset.data, dims = 2))
-        experiment_loss_sse(train_data_min, train_data_max)
+    lossfn = if loss_type == :ssle
+        experiment_loss_ssle()
     elseif loss_type == :polar
         experiment_loss_polar((0.5, 0.5))
     else
@@ -379,10 +364,8 @@ function setup_fbmobility4(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0)
-    lossfn = if loss_type == :sse_standardized
-        train_data_min = vec(minimum(train_dataset.data, dims = 2))
-        train_data_max = vec(maximum(train_dataset.data, dims = 2))
-        experiment_loss_sse(train_data_min, train_data_max)
+    lossfn = if loss_type == :ssle
+        experiment_loss_ssle()
     elseif loss_type == :polar
         experiment_loss_polar((0.5, 0.5))
     else
@@ -428,7 +411,12 @@ function experiment_eval(
             )
             fpath_forecasts = joinpath(snapshots_dir, "$dataname.forecasts.png")
             fpath_errors = joinpath(snapshots_dir, "$dataname.errors.csv")
-            @info("Generating forecasts plot and errors", uuid, fpath_forecasts, fpath_errors)
+            @info(
+                "Generating forecasts plot and errors",
+                uuid,
+                fpath_forecasts,
+                fpath_errors
+            )
             save(fpath_forecasts, fig_forecasts)
             save_dataframe(df_errors, fpath_errors)
 
@@ -467,7 +455,7 @@ function experiment_eval(
             obs_pred = Observable(pred[1])
             fig_animation =
                 plot_forecasts(eval_config, obs_fit, obs_pred, train_dataset, test_dataset)
-            fpath_animation = joinpath(snapshots_dir, "$dataname.forecasts.mkv"),
+            fpath_animation = joinpath(snapshots_dir, "$dataname.forecasts.mkv")
             @info("Generating fit animation", uuid, fpath_animation)
             record(
                 fig_animation,

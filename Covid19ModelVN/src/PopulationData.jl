@@ -108,10 +108,7 @@ function save_vietnam_province_level_gadm_and_gso_population(
     @info("Reading GSO population dataset", fpath_population)
     df_population = CSV.read(fpath_population, DataFrame)
 
-    @info(
-        "Generating Vietnam population dataset with GADM identifiers",
-        fpath = fpath_output
-    )
+    @info("Generating Vietnam population dataset with GADM identifiers", fpath_output)
     df_combined =
         combine_vietnam_province_level_gadm_and_gso_population(df_gadm, df_population)
     CSV.write(fpath_output, df_combined)
