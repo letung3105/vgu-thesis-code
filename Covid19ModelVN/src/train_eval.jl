@@ -758,6 +758,22 @@ function plot_ℜe(ℜe::AbstractVector{R}, sep::R) where {R<:Real}
     return fig
 end
 
+function plot_fatality_rate(αt::AbstractVector{R}, sep::R) where {R<:Real}
+    fig = Figure()
+    ax = Axis(fig[2, 1], xlabel = "Days since the 500th confirmed case")
+    vln = vlines!(ax, [sep], color = :black, linestyle = :dash)
+    ln = lines!(ax, αt, color = :red, linewidth = 3)
+    Legend(
+        fig[1, 1],
+        [vln, ln],
+        ["last training day", "fatality rate"],
+        orientation = :horizontal,
+        tellwidth = false,
+        tellheight = true,
+    )
+    return fig
+end
+
 """
     logit(x::Real)::Real
 
