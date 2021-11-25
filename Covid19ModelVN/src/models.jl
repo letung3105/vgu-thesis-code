@@ -118,9 +118,9 @@ struct SEIRDBaseline{ANN<:FastChain,T<:Real} <: AbstractCovidModel
         α_bounds::Tuple{T,T},
     ) where {T<:Real}
         β_ann = FastChain(
-            StaticDense(2, 8, hswish),
-            StaticDense(8, 8, hswish),
-            StaticDense(8, 8, hswish),
+            StaticDense(2, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 8, mish),
             StaticDense(8, 1, softplus),
         )
         return new{typeof(β_ann),T}(
@@ -280,9 +280,9 @@ struct SEIRDFbMobility1{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         movement_range_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(4, 8, hswish),
-            StaticDense(8, 8, hswish),
-            StaticDense(8, 8, hswish),
+            StaticDense(4, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 8, mish),
             StaticDense(8, 1, softplus),
         )
         return new{typeof(β_ann),T,DS}(
@@ -462,9 +462,9 @@ struct SEIRDFbMobility2{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(5, 8, hswish),
-            StaticDense(8, 8, hswish),
-            StaticDense(8, 8, hswish),
+            StaticDense(5, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 8, mish),
             StaticDense(8, 1, softplus),
         )
         return new{typeof(β_ann),T,DS}(
@@ -653,9 +653,9 @@ struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(5, 8, hswish),
-            StaticDense(8, 8, hswish),
-            StaticDense(8, 8, hswish),
+            StaticDense(5, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 8, mish),
             StaticDense(8, 1, x -> boxconst(x, β_bounds)),
         )
         return new{typeof(β_ann),T,DS}(
