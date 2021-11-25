@@ -520,10 +520,12 @@ function experiment_run(
     multithreading::Bool,
 )
     batch_timestamp = Dates.format(now(), "yyyymmddHHMMSS")
+
+    lk_eval = ReentrantLock()
     minimizers = Vector{Float64}[]
     final_losses = Float64[]
+    queue_eval = Tuple{String,Function,Vector{Int},String}[]
 
-    queue_eval = Vector{Tuple{String,Function,Vector{Int},String}}()
     runexp = function (loc)
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         uuid = "$timestamp.$model_name.$loc"
@@ -559,9 +561,11 @@ function experiment_run(
             train_config...,
         )
 
-        push!(minimizers, minimizer)
-        push!(final_losses, last(eval_losses))
-        push!(queue_eval, (uuid, setup, forecast_horizons, snapshots_dir))
+        lock(lk_eval) do
+            push!(minimizers, minimizer)
+            push!(final_losses, last(eval_losses))
+            push!(queue_eval, (uuid, setup, forecast_horizons, snapshots_dir))
+        end
         @info("Finish training session", uuid)
     end
 
