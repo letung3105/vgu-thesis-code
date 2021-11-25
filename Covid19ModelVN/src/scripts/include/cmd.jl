@@ -105,7 +105,7 @@ function parse_commandline(args)
         name == :fbmobility3 ||
         name == :fbmobility4
 
-    isvalidloss(name) = name == :ssle || name == :polar
+    isvalidloss(name) = name == :ssle || name == :polar || name == :sse
 
     @add_arg_table s begin
         "model_name"
@@ -219,7 +219,7 @@ function parse_commandline(args)
         help = "choose the loss function that is used for training"
         arg_type = Symbol
         range_tester = isvalidloss
-        default = :ssle
+        default = :sse
     end
 
     @add_arg_table s["train_growing_trajectory"] begin

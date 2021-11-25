@@ -115,6 +115,19 @@ function experiment_loss_ssle() where {R<:Real}
     return lossfn
 end
 
+function experiment_loss_sse(min::AbstractVector{R}, max::AbstractVector{R}) where {R<:Real}
+    scale = max .- min
+    lossfn = function (ŷ::AbstractArray{R}, y) where {R<:Real}
+        s = zero(R)
+        sz = size(y)
+        @inbounds for j ∈ 1:sz[2], i ∈ 1:sz[1]
+            s += ((ŷ[i, j] - y[i, j]) / scale[i])^2
+        end
+        return s
+    end
+    return lossfn
+end
+
 function setup_baseline(
     loc::AbstractString;
     γ0::Float64,
@@ -146,6 +159,10 @@ function setup_baseline(
     p0 = initparams(model, γ0, λ0, α0)
     lossfn = if loss_type == :ssle
         experiment_loss_ssle()
+    elseif loss_type == :sse
+        min = vec(minimum(train_dataset.data, dims = 2))
+        max = vec(maximum(train_dataset.data, dims = 2))
+        experiment_loss_sse(min, max)
     elseif loss_type == :polar
         experiment_loss_polar((0.5, 0.5))
     else
@@ -189,6 +206,10 @@ function setup_fbmobility1(
     p0 = initparams(model, γ0, λ0, α0)
     lossfn = if loss_type == :ssle
         experiment_loss_ssle()
+    elseif loss_type == :sse
+        min = vec(minimum(train_dataset.data, dims = 2))
+        max = vec(maximum(train_dataset.data, dims = 2))
+        experiment_loss_sse(min, max)
     elseif loss_type == :polar
         experiment_loss_polar((0.5, 0.5))
     else
@@ -247,6 +268,10 @@ function setup_fbmobility2(
     p0 = initparams(model, γ0, λ0, α0)
     lossfn = if loss_type == :ssle
         experiment_loss_ssle()
+    elseif loss_type == :sse
+        min = vec(minimum(train_dataset.data, dims = 2))
+        max = vec(maximum(train_dataset.data, dims = 2))
+        experiment_loss_sse(min, max)
     elseif loss_type == :polar
         experiment_loss_polar((0.5, 0.5))
     else
@@ -307,6 +332,10 @@ function setup_fbmobility3(
     p0 = initparams(model, γ0, λ0, α0)
     lossfn = if loss_type == :ssle
         experiment_loss_ssle()
+    elseif loss_type == :sse
+        min = vec(minimum(train_dataset.data, dims = 2))
+        max = vec(maximum(train_dataset.data, dims = 2))
+        experiment_loss_sse(min, max)
     elseif loss_type == :polar
         experiment_loss_polar((0.5, 0.5))
     else
@@ -366,6 +395,10 @@ function setup_fbmobility4(
     p0 = initparams(model, γ0, λ0)
     lossfn = if loss_type == :ssle
         experiment_loss_ssle()
+    elseif loss_type == :sse
+        min = vec(minimum(train_dataset.data, dims = 2))
+        max = vec(maximum(train_dataset.data, dims = 2))
+        experiment_loss_sse(min, max)
     elseif loss_type == :polar
         experiment_loss_polar((0.5, 0.5))
     else
