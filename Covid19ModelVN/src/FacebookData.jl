@@ -59,7 +59,7 @@ function calculate_social_proximity_to_cases(
     getloc(id::AbstractString) =
         subset(df_population, :ID_1 => x -> x .== parse(Int, id[4:end]), view = true)
     # fips code
-    getloc(id::Float64) = subset(df_population, :ID_1 => x -> x .== id, view = true)
+    getloc(id::AbstractFloat) = subset(df_population, :ID_1 => x -> x .== id, view = true)
 
     # initialize the dataframe with dates and zeros
     df_spc = DataFrame()

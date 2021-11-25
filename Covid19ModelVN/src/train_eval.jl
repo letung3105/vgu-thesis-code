@@ -33,8 +33,8 @@ struct Predictor{
     problem::P
     solver::SO
     sensealg::SE
-    abstol::Float64
-    reltol::Float64
+    abstol::Float32
+    reltol::Float32
     save_idxs::Vector{Int}
 
     function Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int})
