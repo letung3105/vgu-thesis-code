@@ -849,15 +849,15 @@ struct SEIRDFbMobility4{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(5, 8, hswish),
-            StaticDense(8, 8, hswish),
-            StaticDense(8, 8, hswish),
+            StaticDense(6, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 8, mish),
             StaticDense(8, 1, x -> boxconst(x, β_bounds)),
         )
         α_ann = FastChain(
-            StaticDense(3, 8, hswish),
-            StaticDense(8, 8, hswish),
-            StaticDense(8, 8, hswish),
+            StaticDense(3, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 8, mish),
             StaticDense(8, 1, x -> boxconst(x, α_bounds)),
         )
         return new{typeof(β_ann),typeof(α_ann),T,DS}(
@@ -900,7 +900,8 @@ function (model::SEIRDFbMobility4)(du, u, p, t)
         # infection rate depends on time, susceptible, and infected
         β = first(
             model.β_ann(
-                SVector{5}(
+                SVector{6}(
+                    t,
                     S / N,
                     I / N,
                     model.movement_range_data[1, time_idx],
@@ -910,7 +911,7 @@ function (model::SEIRDFbMobility4)(du, u, p, t)
                 pnamed.θ1,
             ),
         )
-        α = first(model.α_ann(SVector{3}(I / N, R / N, D / N), pnamed.θ2))
+        α = first(model.α_ann(SVector{3}(t, I / N, D / N), pnamed.θ2))
         SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, α), t)
     end
     return nothing
@@ -986,7 +987,7 @@ function Re(
     pnamed = namedparams(model, params)
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
-    β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
+    β_ann_input = [collect(saveat)'; (S ./ N)'; (I ./ N)'; mobility; proximity]
 
     βt = vec(model.β_ann(β_ann_input, pnamed.θ1))
     Re = βt ./ pnamed.γ
@@ -1003,12 +1004,11 @@ function fatality_rate(
     sol = default_solve(model, u0, params, tspan, saveat)
     states = Array(sol)
     I = @view states[3, :]
-    R = @view states[4, :]
     D = @view states[5, :]
     N = @view states[6, :]
 
     pnamed = namedparams(model, params)
-    α_ann_input = [(I ./ N)'; (R ./ N)'; (D ./ N)']
+    α_ann_input = [collect(saveat)'; (I ./ N)'; (D ./ N)']
     αt = vec(model.α_ann(α_ann_input, pnamed.θ2))
     return αt
 end
