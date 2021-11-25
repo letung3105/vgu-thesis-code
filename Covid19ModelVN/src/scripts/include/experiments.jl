@@ -74,7 +74,7 @@ function experiment_SEIRD_initial_states(
     T0 = df_first_date.confirmed_total[1] # total cases
     R0 = 0 # recovered individuals
     N0 = population - D0 # effective population
-    E0 = I0 # exposed individuals
+    E0 = I0 * 5 # exposed individuals
     S0 = population - E0 - df_first_date.confirmed_total[1] # susceptible individuals
     # initial state
     u0 = Float64[S0, E0, I0, R0, D0, N0, C0, T0]
