@@ -164,7 +164,7 @@ function setup_baseline(
         max = vec(maximum(train_dataset.data, dims = 2))
         experiment_loss_sse(min, max)
     elseif loss_type == :polar
-        experiment_loss_polar((0.5, 0.5))
+        experiment_loss_polar((5f-1, 5f-1))
     else
         error("Invalid loss function type")
     end
@@ -211,7 +211,7 @@ function setup_fbmobility1(
         max = vec(maximum(train_dataset.data, dims = 2))
         experiment_loss_sse(min, max)
     elseif loss_type == :polar
-        experiment_loss_polar((0.5, 0.5))
+        experiment_loss_polar((5f-1, 5f-1))
     else
         error("Invalid loss function type")
     end
@@ -273,7 +273,7 @@ function setup_fbmobility2(
         max = vec(maximum(train_dataset.data, dims = 2))
         experiment_loss_sse(min, max)
     elseif loss_type == :polar
-        experiment_loss_polar((0.5, 0.5))
+        experiment_loss_polar((5f-1, 5f-1))
     else
         error("Invalid loss function type")
     end
@@ -337,7 +337,7 @@ function setup_fbmobility3(
         max = vec(maximum(train_dataset.data, dims = 2))
         experiment_loss_sse(min, max)
     elseif loss_type == :polar
-        experiment_loss_polar((0.5, 0.5))
+        experiment_loss_polar((5f-1, 5f-1))
     else
         error("Invalid loss function type")
     end
@@ -400,7 +400,7 @@ function setup_fbmobility4(
         max = vec(maximum(train_dataset.data, dims = 2))
         experiment_loss_sse(min, max)
     elseif loss_type == :polar
-        experiment_loss_polar((0.5, 0.5))
+        experiment_loss_polar((5f-1, 5f-1))
     else
         error("Invalid loss function type")
     end
