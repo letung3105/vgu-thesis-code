@@ -179,12 +179,12 @@ function parse_commandline(args)
         "--gamma0"
         help = "inverse of the mean incubation period"
         arg_type = Float32
-        default = 1f0 / 3f0
+        default = 1.0f0 / 3.0f0
 
         "--lambda0"
         help = "inverse of the mean infectious period"
         arg_type = Float32
-        default = 1f0 / 14f0
+        default = 1.0f0 / 14.0f0
 
         "--alpha0"
         help = "the fatality rate"
@@ -195,19 +195,19 @@ function parse_commandline(args)
         help = "lower and upper bounds contraints for the average contact rate"
         nargs = 2
         arg_type = Float32
-        default = [0f0, 1.336f0] # Re ∈ [0.0; 6.68]
+        default = [0.0f0, 1.336f0] # Re ∈ [0.0; 6.68]
 
         "--gamma_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean incubation period"
         nargs = 2
         arg_type = Float32
-        default = [1f0 / 5f0, 1f0 / 2f0]
+        default = [1.0f0 / 5.0f0, 1.0f0 / 2.0f0]
 
         "--lambda_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean infectious period"
         nargs = 2
         arg_type = Float32
-        default = [1f0 / 21f0, 1f0 / 7f0]
+        default = [1.0f0 / 21.0f0, 1.0f0 / 7.0f0]
 
         "--alpha_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean infectious period"
@@ -231,7 +231,7 @@ function parse_commandline(args)
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
         arg_type = Float32
-        default = 1f0
+        default = 1.0f0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
@@ -246,7 +246,7 @@ function parse_commandline(args)
         "--weight_decay"
         help = "scaling factor for the weight decay term"
         arg_type = Float32
-        default = 0f0
+        default = 0.0f0
 
         "--maxiters_initial"
         help = "the max number of iterations used for fiting the first time span"
@@ -278,7 +278,7 @@ function parse_commandline(args)
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
         arg_type = Float32
-        default = 1f0
+        default = 1.0f0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
@@ -293,7 +293,7 @@ function parse_commandline(args)
         "--weight_decay"
         help = "scaling factor for the weight decay term"
         arg_type = Float32
-        default = 0f0
+        default = 0.0f0
 
         "--maxiters_initial"
         help = "the max number of iterations used for fiting the first time span"
@@ -330,7 +330,7 @@ function parse_commandline(args)
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
         arg_type = Float32
-        default = 1f0
+        default = 1.0f0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
@@ -345,7 +345,7 @@ function parse_commandline(args)
         "--weight_decay"
         help = "scaling factor for the weight decay term"
         arg_type = Float32
-        default = 0f0
+        default = 0.0f0
 
         "--maxiters"
         help = "the max number of iterations used"
@@ -367,7 +367,7 @@ function parse_commandline(args)
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
         arg_type = Float32
-        default = 1f0
+        default = 1.0f0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
@@ -382,7 +382,7 @@ function parse_commandline(args)
         "--weight_decay"
         help = "scaling factor for the weight decay term"
         arg_type = Float32
-        default = 0f0
+        default = 0.0f0
 
         "--maxiters_first"
         help = "the max number of iterations used in the first stage"

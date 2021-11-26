@@ -77,7 +77,8 @@ function check_model_methods(loc, model)
     @info("Testing model", loc, model)
 
     # setup model at for a location with the default settings
-    parsed_args = parse_commandline(["--locations=$loc", "--", model, "train_growing_trajectory"])
+    parsed_args =
+        parse_commandline(["--locations=$loc", "--", model, "train_growing_trajectory"])
     loc = parsed_args[:locations][1]
     _, get_hyperparams, setup = setupcmd(parsed_args)
 
@@ -115,20 +116,8 @@ function check_model_methods(loc, model)
     fig = plot_Re([R1; R2], train_dataset.tspan[2])
     display(fig)
     if model isa SEIRDFbMobility4
-        αt1 = fatality_rate(
-            model,
-            u0,
-            p0,
-            train_dataset.tspan,
-            train_dataset.tsteps,
-        )
-        αt2 = fatality_rate(
-            model,
-            u0,
-            p0,
-            test_dataset.tspan,
-            test_dataset.tsteps,
-        )
+        αt1 = fatality_rate(model, u0, p0, train_dataset.tspan, train_dataset.tsteps)
+        αt2 = fatality_rate(model, u0, p0, test_dataset.tspan, test_dataset.tsteps)
         fig_αt = plot_fatality_rate([αt1; αt2], train_dataset.tspan[2])
         display(fig_αt)
     end
@@ -142,7 +131,8 @@ function check_model_methods(loc, model)
 end
 
 function check_model_performance(loc, model; benchmark = false)
-    parsed_args = parse_commandline(["--locations=$loc", "--", model, "train_growing_trajectory"])
+    parsed_args =
+        parse_commandline(["--locations=$loc", "--", model, "train_growing_trajectory"])
     _, gethyper, setup = setupcmd(parsed_args)
     hyperparams = gethyper(parsed_args)
 
