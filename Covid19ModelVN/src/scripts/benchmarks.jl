@@ -18,34 +18,32 @@ let
             parse_commandline([name, "--locations=hcm", "--", "train_whole_trajectory"])
         hyperparams = gethyperparams(parsed_args)
 
-        model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels =
+        model, u0, p0, lossfn, train_dataset, _, vars, _ =
             setup(parsed_args[:locations][1]; hyperparams...)
         prob = ODEProblem(model, u0, train_dataset.tspan)
         predictor = Predictor(prob, vars)
-        loss1 = Loss(lossfn, predictor, train_dataset)
-        loss2 = Loss(mae, predictor, test_dataset)
 
-        sol = predictor(p0, train_dataset.tspan, train_dataset.tsteps)
-        pred = @view sol[:, :]
-        du = similar(u0)
+        loss1 = let
+            l = experiment_loss_polar((0.5f0, 0.5f0))
+            Loss(lossfn, predictor, train_dataset)
+        end
+        loss2 = let
+            l = experiment_loss_sse(
+                vec(minimum(train_dataset.data, dims = 2)),
+                vec(maximum(train_dataset.data, dims = 2)),
+            )
+            Loss(l, predictor, train_dataset)
+        end
+        loss3 = let
+            l = experiment_loss_ssle()
+            Loss(l, predictor, train_dataset)
+        end
 
-        @code_warntype model(du, u0, p0, 0)
-        @code_warntype lossfn(pred, train_dataset.data)
-        @code_warntype predictor(p0, train_dataset.tspan, train_dataset.tsteps)
-        @code_warntype loss1(p0)
-        @code_warntype loss2(p0)
-
-        @show Zygote.gradient(loss1, p0)
-
-        display(@benchmark $model($du, $u0, $p0, 0))
+        display(@benchmark Zygote.gradient($loss1, $p0))
         println()
-        display(@benchmark $lossfn($pred, $train_dataset.data))
+        display(@benchmark Zygote.gradient($loss2, $p0))
         println()
-        display(@benchmark $predictor($p0, $train_dataset.tspan, $train_dataset.tsteps))
-        println()
-        display(@benchmark $loss1($p0))
-        println()
-        display(@benchmark $loss2($p0))
+        display(@benchmark Zygote.gradient($loss3, $p0))
         println()
     end
 end
