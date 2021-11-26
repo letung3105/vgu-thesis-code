@@ -719,7 +719,7 @@ function plot_forecast!(
     lines!(
         ax,
         output,
-        label = "model's prediction",
+        label = "prediction",
         linewidth = 4,
         color = Makie.ColorSchemes.tab10[2],
     )
