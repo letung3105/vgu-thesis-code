@@ -618,7 +618,7 @@ Get the initial values for the trainable parameters
 * `α0`: initial mean fatality rate
 """
 initparams(
-    model::Union{Baseline,SEIRDFbMobility1,SEIRDFbMobility2,SEIRDFbMobility3},
+    model::Union{<:Baseline,<:SEIRDFbMobility1,<:SEIRDFbMobility2,<:SEIRDFbMobility3},
     γ0::R,
     λ0::R,
     α0::R,
@@ -640,7 +640,7 @@ Get a named tuple of the parameters that are used by the augmented SEIRD model
 * `params`: a vector of all the parameters used by the model
 """
 namedparams(
-    model::Union{Baseline,SEIRDFbMobility1,SEIRDFbMobility2,SEIRDFbMobility3},
+    model::Union{<:Baseline,<:SEIRDFbMobility1,<:SEIRDFbMobility2,<:SEIRDFbMobility3},
     params::AbstractVector{<:Real},
 ) = @inbounds (
     γ = boxconst(params[1], model.γ_bounds),
