@@ -87,6 +87,15 @@ function __init__()
     return nothing
 end
 
+"""
+    get_prebuilt_covid_timeseries(location_code::AbstractString)
+
+Get the Covid-19 time series, that is created for the model, for a location
+
+# Arguments
+
+* `location_code`: short code that uniquely identify the location
+"""
 function get_prebuilt_covid_timeseries(location_code::AbstractString)
     vncdc_data = Dict([
         LOC_CODE_HCM_CITY => datadep"vncdc/HoChiMinh.json",
@@ -121,6 +130,16 @@ function get_prebuilt_covid_timeseries(location_code::AbstractString)
     return df
 end
 
+"""
+    make_covid_timeseries(dir::AbstractString; recreate::Bool = false)
+
+Create all the combined Covid-19 datasets that are used by the experiments
+
+# Arguments
+
+* `dir`: the path to the directory where the datasets are saved
+* `recreate`: choose whether to overwrite a dataset that already exists in the directory
+"""
 function make_covid_timeseries(dir::AbstractString; recreate::Bool = false)
     JHUCSSEData.save_country_level_timeseries(
         [
@@ -163,6 +182,16 @@ function make_covid_timeseries(dir::AbstractString; recreate::Bool = false)
     return nothing
 end
 
+"""
+    get_prebuilt_population(location_code::AbstractString)
+
+Get the population data along with the standardized location identifier,
+that is created for the model, for a location
+
+# Arguments
+
+* `location_code`: short code that uniquely identify the location
+"""
 function get_prebuilt_population(location_code::AbstractString)
     fpath, locname = if location_code == LOC_CODE_VIETNAM
         return 97_582_700
@@ -184,6 +213,16 @@ function get_prebuilt_population(location_code::AbstractString)
     return population
 end
 
+"""
+    make_population(dir::AbstractString; recreate::Bool = false)
+
+Create all the population datasets that are used by the experiments
+
+# Arguments
+
+* `dir`: the path to the directory where the datasets are saved
+* `recreate`: choose whether to overwrite a dataset that already exists in the directory
+"""
 function make_population(dir::AbstractString; recreate::Bool = false)
     PopulationData.save_vietnam_province_level_gadm_and_gso_population(
         joinpath(dir, FNAME_AVERAGE_POPULATION_VN_PROVINCES);
@@ -196,6 +235,15 @@ function make_population(dir::AbstractString; recreate::Bool = false)
     return nothing
 end
 
+"""
+    get_prebuilt_movement_range(location_code::AbstractString)
+
+Get the average movement range maps dataset, that is created for the model, for a location
+
+# Arguments
+
+* `location_code`: short code that uniquely identify the location
+"""
 function get_prebuilt_movement_range(location_code::AbstractString)
     data = Dict([
         LOC_CODE_VIETNAM => @datadep_str("$DATADEP_NAME/$FNAME_MOVEMENT_RANGE_VIETNAM"),
@@ -228,6 +276,16 @@ function get_prebuilt_movement_range(location_code::AbstractString)
     return df
 end
 
+"""
+    make_movement_range(dir::AbstractString; recreate::Bool = false)
+
+Create all the average indices from the movement range maps dataset
+
+# Arguments
+
+* `dir`: the path to the directory where the datasets are saved
+* `recreate`: choose whether to overwrite a dataset that already exists in the directory
+"""
 function make_movement_range(dir::AbstractString; recreate::Bool = false)
     FacebookData.save_region_average_movement_range(
         [
@@ -318,6 +376,15 @@ function make_movement_range(dir::AbstractString; recreate::Bool = false)
     return nothing
 end
 
+"""
+    get_prebuilt_social_proximity(location_code::AbstractString)
+
+Get the social proximity to cases index datasets, that is created for the model, for a location
+
+# Arguments
+
+* `location_code`: short code that uniquely identify the location
+"""
 function get_prebuilt_social_proximity(location_code::AbstractString)
     fpath, locname = if location_code ∈ keys(LOC_NAMES_VN)
         @datadep_str("$DATADEP_NAME/$FNAME_SOCIAL_PROXIMITY_TO_CASES_VN_PROVINCES"),
@@ -336,6 +403,21 @@ function get_prebuilt_social_proximity(location_code::AbstractString)
     return df, locname
 end
 
+"""
+    make_social_proximity(
+        dir::AbstractString;
+        recreate::Bool = false,
+        fpath_population_vn = joinpath(dir, FNAME_AVERAGE_POPULATION_VN_PROVINCES),
+        fpath_population_us = joinpath(dir, FNAME_AVERAGE_POPULATION_US_COUNTIES),
+    )
+
+Create all the social proximity to cases datasets that are used by the experiments
+
+# Arguments
+
+* `dir`: the path to the directory where the datasets are saved
+* `recreate`: choose whether to overwrite a dataset that already exists in the directory
+"""
 function make_social_proximity(
     dir::AbstractString;
     recreate::Bool = false,

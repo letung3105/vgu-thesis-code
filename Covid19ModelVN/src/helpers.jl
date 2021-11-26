@@ -52,6 +52,16 @@ struct TimeseriesDataset{R<:Real,Data<:AbstractMatrix{R},Tspan<:Tuple{R,R},Tstep
     tsteps::Tsteps
 end
 
+"""
+    timeseries_dataloader(dataset::TimeseriesDataset, batchsize::Integer)
+
+Create a `Flux.Dataloader` that returns the data and time steps within a time span from the dataset.
+
+# Arguments
+
+* `dataset`: the dataset that the loaders will use
+* `batchsize`: number of data points that are in a batch
+"""
 timeseries_dataloader(dataset::TimeseriesDataset, batchsize::Integer) =
     Flux.DataLoader((dataset.data, dataset.tsteps); batchsize)
 
