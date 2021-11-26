@@ -205,7 +205,14 @@ function train_growing_trajectory_two_stages(
     @info("Training with LBFGS optimizer", uuid)
     train_loss = Loss(lossfn, predictor, train_dataset)
     opt2 = LBFGS()
-    res = DiffEqFlux.sciml_train(train_loss, params, opt2; maxiters = maxiters_second, cb)
+    res = DiffEqFlux.sciml_train(
+        train_loss,
+        params,
+        opt2;
+        maxiters = maxiters_second,
+        allow_f_increases = true,
+        cb,
+    )
 
     return res.minimizer, cb_log.state.eval_losses, cb_log.state.test_losses
 end
@@ -316,6 +323,7 @@ function train_whole_trajectory_two_stages(
         res1.minimizer,
         opt2;
         maxiters = maxiters_second,
+        allow_f_increases = true,
         cb,
     )
 
