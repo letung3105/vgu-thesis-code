@@ -159,42 +159,6 @@ function (model::SEIRDBaseline)(du, u, p, t)
 end
 
 """
-    initparams(model::SEIRDBaseline, γ0::R, λ0::R, α0::R) where {R<:Real}
-
-Get the initial values for the trainable parameters
-
-# Arguments
-
-* `model`: the model that we want to get the parameterrs for
-* `γ0`: initial mean incubation period
-* `λ0`: initial mean infectious period
-* `α0`: initial mean fatality rate
-"""
-initparams(model::SEIRDBaseline, γ0::R, λ0::R, α0::R) where {R<:Real} = [
-    model.γ_bounds[1] == model.γ_bounds[2] ? γ0 : boxconst_inv(γ0, model.γ_bounds)
-    model.λ_bounds[1] == model.λ_bounds[2] ? λ0 : boxconst_inv(λ0, model.λ_bounds)
-    model.α_bounds[1] == model.α_bounds[2] ? α0 : boxconst_inv(α0, model.α_bounds)
-    DiffEqFlux.initial_params(model.β_ann)
-]
-
-"""
-    namedparams(model::SEIRDBaseline, params::AbstractVector{<:Real})
-
-Get a named tuple of the parameters that are used by the augmented SEIRD model
-
-# Arguments
-
-* `model`: the object of type the object representing the augmented model
-* `params`: a vector of all the parameters used by the model
-"""
-namedparams(model::SEIRDBaseline, params::AbstractVector{<:Real}) = @inbounds (
-    γ = boxconst(params[1], model.γ_bounds),
-    λ = boxconst(params[2], model.λ_bounds),
-    α = boxconst(params[3], model.α_bounds),
-    θ = @view(params[4:4+model.β_ann_paramlength-1]),
-)
-
-"""
     Re(
         model::SEIRDBaseline,
         u0::AbstractVector{T},
@@ -333,42 +297,6 @@ function (model::SEIRDFbMobility1)(du, u, p, t)
     end
     return nothing
 end
-
-"""
-    initparams(model::SEIRDFbMobility1, γ0::R, λ0::R, α0::R) where {R<:Real}
-
-Get the initial values for the trainable parameters
-
-# Arguments
-
-* `model`: the model that we want to get the parameterrs for
-* `γ0`: initial mean incubation period
-* `λ0`: initial mean infectious period
-* `α0`: initial mean fatality rate
-"""
-initparams(model::SEIRDFbMobility1, γ0::R, λ0::R, α0::R) where {R<:Real} = [
-    model.γ_bounds[1] == model.γ_bounds[2] ? γ0 : boxconst_inv(γ0, model.γ_bounds)
-    model.λ_bounds[1] == model.λ_bounds[2] ? λ0 : boxconst_inv(λ0, model.λ_bounds)
-    model.α_bounds[1] == model.α_bounds[2] ? α0 : boxconst_inv(α0, model.α_bounds)
-    DiffEqFlux.initial_params(model.β_ann)
-]
-
-"""
-    namedparams(model::SEIRDFbMobility1, params::AbstractVector{<:Real})
-
-Get a named tuple of the parameters that are used by the augmented SEIRD model
-
-# Arguments
-
-* `model`: the object of type the object representing the augmented model
-* `params`: a vector of all the parameters used by the model
-"""
-namedparams(model::SEIRDFbMobility1, params::AbstractVector{<:Real}) = @inbounds (
-    γ = boxconst(params[1], model.γ_bounds),
-    λ = boxconst(params[2], model.λ_bounds),
-    α = boxconst(params[3], model.α_bounds),
-    θ = @view(params[4:4+model.β_ann_paramlength-1]),
-)
 
 """
     Re(
@@ -518,42 +446,6 @@ function (model::SEIRDFbMobility2)(du, u, p, t)
     end
     return nothing
 end
-
-"""
-    initparams(model::SEIRDFbMobility2, γ0::R, λ0::R, α0::R) where {R<:Real}
-
-Get the initial values for the trainable parameters
-
-# Arguments
-
-* `model`: the model that we want to get the parameterrs for
-* `γ0`: initial mean incubation period
-* `λ0`: initial mean infectious period
-* `α0`: initial mean fatality rate
-"""
-initparams(model::SEIRDFbMobility2, γ0::R, λ0::R, α0::R) where {R<:Real} = [
-    model.γ_bounds[1] == model.γ_bounds[2] ? γ0 : boxconst_inv(γ0, model.γ_bounds)
-    model.λ_bounds[1] == model.λ_bounds[2] ? λ0 : boxconst_inv(λ0, model.λ_bounds)
-    model.α_bounds[1] == model.α_bounds[2] ? α0 : boxconst_inv(α0, model.α_bounds)
-    DiffEqFlux.initial_params(model.β_ann)
-]
-
-"""
-    namedparams(model::SEIRDFbMobility2, params::AbstractVector{<:Real})
-
-Get a named tuple of the parameters that are used by the augmented SEIRD model
-
-# Arguments
-
-* `model`: the object of type the object representing the augmented model
-* `params`: a vector of all the parameters used by the model
-"""
-namedparams(model::SEIRDFbMobility2, params::AbstractVector{<:Real}) = @inbounds (
-    γ = boxconst(params[1], model.γ_bounds),
-    λ = boxconst(params[2], model.λ_bounds),
-    α = boxconst(params[3], model.α_bounds),
-    θ = @view(params[4:4+model.β_ann_paramlength-1]),
-)
 
 """
     Re(
@@ -714,7 +606,7 @@ function (model::SEIRDFbMobility3)(du, u, p, t)
 end
 
 """
-    initparams(model::SEIRDFbMobility3, γ0::R, λ0::R, α0::R) where {R<:Real}
+    initparams(model::SEIRDFbMobility2, γ0::R, λ0::R, α0::R) where {R<:Real}
 
 Get the initial values for the trainable parameters
 
@@ -723,8 +615,14 @@ Get the initial values for the trainable parameters
 * `model`: the model that we want to get the parameterrs for
 * `γ0`: initial mean incubation period
 * `λ0`: initial mean infectious period
+* `α0`: initial mean fatality rate
 """
-initparams(model::SEIRDFbMobility3, γ0::R, λ0::R, α0::R) where {R<:Real} = [
+initparams(
+    model::Union{Baseline,SEIRDFbMobility1,SEIRDFbMobility2,SEIRDFbMobility3},
+    γ0::R,
+    λ0::R,
+    α0::R,
+) where {R<:Real} = [
     model.γ_bounds[1] == model.γ_bounds[2] ? γ0 : boxconst_inv(γ0, model.γ_bounds)
     model.λ_bounds[1] == model.λ_bounds[2] ? λ0 : boxconst_inv(λ0, model.λ_bounds)
     model.α_bounds[1] == model.α_bounds[2] ? α0 : boxconst_inv(α0, model.α_bounds)
@@ -732,7 +630,7 @@ initparams(model::SEIRDFbMobility3, γ0::R, λ0::R, α0::R) where {R<:Real} = [
 ]
 
 """
-    namedparams(model::SEIRDFbMobility3, params::AbstractVector{<:Real})
+    namedparams(model::SEIRDFbMobility2, params::AbstractVector{<:Real})
 
 Get a named tuple of the parameters that are used by the augmented SEIRD model
 
@@ -741,7 +639,10 @@ Get a named tuple of the parameters that are used by the augmented SEIRD model
 * `model`: the object of type the object representing the augmented model
 * `params`: a vector of all the parameters used by the model
 """
-namedparams(model::SEIRDFbMobility3, params::AbstractVector{<:Real}) = @inbounds (
+namedparams(
+    model::Union{Baseline,SEIRDFbMobility1,SEIRDFbMobility2,SEIRDFbMobility3},
+    params::AbstractVector{<:Real},
+) = @inbounds (
     γ = boxconst(params[1], model.γ_bounds),
     λ = boxconst(params[2], model.λ_bounds),
     α = boxconst(params[3], model.α_bounds),
