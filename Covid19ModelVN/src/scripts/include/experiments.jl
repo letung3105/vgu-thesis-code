@@ -527,11 +527,12 @@ function experiment_run(
     queue_eval = Tuple{String,Function,Vector{Int},String}[]
 
     runexp = function (loc)
+        snapshots_dir = joinpath(savedir, batch_timestamp, loc)
+        !isdir(snapshots_dir) && mkpath(snapshots_dir)
+
         timestamp = Dates.format(now(), "yyyymmddHHMMSS")
         uuid = "$timestamp.$model_name.$loc"
         setup = () -> model_setup(loc; hyperparams...)
-        snapshots_dir = joinpath(savedir, batch_timestamp, loc)
-        !isdir(snapshots_dir) && mkpath(snapshots_dir)
 
         write(
             joinpath(snapshots_dir, "$uuid.hyperparams.json"),
@@ -571,11 +572,21 @@ function experiment_run(
 
     if multithreading
         Threads.@threads for loc ∈ locations
-            runexp(loc)
+            try
+                runexp(loc)
+            catch e
+                e isa InterruptException && rethrow(e)
+                @warn stacktrace() error = e
+            end
         end
     else
         for loc ∈ locations
-            runexp(loc)
+            try
+                runexp(loc)
+            catch e
+                e isa InterruptException && rethrow(e)
+                @warn stacktrace() error = e
+            end
         end
     end
 
