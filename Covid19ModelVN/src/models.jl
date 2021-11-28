@@ -912,3 +912,225 @@ function fatality_rate(
     αt = vec(model.α_ann(α_ann_input, pnamed.θ2))
     return αt
 end
+
+"""
+    SEIRDFbMobility5{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <:
+
+A struct for containing the SEIRD model that uses Facebook movement range maps dataset
+and Facebook social connectedness index dataset. In the model, both the β and α are
+time-/covariate-dependent whose values are determined by a neural network
+
+# Fields
+
+* `β_ann`: an neural network that outputs the time-dependent β contact rate
+* `β_ann_paramlength`: number of parameters used by the network
+* `α_ann`: an neural network that outputs the time-dependent α fatality rate
+* `α_ann_paramlength`: number of parameters used by the network
+* `β_bounds`: lower and upper bounds of the α parameter
+* `γ_bounds`: lower and upper bounds of the γ parameter
+* `λ_bounds`: lower and upper bounds of the λ parameter
+* `α_bounds`: lower and upper bounds of the α parameter
+* `movement_range_data`: the matrix for the Facebook movement range timeseries data
+* `social_proximity_data`: the matrix for the social proximity to cases timeseries data
+
+# Constructor
+
+    SEIRDFbMobility5(
+        β_bounds::Tuple{T,T},
+        γ_bounds::Tuple{T,T},
+        λ_bounds::Tuple{T,T},
+        α_bounds::Tuple{T,T},
+        movement_range_data::DS,
+        social_proximity_data::DS,
+    ) where {T<:Real,DS<:AbstractMatrix{T}}
+
+## Arguments
+
+* `β_bounds`: lower and upper bounds of the β parameter
+* `γ_bounds`: lower and upper bounds of the γ parameter
+* `λ_bounds`: lower and upper bounds of the λ parameter
+* `α_bounds`: lower and upper bounds of the α parameter
+* `movement_range_data`: the matrix for the Facebook movement range timeseries data
+* `social_proximity_data`: the matrix for the social proximity to cases timeseries data
+"""
+struct SEIRDFbMobility5{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: AbstractCovidModel
+    ann::ANN
+    ann_paramlength::Int
+    β_bounds::Tuple{T,T}
+    γ_bounds::Tuple{T,T}
+    λ_bounds::Tuple{T,T}
+    α_bounds::Tuple{T,T}
+    movement_range_data::DS
+    social_proximity_data::DS
+
+    function SEIRDFbMobility5(
+        β_bounds::Tuple{T,T},
+        γ_bounds::Tuple{T,T},
+        λ_bounds::Tuple{T,T},
+        α_bounds::Tuple{T,T},
+        movement_range_data::DS,
+        social_proximity_data::DS,
+    ) where {T<:Real,DS<:AbstractMatrix{T}}
+        ann = FastChain(
+            StaticDense(7, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 2),
+        )
+        return new{typeof(ann),T,DS}(
+            ann,
+            DiffEqFlux.paramlength(ann),
+            β_bounds,
+            γ_bounds,
+            λ_bounds,
+            α_bounds,
+            movement_range_data,
+            social_proximity_data,
+        )
+    end
+end
+
+"""
+    (model::SEIRDFbMobility5)(du, u, p, t)
+
+The augmented SEIRD! dynamics that integrate a neural network for estimating
+the contact rate. Facebook's Movement Range Dataset and the Social Proximity
+to Cases Index are used to inform the model to improve predicting performance.
+The β and α parameters are transformed with sigmoid to prevent the model from
+over shooting their values.
+
+# Arguments
+
++ `du`: the derivative of state `u` at time step `t` that has to be calculated
++ `u`: the system's states at time `t`
++ `p`: the system's parameters
++ `t`: the current time steps
+"""
+function (model::SEIRDFbMobility5)(du, u, p, t)
+    @inbounds begin
+        time_idx = Int(floor(t + 1))
+        # states and params
+        S, _, I, R, D, N = u
+        pnamed = namedparams(model, p)
+        # infection rate depends on time, susceptible, and infected
+        ann_out = model.ann(
+            SVector{7}(
+                S / N,
+                I / N,
+                R / N,
+                D / N,
+                model.movement_range_data[1, time_idx],
+                model.movement_range_data[2, time_idx],
+                model.social_proximity_data[1, time_idx],
+            ),
+            pnamed.θ,
+        )
+        β = boxconst(ann_out[1], model.β_bounds)
+        α = boxconst(ann_out[2], model.α_bounds)
+        SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, α), t)
+    end
+    return nothing
+end
+
+"""
+    initparams(model::SEIRDFbMobility5, γ0::R, λ0::R) where {R<:Real}
+
+Get the initial values for the trainable parameters
+
+# Arguments
+
+* `model`: the model that we want to get the parameterrs for
+* `γ0`: initial mean incubation period
+* `λ0`: initial mean infectious period
+"""
+initparams(model::SEIRDFbMobility5, γ0::R, λ0::R) where {R<:Real} = [
+    model.γ_bounds[1] == model.γ_bounds[2] ? γ0 : boxconst_inv(γ0, model.γ_bounds)
+    model.λ_bounds[1] == model.λ_bounds[2] ? λ0 : boxconst_inv(λ0, model.λ_bounds)
+    DiffEqFlux.initial_params(model.ann)
+]
+
+"""
+    namedparams(model::SEIRDFbMobility5, params::AbstractVector{<:Real})
+
+Get a named tuple of the parameters that are used by the augmented SEIRD model
+
+# Arguments
+
+* `model`: the object of type the object representing the augmented model
+* `params`: a vector of all the parameters used by the model
+"""
+namedparams(model::SEIRDFbMobility5, params::AbstractVector{<:Real}) = @inbounds (
+    γ = boxconst(params[1], model.γ_bounds),
+    λ = boxconst(params[2], model.λ_bounds),
+    θ = @view(params[3:3+model.ann_paramlength-1]),
+)
+
+"""
+    function Re(
+        model::SEIRDFbMobility5,
+        u0::AbstractVector{T},
+        params::AbstractVector{T},
+        tspan::Tuple{T,T},
+        saveat::Ts,
+    ) where {T<:Real,Ts}
+
+Get the effective reproduction rate calculated from the model
+
+# Arguments
+
++ `model`: the model from which the effective reproduction number is calculated
++ `u0`: the model initial conditions
++ `params`: the model parameters
++ `tspan`: the simulated time span
++ `saveat`: the collocation points that will be saved
+"""
+function Re(
+    model::SEIRDFbMobility5,
+    u0::AbstractVector{T},
+    params::AbstractVector{T},
+    tspan::Tuple{T,T},
+    saveat::Ts,
+) where {T<:Real,Ts}
+    sol = default_solve(model, u0, params, tspan, saveat)
+    states = Array(sol)
+    S = @view states[1, :]
+    I = @view states[3, :]
+    R = @view states[4, :]
+    D = @view states[5, :]
+    N = @view states[6, :]
+
+    pnamed = namedparams(model, params)
+    mobility = @view model.movement_range_data[:, Int.(saveat).+1]
+    proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
+    ann_input = [(S ./ N)'; (I ./ N)'; (R ./ N)'; (D ./ N)'; mobility; proximity]
+
+    βt = vec(model.ann(ann_input, pnamed.θ)[1, :])
+    βt .= [boxconst(x, model.β_bounds) for x in βt]
+    Re = βt ./ pnamed.γ
+    return Re
+end
+
+function fatality_rate(
+    model::SEIRDFbMobility5,
+    u0::AbstractVector{T},
+    params::AbstractVector{T},
+    tspan::Tuple{T,T},
+    saveat::Ts,
+) where {T<:Real,Ts}
+    sol = default_solve(model, u0, params, tspan, saveat)
+    states = Array(sol)
+    S = @view states[1, :]
+    I = @view states[3, :]
+    R = @view states[4, :]
+    D = @view states[5, :]
+    N = @view states[6, :]
+
+    pnamed = namedparams(model, params)
+    mobility = @view model.movement_range_data[:, Int.(saveat).+1]
+    proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
+    ann_input = [(S ./ N)'; (I ./ N)'; (R ./ N)'; (D ./ N)'; mobility; proximity]
+
+    αt = vec(model.ann(ann_input, pnamed.θ)[2, :])
+    αt .= [boxconst(x, model.α_bounds) for x in αt]
+    return αt
+end

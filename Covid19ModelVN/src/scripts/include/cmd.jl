@@ -27,6 +27,7 @@ function setupcmd(parsed_args)
         :fbmobility2 => ("fbmobility2", get_fbmobility2_hyperparams, setup_fbmobility2),
         :fbmobility3 => ("fbmobility3", get_fbmobility3_hyperparams, setup_fbmobility3),
         :fbmobility4 => ("fbmobility4", get_fbmobility4_hyperparams, setup_fbmobility4),
+        :fbmobility5 => ("fbmobility5", get_fbmobility5_hyperparams, setup_fbmobility5),
     )
     return cmdmappings[parsed_args[:model_name]]
 end
@@ -95,6 +96,19 @@ get_fbmobility4_hyperparams(parsed_args) = (
     loss_type = parsed_args[:loss_type],
 )
 
+get_fbmobility5_hyperparams(parsed_args) = (
+    γ0 = parsed_args[:gamma0],
+    λ0 = parsed_args[:lambda0],
+    β_bounds = (parsed_args[:beta_bounds][1], parsed_args[:beta_bounds][2]),
+    γ_bounds = (parsed_args[:gamma_bounds][1], parsed_args[:gamma_bounds][2]),
+    λ_bounds = (parsed_args[:lambda_bounds][1], parsed_args[:lambda_bounds][2]),
+    α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
+    train_range = Day(parsed_args[:train_days]),
+    forecast_range = Day(parsed_args[:test_days]),
+    social_proximity_lag = Day(parsed_args[:spc_lag_days]),
+    loss_type = parsed_args[:loss_type],
+)
+
 function parse_commandline(args)
     s = ArgParseSettings()
 
@@ -103,7 +117,8 @@ function parse_commandline(args)
         name == :fbmobility1 ||
         name == :fbmobility2 ||
         name == :fbmobility3 ||
-        name == :fbmobility4
+        name == :fbmobility4 ||
+        name == :fbmobility5
 
     isvalidloss(name) = name == :ssle || name == :polar || name == :sse
 

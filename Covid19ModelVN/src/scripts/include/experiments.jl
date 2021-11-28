@@ -407,6 +407,69 @@ function setup_fbmobility4(
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
+function setup_fbmobility5(
+    loc::AbstractString;
+    γ0::Float32,
+    λ0::Float32,
+    β_bounds::Tuple{Float32,Float32},
+    γ_bounds::Tuple{Float32,Float32},
+    λ_bounds::Tuple{Float32,Float32},
+    α_bounds::Tuple{Float32,Float32},
+    train_range::Day,
+    forecast_range::Day,
+    social_proximity_lag::Day,
+    loss_type::Symbol,
+)
+    # get data for model
+    dataconf, first_date, split_date, last_date =
+        experiment_covid19_data(loc, train_range, forecast_range)
+    train_dataset, test_dataset =
+        train_test_split(dataconf, first_date, split_date, last_date)
+    @assert size(train_dataset.data, 2) == Dates.value(train_range)
+    @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
+
+    movement_range_data = experiment_movement_range(loc, first_date, last_date)
+    @assert size(movement_range_data, 2) ==
+            Dates.value(train_range) + Dates.value(forecast_range)
+
+    social_proximity_data = experiment_social_proximity(
+        loc,
+        first_date - social_proximity_lag,
+        last_date - social_proximity_lag,
+    )
+    @assert size(social_proximity_data, 2) ==
+            Dates.value(train_range) + Dates.value(forecast_range)
+
+    # build the model
+    model = SEIRDFbMobility5(
+        β_bounds,
+        γ_bounds,
+        λ_bounds,
+        α_bounds,
+        movement_range_data,
+        social_proximity_data,
+    )
+    # get the initial states and available observations depending on the model type
+    # and the considered location
+    u0, vars, labels = experiment_SEIRD_initial_states(
+        loc,
+        subset(dataconf.df, :date => x -> x .== first_date, view = true),
+    )
+    p0 = initparams(model, γ0, λ0)
+    lossfn = if loss_type == :ssle
+        experiment_loss_ssle()
+    elseif loss_type == :sse
+        min = vec(minimum(train_dataset.data, dims = 2))
+        max = vec(maximum(train_dataset.data, dims = 2))
+        experiment_loss_sse(min, max)
+    elseif loss_type == :polar
+        experiment_loss_polar((5f-1, 5f-1))
+    else
+        error("Invalid loss function type")
+    end
+    return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
+end
+
 function experiment_eval(
     uuid::AbstractString,
     setup::Function,
@@ -461,7 +524,7 @@ function experiment_eval(
             save(fpath_Re, fig_Re)
 
             # the fatality rate in this model changes over time
-            if model isa SEIRDFbMobility4
+            if model isa SEIRDFbMobility4 || model isa SEIRDFbMobility5
                 αt1 = fatality_rate(
                     model,
                     u0,

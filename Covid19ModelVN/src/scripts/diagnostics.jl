@@ -115,7 +115,7 @@ function check_model_methods(loc, model)
     R2 = Re(model, u0, p0, test_dataset.tspan, test_dataset.tsteps)
     fig = plot_Re([R1; R2], train_dataset.tspan[2])
     display(fig)
-    if model isa SEIRDFbMobility4
+    if model isa SEIRDFbMobility4 || model isa SEIRDFbMobility5
         αt1 = fatality_rate(model, u0, p0, train_dataset.tspan, train_dataset.tsteps)
         αt2 = fatality_rate(model, u0, p0, test_dataset.tspan, test_dataset.tsteps)
         fig_αt = plot_fatality_rate([αt1; αt2], train_dataset.tspan[2])
