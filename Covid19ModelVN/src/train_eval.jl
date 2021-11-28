@@ -813,6 +813,14 @@ The function does not check if the inputs are valid and may produces erroneous o
 mae(ŷ::AbstractArray{<:Real}, y::AbstractArray{<:Real}) = mean(abs, (ŷ .- y))
 
 """
+    sse(ŷ::AbstractArray{<:Real}, y::AbstractArray{<:Real})::Real
+
+Calculate the sum squared error between 2 values. Note that the input arguments must be of the same size.
+The function does not check if the inputs are valid and may produces erroneous output.
+"""
+sse(ŷ::AbstractArray{<:Real}, y::AbstractArray{<:Real}) = sum(abs2, (ŷ .- y))
+
+"""
     mape(ŷ::AbstractArray{<:Real}, y::AbstractArray{<:Real})::Real
 
 Calculate the mean absolute percentge error between 2 values. Note that the input arguments must be of the same size.
