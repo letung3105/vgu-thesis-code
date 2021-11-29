@@ -38,7 +38,7 @@ struct Predictor{
     save_idxs::Vector{Int}
 
     function Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int})
-        solver = Tsit5()
+        solver = Vern7()
         sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true))
         return new{typeof(problem),typeof(solver),typeof(sensealg)}(
             problem,
