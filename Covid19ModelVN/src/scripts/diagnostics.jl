@@ -84,7 +84,7 @@ function check_model_methods(loc, model)
 
     # create the model
     hyperparams = get_hyperparams(parsed_args)
-    model, u0, p0, lossfn_regularized, train_dataset, test_dataset, vars, labels =
+    model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels =
         setup(loc; hyperparams...)
 
     # test if namedparams is implemented correctly
@@ -94,7 +94,7 @@ function check_model_methods(loc, model)
     # test if the loss function works
     prob = ODEProblem(model, u0, train_dataset.tspan)
     predictor = Predictor(prob, vars)
-    loss = Loss(lossfn_regularized, predictor, train_dataset)
+    loss = Loss{true}(lossfn, predictor, train_dataset)
 
     dLdθ = Zygote.gradient(loss, p0)
     @assert !isnothing(dLdθ[1]) # gradient is computable
@@ -151,7 +151,7 @@ function check_model_performance(loc, model; benchmark = false)
     # check if loss metric function with regularization is type stable
     @code_warntype lossfn(pred, train_dataset.data)
 
-    loss = Loss(lossfn, predictor, train_dataset)
+    loss = Loss{true}(lossfn, predictor, train_dataset)
     # check if training loss is type stable
     @code_warntype loss(p0)
 

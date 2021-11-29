@@ -119,13 +119,13 @@ truth data.
 
 * `params`: the set of parameters of the model
 """
-struct Loss{Metric,Predict,DataCycle,R<:Real}
+struct Loss{Reg,Metric,Predict,DataCycle,R<:Real}
     metric::Metric
     predict::Predict
     datacycle::DataCycle
     tspan::Tuple{R,R}
 
-    function Loss(
+    function Loss{false}(
         metric,
         predict,
         dataset::TimeseriesDataset,
@@ -133,7 +133,35 @@ struct Loss{Metric,Predict,DataCycle,R<:Real}
     )
         dataloader = timeseries_dataloader(dataset, batchsize)
         datacycle = dataloader |> Iterators.cycle |> Iterators.Stateful
-        return new{typeof(metric),typeof(predict),typeof(datacycle),eltype(dataset.tspan)}(
+        return new{
+            false,
+            typeof(metric),
+            typeof(predict),
+            typeof(datacycle),
+            eltype(dataset.tspan),
+        }(
+            metric,
+            predict,
+            datacycle,
+            dataset.tspan,
+        )
+    end
+
+    function Loss{true}(
+        metric,
+        predict,
+        dataset::TimeseriesDataset,
+        batchsize = length(dataset.tsteps),
+    )
+        dataloader = timeseries_dataloader(dataset, batchsize)
+        datacycle = dataloader |> Iterators.cycle |> Iterators.Stateful
+        return new{
+            true,
+            typeof(metric),
+            typeof(predict),
+            typeof(datacycle),
+            eltype(dataset.tspan),
+        }(
             metric,
             predict,
             datacycle,
@@ -142,7 +170,7 @@ struct Loss{Metric,Predict,DataCycle,R<:Real}
     end
 end
 
-function (l::Loss{Metric,Predict,DataCycle,R})(
+function (l::Loss{false,Metric,Predict,DataCycle,R})(
     params,
 ) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful,R<:Real}
     data, tsteps = popfirst!(l.datacycle)
@@ -157,6 +185,23 @@ function (l::Loss{Metric,Predict,DataCycle,R})(
         return Inf
     end
     return l.metric(pred, data)
+end
+
+function (l::Loss{true,Metric,Predict,DataCycle,R})(
+    params,
+) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful,R<:Real}
+    data, tsteps = popfirst!(l.datacycle)
+    sol = l.predict(params, l.tspan, tsteps)
+    if sol.retcode != :Success
+        # Unstable trajectories => hard penalize
+        return Inf
+    end
+    pred = @view sol[:, :]
+    if size(pred) != size(data)
+        # Unstable trajectories / Wrong inputs
+        return Inf
+    end
+    return l.metric(pred, data, params)
 end
 
 """

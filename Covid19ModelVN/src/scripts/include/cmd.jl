@@ -42,6 +42,7 @@ get_baseline_hyperparams(parsed_args) = (
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
     loss_type = parsed_args[:loss_type],
+    weight_decay = parsed_args[:weight_decay],
 )
 
 get_fbmobility1_hyperparams(parsed_args) = (
@@ -54,6 +55,7 @@ get_fbmobility1_hyperparams(parsed_args) = (
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
     loss_type = parsed_args[:loss_type],
+    weight_decay = parsed_args[:weight_decay],
 )
 
 get_fbmobility2_hyperparams(parsed_args) = (
@@ -67,6 +69,7 @@ get_fbmobility2_hyperparams(parsed_args) = (
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     loss_type = parsed_args[:loss_type],
+    weight_decay = parsed_args[:weight_decay],
 )
 
 get_fbmobility3_hyperparams(parsed_args) = (
@@ -81,6 +84,7 @@ get_fbmobility3_hyperparams(parsed_args) = (
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     loss_type = parsed_args[:loss_type],
+    weight_decay = parsed_args[:weight_decay],
 )
 
 get_fbmobility4_hyperparams(parsed_args) = (
@@ -94,6 +98,7 @@ get_fbmobility4_hyperparams(parsed_args) = (
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     loss_type = parsed_args[:loss_type],
+    weight_decay = parsed_args[:weight_decay],
 )
 
 get_fbmobility5_hyperparams(parsed_args) = (
@@ -107,6 +112,7 @@ get_fbmobility5_hyperparams(parsed_args) = (
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     loss_type = parsed_args[:loss_type],
+    weight_decay = parsed_args[:weight_decay],
 )
 
 function parse_commandline(args)
@@ -235,6 +241,12 @@ function parse_commandline(args)
         arg_type = Symbol
         range_tester = isvalidloss
         default = :sse
+
+        "--weight_decay"
+        help = "scaling factor for the weight decay term"
+        arg_type = Float32
+        default = 0.0f0
+
     end
 
     @add_arg_table s["train_growing_trajectory"] begin
@@ -257,11 +269,6 @@ function parse_commandline(args)
         help = "the minimum value at which learning rate decay is stopped"
         arg_type = Float32
         default = 1f-4
-
-        "--weight_decay"
-        help = "scaling factor for the weight decay term"
-        arg_type = Float32
-        default = 0.0f0
 
         "--maxiters_initial"
         help = "the max number of iterations used for fiting the first time span"
@@ -304,11 +311,6 @@ function parse_commandline(args)
         help = "the minimum value at which learning rate decay is stopped"
         arg_type = Float32
         default = 1f-4
-
-        "--weight_decay"
-        help = "scaling factor for the weight decay term"
-        arg_type = Float32
-        default = 0.0f0
 
         "--maxiters_initial"
         help = "the max number of iterations used for fiting the first time span"
@@ -357,11 +359,6 @@ function parse_commandline(args)
         arg_type = Float32
         default = 1f-4
 
-        "--weight_decay"
-        help = "scaling factor for the weight decay term"
-        arg_type = Float32
-        default = 0.0f0
-
         "--maxiters"
         help = "the max number of iterations used"
         arg_type = Int
@@ -393,11 +390,6 @@ function parse_commandline(args)
         help = "the minimum value at which learning rate decay is stopped"
         arg_type = Float32
         default = 1f-4
-
-        "--weight_decay"
-        help = "scaling factor for the weight decay term"
-        arg_type = Float32
-        default = 0.0f0
 
         "--maxiters_first"
         help = "the max number of iterations used in the first stage"

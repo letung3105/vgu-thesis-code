@@ -139,6 +139,7 @@ function setup_baseline(
     train_range::Day,
     forecast_range::Day,
     loss_type::Symbol,
+    weight_decay::Float32,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -157,7 +158,7 @@ function setup_baseline(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
-    lossfn = if loss_type == :ssle
+    lossfn_inner = if loss_type == :ssle
         experiment_loss_ssle()
     elseif loss_type == :sse
         min = vec(minimum(train_dataset.data, dims = 2))
@@ -167,6 +168,10 @@ function setup_baseline(
         experiment_loss_polar((5f-1, 5f-1))
     else
         error("Invalid loss function type")
+    end
+    lossfn = function (ŷ, y, params)
+        pnamed = namedparams(model, params)
+        lossfn_inner(ŷ, y) + weight_decay * sum(abs2, pnamed.θ)
     end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
@@ -182,6 +187,7 @@ function setup_fbmobility1(
     train_range::Day,
     forecast_range::Day,
     loss_type::Symbol,
+    weight_decay::Float32,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -204,7 +210,7 @@ function setup_fbmobility1(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
-    lossfn = if loss_type == :ssle
+    lossfn_inner = if loss_type == :ssle
         experiment_loss_ssle()
     elseif loss_type == :sse
         min = vec(minimum(train_dataset.data, dims = 2))
@@ -214,6 +220,10 @@ function setup_fbmobility1(
         experiment_loss_polar((5f-1, 5f-1))
     else
         error("Invalid loss function type")
+    end
+    lossfn = function (ŷ, y, params)
+        pnamed = namedparams(model, params)
+        lossfn_inner(ŷ, y) + weight_decay * sum(abs2, pnamed.θ)
     end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
@@ -230,6 +240,7 @@ function setup_fbmobility2(
     forecast_range::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
+    weight_decay::Float32,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -266,7 +277,7 @@ function setup_fbmobility2(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
-    lossfn = if loss_type == :ssle
+    lossfn_inner = if loss_type == :ssle
         experiment_loss_ssle()
     elseif loss_type == :sse
         min = vec(minimum(train_dataset.data, dims = 2))
@@ -276,6 +287,10 @@ function setup_fbmobility2(
         experiment_loss_polar((5f-1, 5f-1))
     else
         error("Invalid loss function type")
+    end
+    lossfn = function (ŷ, y, params)
+        pnamed = namedparams(model, params)
+        lossfn_inner(ŷ, y) + weight_decay * sum(abs2, pnamed.θ)
     end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
@@ -293,6 +308,7 @@ function setup_fbmobility3(
     forecast_range::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
+    weight_decay::Float32,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -330,7 +346,7 @@ function setup_fbmobility3(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
-    lossfn = if loss_type == :ssle
+    lossfn_inner = if loss_type == :ssle
         experiment_loss_ssle()
     elseif loss_type == :sse
         min = vec(minimum(train_dataset.data, dims = 2))
@@ -340,6 +356,10 @@ function setup_fbmobility3(
         experiment_loss_polar((5f-1, 5f-1))
     else
         error("Invalid loss function type")
+    end
+    lossfn = function (ŷ, y, params)
+        pnamed = namedparams(model, params)
+        lossfn_inner(ŷ, y) + weight_decay * sum(abs2, pnamed.θ)
     end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
@@ -356,6 +376,7 @@ function setup_fbmobility4(
     forecast_range::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
+    weight_decay::Float32,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -393,7 +414,7 @@ function setup_fbmobility4(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0)
-    lossfn = if loss_type == :ssle
+    lossfn_inner = if loss_type == :ssle
         experiment_loss_ssle()
     elseif loss_type == :sse
         min = vec(minimum(train_dataset.data, dims = 2))
@@ -403,6 +424,10 @@ function setup_fbmobility4(
         experiment_loss_polar((5f-1, 5f-1))
     else
         error("Invalid loss function type")
+    end
+    lossfn = function (ŷ, y, params)
+        pnamed = namedparams(model, params)
+        lossfn_inner(ŷ, y) + weight_decay * (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
     end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
@@ -419,6 +444,7 @@ function setup_fbmobility5(
     forecast_range::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
+    weight_decay::Float32,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -456,7 +482,7 @@ function setup_fbmobility5(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0)
-    lossfn = if loss_type == :ssle
+    lossfn_inner = if loss_type == :ssle
         experiment_loss_ssle()
     elseif loss_type == :sse
         min = vec(minimum(train_dataset.data, dims = 2))
@@ -466,6 +492,10 @@ function setup_fbmobility5(
         experiment_loss_polar((5f-1, 5f-1))
     else
         error("Invalid loss function type")
+    end
+    lossfn = function (ŷ, y, params)
+        pnamed = namedparams(model, params)
+        lossfn_inner(ŷ, y) + weight_decay * sum(abs2, pnamed.θ)
     end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
