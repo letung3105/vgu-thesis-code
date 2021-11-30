@@ -42,7 +42,7 @@ get_baseline_hyperparams(parsed_args) = (
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
     loss_type = parsed_args[:loss_type],
-    weight_decay = parsed_args[:weight_decay],
+    loss_regularization = parsed_args[:loss_regularization],
 )
 
 get_fbmobility1_hyperparams(parsed_args) = (
@@ -55,7 +55,7 @@ get_fbmobility1_hyperparams(parsed_args) = (
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
     loss_type = parsed_args[:loss_type],
-    weight_decay = parsed_args[:weight_decay],
+    loss_regularization = parsed_args[:loss_regularization],
 )
 
 get_fbmobility2_hyperparams(parsed_args) = (
@@ -69,7 +69,7 @@ get_fbmobility2_hyperparams(parsed_args) = (
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     loss_type = parsed_args[:loss_type],
-    weight_decay = parsed_args[:weight_decay],
+    loss_regularization = parsed_args[:loss_regularization],
 )
 
 get_fbmobility3_hyperparams(parsed_args) = (
@@ -84,7 +84,7 @@ get_fbmobility3_hyperparams(parsed_args) = (
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     loss_type = parsed_args[:loss_type],
-    weight_decay = parsed_args[:weight_decay],
+    loss_regularization = parsed_args[:loss_regularization],
 )
 
 get_fbmobility4_hyperparams(parsed_args) = (
@@ -98,7 +98,7 @@ get_fbmobility4_hyperparams(parsed_args) = (
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     loss_type = parsed_args[:loss_type],
-    weight_decay = parsed_args[:weight_decay],
+    loss_regularization = parsed_args[:loss_regularization],
 )
 
 get_fbmobility5_hyperparams(parsed_args) = (
@@ -112,7 +112,7 @@ get_fbmobility5_hyperparams(parsed_args) = (
     forecast_range = Day(parsed_args[:test_days]),
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     loss_type = parsed_args[:loss_type],
-    weight_decay = parsed_args[:weight_decay],
+    loss_regularization = parsed_args[:loss_regularization],
 )
 
 function parse_commandline(args)
@@ -242,7 +242,7 @@ function parse_commandline(args)
         range_tester = isvalidloss
         default = :sse
 
-        "--weight_decay"
+        "--loss_regularization"
         help = "scaling factor for the weight decay term"
         arg_type = Float32
         default = 0.0f0

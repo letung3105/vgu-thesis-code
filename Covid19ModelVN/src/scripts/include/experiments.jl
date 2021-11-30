@@ -139,7 +139,7 @@ function setup_baseline(
     train_range::Day,
     forecast_range::Day,
     loss_type::Symbol,
-    weight_decay::Float32,
+    loss_regularization::Float32,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -177,7 +177,7 @@ function setup_baseline(
     end
     lossfn = function (ŷ, y, params)
         pnamed = namedparams(model, params)
-        lossfn_inner(ŷ, y) + weight_decay * sum(abs2, pnamed.θ)
+        lossfn_inner(ŷ, y) + loss_regularization * sum(abs2, pnamed.θ)
     end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
@@ -193,7 +193,7 @@ function setup_fbmobility1(
     train_range::Day,
     forecast_range::Day,
     loss_type::Symbol,
-    weight_decay::Float32,
+    loss_regularization::Float32,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -236,7 +236,7 @@ function setup_fbmobility1(
     end
     lossfn = function (ŷ, y, params)
         pnamed = namedparams(model, params)
-        lossfn_inner(ŷ, y) + weight_decay * sum(abs2, pnamed.θ)
+        lossfn_inner(ŷ, y) + loss_regularization * sum(abs2, pnamed.θ)
     end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
@@ -253,7 +253,7 @@ function setup_fbmobility2(
     forecast_range::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
-    weight_decay::Float32,
+    loss_regularization::Float32,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -305,7 +305,7 @@ function setup_fbmobility2(
     end
     lossfn = function (ŷ, y, params)
         pnamed = namedparams(model, params)
-        lossfn_inner(ŷ, y) + weight_decay * sum(abs2, pnamed.θ)
+        lossfn_inner(ŷ, y) + loss_regularization * sum(abs2, pnamed.θ)
     end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
@@ -323,7 +323,7 @@ function setup_fbmobility3(
     forecast_range::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
-    weight_decay::Float32,
+    loss_regularization::Float32,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -376,7 +376,7 @@ function setup_fbmobility3(
     end
     lossfn = function (ŷ, y, params)
         pnamed = namedparams(model, params)
-        lossfn_inner(ŷ, y) + weight_decay * sum(abs2, pnamed.θ)
+        lossfn_inner(ŷ, y) + loss_regularization * sum(abs2, pnamed.θ)
     end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
@@ -393,7 +393,7 @@ function setup_fbmobility4(
     forecast_range::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
-    weight_decay::Float32,
+    loss_regularization::Float32,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -446,7 +446,7 @@ function setup_fbmobility4(
     end
     lossfn = function (ŷ, y, params)
         pnamed = namedparams(model, params)
-        lossfn_inner(ŷ, y) + weight_decay * (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
+        lossfn_inner(ŷ, y) + loss_regularization * (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
     end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
@@ -463,7 +463,7 @@ function setup_fbmobility5(
     forecast_range::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
-    weight_decay::Float32,
+    loss_regularization::Float32,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -516,7 +516,7 @@ function setup_fbmobility5(
     end
     lossfn = function (ŷ, y, params)
         pnamed = namedparams(model, params)
-        lossfn_inner(ŷ, y) + weight_decay * sum(abs2, pnamed.θ)
+        lossfn_inner(ŷ, y) + loss_regularization * sum(abs2, pnamed.θ)
     end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
