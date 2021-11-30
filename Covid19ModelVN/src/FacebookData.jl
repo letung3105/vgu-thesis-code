@@ -187,7 +187,7 @@ Save a subset of the movement range maps dataset for a specific region to CSV fi
 """
 function save_region_average_movement_range(
     files::AbstractVector{RegionMovementRangeFile};
-    fpath_movement_range::AbstractString = datadep"facebook/movement-range-2021-10-09.txt",
+    fpath_movement_range::AbstractString = datadep"facebook/movement-range-2021-11-24.txt",
     recreate::Bool = false,
 )
     if all(f -> isfile(f.path), files) && !recreate
