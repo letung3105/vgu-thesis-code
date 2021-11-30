@@ -446,7 +446,8 @@ function setup_fbmobility4(
     end
     lossfn = function (ŷ, y, params)
         pnamed = namedparams(model, params)
-        lossfn_inner(ŷ, y) + loss_regularization * (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
+        lossfn_inner(ŷ, y) +
+        loss_regularization * (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
     end
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
