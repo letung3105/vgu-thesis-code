@@ -446,7 +446,7 @@ mutable struct ForecastsCallbackState{R<:Real}
     fit::Vector{Matrix{R}}
     pred::Vector{Matrix{R}}
 
-    ForecastsCallbackState(t::Type{R}) where {R<:Real} = new{t}(0, Matrix{t}[], Matrix{t}[])
+    ForecastsCallbackState(t::Type{R}) where {R<:Real} = new{t}(Matrix{t}[], Matrix{t}[])
 end
 
 struct ForecastsCallbackConfig{Predict<:Predictor}
@@ -474,10 +474,7 @@ function (cb::ForecastsCallback)(params)
     )
     @views push!(cb.state.fit, fit[:, :])
     @views push!(cb.state.pred, pred[:, :])
-    Serialization.serialize(
-        cb.config.forecasts_save_fpath,
-        (cb.state.fit, cb.state.pred),
-    )
+    Serialization.serialize(cb.config.forecasts_save_fpath, (cb.state.fit, cb.state.pred))
     return false
 end
 
