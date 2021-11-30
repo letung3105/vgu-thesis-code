@@ -150,7 +150,13 @@ function setup_baseline(
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
     # initialize the model
-    model = SEIRDBaseline(γ_bounds, λ_bounds, α_bounds)
+    model = SEIRDBaseline(
+        γ_bounds,
+        λ_bounds,
+        α_bounds,
+        Float32(get_prebuilt_population(loc)),
+        Float32(Dates.value(last_date - first_date)),
+    )
     # get the initial states and available observations depending on the model type
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(
@@ -202,7 +208,14 @@ function setup_fbmobility1(
             Dates.value(train_range) + Dates.value(forecast_range)
 
     # initialize the model
-    model = SEIRDFbMobility1(γ_bounds, λ_bounds, α_bounds, movement_range_data)
+    model = SEIRDFbMobility1(
+        γ_bounds,
+        λ_bounds,
+        α_bounds,
+        Float32(get_prebuilt_population(loc)),
+        Float32(Dates.value(last_date - first_date)),
+        movement_range_data,
+    )
     # get the initial states and available observations depending on the model type
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(
@@ -267,6 +280,8 @@ function setup_fbmobility2(
         γ_bounds,
         λ_bounds,
         α_bounds,
+        Float32(get_prebuilt_population(loc)),
+        Float32(Dates.value(last_date - first_date)),
         movement_range_data,
         social_proximity_data,
     )
@@ -336,6 +351,8 @@ function setup_fbmobility3(
         γ_bounds,
         λ_bounds,
         α_bounds,
+        Float32(get_prebuilt_population(loc)),
+        Float32(Dates.value(last_date - first_date)),
         movement_range_data,
         social_proximity_data,
     )
@@ -404,6 +421,8 @@ function setup_fbmobility4(
         γ_bounds,
         λ_bounds,
         α_bounds,
+        Float32(get_prebuilt_population(loc)),
+        Float32(Dates.value(last_date - first_date)),
         movement_range_data,
         social_proximity_data,
     )

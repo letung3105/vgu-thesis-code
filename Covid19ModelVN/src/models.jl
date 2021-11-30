@@ -111,14 +111,18 @@ struct SEIRDBaseline{ANN<:FastChain,T<:Real} <: AbstractCovidModel
     γ_bounds::Tuple{T,T}
     λ_bounds::Tuple{T,T}
     α_bounds::Tuple{T,T}
+    population::T
+    time_scale::T
 
     function SEIRDBaseline(
         γ_bounds::Tuple{T,T},
         λ_bounds::Tuple{T,T},
         α_bounds::Tuple{T,T},
+        population::T,
+        time_scale::T,
     ) where {T<:Real}
         β_ann = FastChain(
-            StaticDense(2, 8, mish),
+            StaticDense(3, 8, mish),
             StaticDense(8, 8, mish),
             StaticDense(8, 8, mish),
             StaticDense(8, 1, softplus),
@@ -129,6 +133,8 @@ struct SEIRDBaseline{ANN<:FastChain,T<:Real} <: AbstractCovidModel
             γ_bounds,
             λ_bounds,
             α_bounds,
+            population,
+            time_scale,
         )
     end
 end
@@ -149,10 +155,19 @@ the contact rate
 function (model::SEIRDBaseline)(du, u, p, t)
     @inbounds begin
         # states and params
-        S, _, I, _, _, N = u
+        S, _, I, _, _, _, _, _ = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
-        β = first(model.β_ann(SVector{2}(S / N, I / N), pnamed.θ))
+        β = first(
+            model.β_ann(
+                SVector{3}(
+                    t / model.time_scale,
+                    S / model.population,
+                    I / model.population,
+                ),
+                pnamed.θ,
+            ),
+        )
         SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, pnamed.α), t)
     end
     return nothing
@@ -188,10 +203,13 @@ function Re(
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
-    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
-    β_ann_input = [(S ./ N)'; (I ./ N)']
+    β_ann_input = [
+        (collect(saveat) ./ model.time_scale)'
+        (S ./ model.population)'
+        (I ./ model.population)'
+    ]
 
     βt = vec(model.β_ann(β_ann_input, pnamed.θ))
     Re = βt ./ pnamed.γ
@@ -235,16 +253,20 @@ struct SEIRDFbMobility1{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
     γ_bounds::Tuple{T,T}
     λ_bounds::Tuple{T,T}
     α_bounds::Tuple{T,T}
+    population::T
+    time_scale::T
     movement_range_data::DS
 
     function SEIRDFbMobility1(
         γ_bounds::Tuple{T,T},
         λ_bounds::Tuple{T,T},
         α_bounds::Tuple{T,T},
+        population::T,
+        time_scale::T,
         movement_range_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(4, 8, mish),
+            StaticDense(5, 8, mish),
             StaticDense(8, 8, mish),
             StaticDense(8, 8, mish),
             StaticDense(8, 1, softplus),
@@ -255,6 +277,8 @@ struct SEIRDFbMobility1{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
             γ_bounds,
             λ_bounds,
             α_bounds,
+            population,
+            time_scale,
             movement_range_data,
         )
     end
@@ -278,14 +302,15 @@ function (model::SEIRDFbMobility1)(du, u, p, t)
     @inbounds begin
         time_idx = Int(floor(t + 1))
         # states and params
-        S, _, I, _, _, N = u
+        S, _, I, _, _, _, _, _ = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         β = first(
             model.β_ann(
-                SVector{4}(
-                    S / N,
-                    I / N,
+                SVector{5}(
+                    t / model.time_scale,
+                    S / model.population,
+                    I / model.population,
                     model.movement_range_data[1, time_idx],
                     model.movement_range_data[2, time_idx],
                 ),
@@ -327,11 +352,15 @@ function Re(
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
-    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
-    β_ann_input = [(S ./ N)'; (I ./ N)'; mobility]
+    β_ann_input = [
+        (collect(saveat) ./ mode.time_scale)'
+        (S ./ model.population)'
+        (I ./ model.population)'
+        mobility
+    ]
 
     βt = vec(model.β_ann(β_ann_input, pnamed.θ))
     Re = βt ./ pnamed.γ
@@ -379,6 +408,8 @@ struct SEIRDFbMobility2{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
     γ_bounds::Tuple{T,T}
     λ_bounds::Tuple{T,T}
     α_bounds::Tuple{T,T}
+    population::T
+    time_scale::T
     movement_range_data::DS
     social_proximity_data::DS
 
@@ -386,11 +417,13 @@ struct SEIRDFbMobility2{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         γ_bounds::Tuple{T,T},
         λ_bounds::Tuple{T,T},
         α_bounds::Tuple{T,T},
+        population::T,
+        time_scale::T,
         movement_range_data::DS,
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(5, 8, mish),
+            StaticDense(6, 8, mish),
             StaticDense(8, 8, mish),
             StaticDense(8, 8, mish),
             StaticDense(8, 1, softplus),
@@ -401,6 +434,8 @@ struct SEIRDFbMobility2{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
             γ_bounds,
             λ_bounds,
             α_bounds,
+            population,
+            time_scale,
             movement_range_data,
             social_proximity_data,
         )
@@ -425,14 +460,15 @@ function (model::SEIRDFbMobility2)(du, u, p, t)
     @inbounds begin
         time_idx = Int(floor(t + 1))
         # states and params
-        S, _, I, _, _, N = u
+        S, _, I, _, _, _, _, _ = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         β = first(
             model.β_ann(
-                SVector{5}(
-                    S / N,
-                    I / N,
+                SVector{6}(
+                    t / model.time_scale,
+                    S / model.population,
+                    I / model.population,
                     model.movement_range_data[1, time_idx],
                     model.movement_range_data[2, time_idx],
                     model.social_proximity_data[1, time_idx],
@@ -475,12 +511,17 @@ function Re(
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
-    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
-    β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
+    β_ann_input = [
+        (collect(saveat) ./ model.time_scale)'
+        (S ./ model.population)'
+        (I ./ model.population)'
+        mobility
+        proximity
+    ]
 
     βt = vec(model.β_ann(β_ann_input, pnamed.θ))
     Re = βt ./ pnamed.γ
@@ -533,6 +574,8 @@ struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
     γ_bounds::Tuple{T,T}
     λ_bounds::Tuple{T,T}
     α_bounds::Tuple{T,T}
+    population::T
+    time_scale::T
     movement_range_data::DS
     social_proximity_data::DS
 
@@ -541,11 +584,13 @@ struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         γ_bounds::Tuple{T,T},
         λ_bounds::Tuple{T,T},
         α_bounds::Tuple{T,T},
+        population::T,
+        time_scale::T,
         movement_range_data::DS,
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(5, 8, mish),
+            StaticDense(6, 8, mish),
             StaticDense(8, 8, mish),
             StaticDense(8, 8, mish),
             StaticDense(8, 1, x -> boxconst(x, β_bounds)),
@@ -557,6 +602,8 @@ struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
             γ_bounds,
             λ_bounds,
             α_bounds,
+            population,
+            time_scale,
             movement_range_data,
             social_proximity_data,
         )
@@ -582,14 +629,15 @@ function (model::SEIRDFbMobility3)(du, u, p, t)
     @inbounds begin
         time_idx = Int(floor(t + 1))
         # states and params
-        S, _, I, _, _, N = u
+        S, _, I, _, _, _, _, _ = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         β = first(
             model.β_ann(
-                SVector{5}(
-                    S / N,
-                    I / N,
+                SVector{6}(
+                    t / model.time_scale,
+                    S / model.population,
+                    I / model.population,
                     model.movement_range_data[1, time_idx],
                     model.movement_range_data[2, time_idx],
                     model.social_proximity_data[1, time_idx],
@@ -600,6 +648,53 @@ function (model::SEIRDFbMobility3)(du, u, p, t)
         SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, pnamed.α), t)
     end
     return nothing
+end
+
+"""
+    Re(
+        model::SEIRDFbMobility3,
+        u0::AbstractVector{T},
+        params::AbstractVector{T},
+        tspan::Tuple{T,T},
+        saveat::Ts,
+    ) where {T<:Real,Ts}
+
+Get the effective reproduction rate calculated from the model
+
+# Arguments
+
++ `model`: the model from which the effective reproduction number is calculated
++ `u0`: the model initial conditions
++ `params`: the model parameters
++ `tspan`: the simulated time span
++ `saveat`: the collocation points that will be saved
+"""
+function Re(
+    model::SEIRDFbMobility3,
+    u0::AbstractVector{T},
+    params::AbstractVector{T},
+    tspan::Tuple{T,T},
+    saveat::Ts,
+) where {T<:Real,Ts}
+    sol = default_solve(model, u0, params, tspan, saveat)
+    states = Array(sol)
+    S = @view states[1, :]
+    I = @view states[3, :]
+
+    pnamed = namedparams(model, params)
+    mobility = @view model.movement_range_data[:, Int.(saveat).+1]
+    proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
+    β_ann_input = [
+        (collect(saveat) ./ model.time_scale)'
+        (S ./ model.population)'
+        (I ./ model.population)'
+        mobility
+        proximity
+    ]
+
+    βt = vec(model.β_ann(β_ann_input, pnamed.θ))
+    Re = βt ./ pnamed.γ
+    return Re
 end
 
 """
@@ -645,48 +740,6 @@ namedparams(
     α = boxconst(params[3], model.α_bounds),
     θ = @view(params[4:4+model.β_ann_paramlength-1]),
 )
-
-"""
-    Re(
-        model::SEIRDFbMobility3,
-        u0::AbstractVector{T},
-        params::AbstractVector{T},
-        tspan::Tuple{T,T},
-        saveat::Ts,
-    ) where {T<:Real,Ts}
-
-Get the effective reproduction rate calculated from the model
-
-# Arguments
-
-+ `model`: the model from which the effective reproduction number is calculated
-+ `u0`: the model initial conditions
-+ `params`: the model parameters
-+ `tspan`: the simulated time span
-+ `saveat`: the collocation points that will be saved
-"""
-function Re(
-    model::SEIRDFbMobility3,
-    u0::AbstractVector{T},
-    params::AbstractVector{T},
-    tspan::Tuple{T,T},
-    saveat::Ts,
-) where {T<:Real,Ts}
-    sol = default_solve(model, u0, params, tspan, saveat)
-    states = Array(sol)
-    S = @view states[1, :]
-    I = @view states[3, :]
-    N = @view states[6, :]
-
-    pnamed = namedparams(model, params)
-    mobility = @view model.movement_range_data[:, Int.(saveat).+1]
-    proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
-    β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
-
-    βt = vec(model.β_ann(β_ann_input, pnamed.θ))
-    Re = βt ./ pnamed.γ
-    return Re
-end
 
 """
     SEIRDFbMobility4{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <:
@@ -738,6 +791,8 @@ struct SEIRDFbMobility4{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
     γ_bounds::Tuple{T,T}
     λ_bounds::Tuple{T,T}
     α_bounds::Tuple{T,T}
+    population::T
+    time_scale::T
     movement_range_data::DS
     social_proximity_data::DS
 
@@ -746,20 +801,19 @@ struct SEIRDFbMobility4{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
         γ_bounds::Tuple{T,T},
         λ_bounds::Tuple{T,T},
         α_bounds::Tuple{T,T},
+        population::T,
+        time_scale::T,
         movement_range_data::DS,
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(5, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(6, 16, mish),
+            StaticDense(16, 16, mish),
+            StaticDense(16, 1, x -> boxconst(x, β_bounds)),
         )
         α_ann = FastChain(
-            StaticDense(2, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 1, x -> boxconst(x, α_bounds)),
+            StaticDense(3, 16, mish),
+            StaticDense(16, 1, x -> boxconst(x, α_bounds)),
         )
         return new{typeof(β_ann),typeof(α_ann),T,DS}(
             β_ann,
@@ -770,6 +824,8 @@ struct SEIRDFbMobility4{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
             γ_bounds,
             λ_bounds,
             α_bounds,
+            population,
+            time_scale,
             movement_range_data,
             social_proximity_data,
         )
@@ -796,14 +852,15 @@ function (model::SEIRDFbMobility4)(du, u, p, t)
     @inbounds begin
         time_idx = Int(floor(t + 1))
         # states and params
-        S, _, I, R, D, N = u
+        S, _, I, _, D, _, _, _ = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         β = first(
             model.β_ann(
-                SVector{5}(
-                    S / N,
-                    I / N,
+                SVector{6}(
+                    t / model.time_scale,
+                    S / model.population,
+                    I / model.population,
                     model.movement_range_data[1, time_idx],
                     model.movement_range_data[2, time_idx],
                     model.social_proximity_data[1, time_idx],
@@ -811,7 +868,16 @@ function (model::SEIRDFbMobility4)(du, u, p, t)
                 pnamed.θ1,
             ),
         )
-        α = first(model.α_ann(SVector{2}(I / N, D / N), pnamed.θ2))
+        α = first(
+            model.α_ann(
+                SVector{3}(
+                    t / model.time_scale,
+                    I / model.population,
+                    D / model.population,
+                ),
+                pnamed.θ2,
+            ),
+        )
         SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, α), t)
     end
     return nothing
@@ -882,12 +948,17 @@ function Re(
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
-    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
-    β_ann_input = [(S ./ N)'; (I ./ N)'; mobility; proximity]
+    β_ann_input = [
+        (collect(saveat) ./ model.time_scale)'
+        (S ./ model.population)'
+        (I ./ model.population)'
+        mobility
+        proximity
+    ]
 
     βt = vec(model.β_ann(β_ann_input, pnamed.θ1))
     Re = βt ./ pnamed.γ
@@ -905,10 +976,13 @@ function fatality_rate(
     states = Array(sol)
     I = @view states[3, :]
     D = @view states[5, :]
-    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
-    α_ann_input = [(I ./ N)'; (D ./ N)']
+    α_ann_input = [
+        (collect(saveat) ./ model.time_scale)'
+        (I ./ model.population)'
+        (D ./ model.population)'
+    ]
     αt = vec(model.α_ann(α_ann_input, pnamed.θ2))
     return αt
 end
