@@ -39,7 +39,6 @@ function setup_training_callback(
         LogCallbackConfig(
             eval_loss,
             test_loss,
-            100,
             get_losses_save_fpath(snapshots_dir, uuid),
             get_params_save_fpath(snapshots_dir, uuid),
         ),
@@ -51,7 +50,6 @@ function setup_training_callback(
             predictor,
             train_dataset,
             test_dataset,
-            100,
             get_forecasts_save_fpath(snapshots_dir, uuid),
         ),
     )
