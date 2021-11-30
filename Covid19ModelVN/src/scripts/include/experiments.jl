@@ -491,6 +491,8 @@ function setup_fbmobility5(
         γ_bounds,
         λ_bounds,
         α_bounds,
+        Float32(get_prebuilt_population(loc)),
+        Float32(Dates.value(last_date - first_date)),
         movement_range_data,
         social_proximity_data,
     )
