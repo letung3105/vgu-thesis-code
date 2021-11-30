@@ -115,7 +115,7 @@ function train_growing_trajectory(
         train_loss = Loss{true}(lossfn, predictor, train_dataset_batch)
 
         @info(
-            "Growed fitting time span",
+            "Grew fitting time span",
             uuid,
             tspan = repr(train_dataset_batch.tspan),
             tsteps = repr(train_dataset_batch.tsteps),
@@ -179,7 +179,7 @@ function train_growing_trajectory_two_stages(
         train_loss = Loss{true}(lossfn, predictor, train_dataset_batch)
 
         @info(
-            "Growed fitting time span",
+            "Grew fitting time span",
             uuid,
             tspan = repr(train_dataset_batch.tspan),
             tsteps = repr(train_dataset_batch.tsteps),
