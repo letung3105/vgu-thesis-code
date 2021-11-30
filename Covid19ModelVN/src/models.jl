@@ -356,7 +356,7 @@ function Re(
     pnamed = namedparams(model, params)
     mobility = @view model.movement_range_data[:, Int.(saveat).+1]
     β_ann_input = [
-        (collect(saveat) ./ mode.time_scale)'
+        (collect(saveat) ./ model.time_scale)'
         (S ./ model.population)'
         (I ./ model.population)'
         mobility
