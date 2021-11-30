@@ -13,7 +13,7 @@ function __init__()
             + https://dataforgood.facebook.com/dfg/tools/social-connectedness-index
             """,
             [
-                "https://github.com/letung3105/coviddata/raw/master/facebook/movement-range-data-2021-10-09.zip"
+                "https://github.com/letung3105/coviddata/raw/master/facebook/movement-range-data-2021-11-24.zip"
                 "https://github.com/letung3105/coviddata/raw/master/facebook/movement-range-data-2020-03-01-2020-12-31.zip"
                 "https://github.com/letung3105/coviddata/raw/master/facebook/gadm1_nuts2-gadm1_nuts2-fb-social-connectedness-index-october-2021.zip"
                 "https://github.com/letung3105/coviddata/raw/master/facebook/us-counties-us-counties-fb-social-connectedness-index-october-2021.zip"
@@ -173,7 +173,7 @@ end
 """
     save_region_average_movement_range(
         files::AbstractVector{RegionMovementRangeFile};
-        fpath_movement_range::AbstractString = datadep"facebook/movement-range-2021-10-09.txt",
+        fpath_movement_range::AbstractString = datadep"facebook/movement-range-2021-11-24.txt",
         recreate::Bool = false,
     )
 
