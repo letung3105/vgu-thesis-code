@@ -122,10 +122,10 @@ struct SEIRDBaseline{ANN<:FastChain,T<:Real} <: AbstractCovidModel
         time_scale::T,
     ) where {T<:Real}
         β_ann = FastChain(
-            FastDense(3, 32, mish),
-            FastDense(32, 16, mish),
-            FastDense(16, 8, mish),
-            FastDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(3, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
         )
         return new{typeof(β_ann),T}(
             β_ann,
@@ -266,10 +266,10 @@ struct SEIRDFbMobility1{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         movement_range_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            FastDense(5, 32, mish),
-            FastDense(32, 16, mish),
-            FastDense(16, 8, mish),
-            FastDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(5, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
         )
         return new{typeof(β_ann),T,DS}(
             β_ann,
@@ -423,10 +423,10 @@ struct SEIRDFbMobility2{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            FastDense(6, 32, mish),
-            FastDense(32, 16, mish),
-            FastDense(16, 8, mish),
-            FastDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(6, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
         )
         return new{typeof(β_ann),T,DS}(
             β_ann,
@@ -590,10 +590,10 @@ struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            FastDense(6, 32, mish),
-            FastDense(32, 16, mish),
-            FastDense(16, 8, mish),
-            FastDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(6, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
         )
         return new{typeof(β_ann),T,DS}(
             β_ann,
@@ -807,14 +807,14 @@ struct SEIRDFbMobility4{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            FastDense(6, 32, mish),
-            FastDense(32, 16, mish),
-            FastDense(16, 8, mish),
-            FastDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(6, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 8, mish),
+            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
         )
         α_ann = FastChain(
-            FastDense(3, 32, mish),
-            FastDense(32, 1, x -> boxconst(x, α_bounds)),
+            StaticDense(3, 8, mish),
+            StaticDense(8, 1, x -> boxconst(x, α_bounds)),
         )
         return new{typeof(β_ann),typeof(α_ann),T,DS}(
             β_ann,
@@ -1051,11 +1051,10 @@ struct SEIRDFbMobility5{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         ann = FastChain(
-            FastDense(8, 64, mish),
-            FastDense(64, 32, mish),
-            FastDense(32, 16, mish),
-            FastDense(16, 8, mish),
-            FastDense(8, 2),
+            StaticDense(8, 16, mish),
+            StaticDense(16, 16, mish),
+            StaticDense(16, 16, mish),
+            StaticDense(16, 2),
         )
         return new{typeof(ann),T,DS}(
             ann,
@@ -1092,7 +1091,7 @@ function (model::SEIRDFbMobility5)(du, u, p, t)
     @inbounds begin
         time_idx = Int(floor(t + 1))
         # states and params
-        S, _, I, R, D, N = u
+        S, _, I, R, D, _, _, _ = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         ann_out = model.ann(
