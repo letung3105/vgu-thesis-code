@@ -125,7 +125,7 @@ struct SEIRDBaseline{ANN<:FastChain,T<:Real} <: AbstractCovidModel
             StaticDense(3, 8, mish),
             StaticDense(8, 8, mish),
             StaticDense(8, 8, mish),
-            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(8, 1, softplus),
         )
         return new{typeof(β_ann),T}(
             β_ann,
@@ -269,7 +269,7 @@ struct SEIRDFbMobility1{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
             StaticDense(5, 8, mish),
             StaticDense(8, 8, mish),
             StaticDense(8, 8, mish),
-            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(8, 1, softplus),
         )
         return new{typeof(β_ann),T,DS}(
             β_ann,
@@ -426,7 +426,7 @@ struct SEIRDFbMobility2{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
             StaticDense(6, 8, mish),
             StaticDense(8, 8, mish),
             StaticDense(8, 8, mish),
-            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(8, 1, softplus),
         )
         return new{typeof(β_ann),T,DS}(
             β_ann,
