@@ -249,9 +249,9 @@ function train_whole_trajectory(
     end
     # NOTE: order must be WeightDecay --> ADAM --> ExpDecay
     opt = Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit))
-    res = DiffEqFlux.sciml_train(train_loss, params, opt; maxiters, cb)
+    DiffEqFlux.sciml_train(train_loss, params, opt; maxiters, cb)
 
-    return res.minimizer, cb_log.state.eval_losses, cb_log.state.test_losses
+    return cb_log.state.minimizer, cb_log.state.eval_losses, cb_log.state.test_losses
 end
 
 function train_whole_trajectory_two_stages(
@@ -295,19 +295,19 @@ function train_whole_trajectory_two_stages(
     end
     # NOTE: order must be WeightDecay --> ADAM --> ExpDecay
     opt1 = Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit))
-    res1 = DiffEqFlux.sciml_train(train_loss1, params, opt1; maxiters = maxiters_first, cb)
+    DiffEqFlux.sciml_train(train_loss1, params, opt1; maxiters = maxiters_first, cb)
 
     @info("Training with LBFGS optimizer", uuid)
     train_loss2 = Loss{true}(lossfn, predictor, train_dataset)
     opt2 = LBFGS()
-    res2 = DiffEqFlux.sciml_train(
+    DiffEqFlux.sciml_train(
         train_loss2,
-        res1.minimizer,
+        cb_log.state.minimizer,
         opt2;
         maxiters = maxiters_second,
         allow_f_increases = true,
         cb,
     )
 
-    return res2.minimizer, cb_log.state.eval_losses, cb_log.state.test_losses
+    return cb_log.state.minimizer, cb_log.state.eval_losses, cb_log.state.test_losses
 end
