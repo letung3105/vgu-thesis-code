@@ -131,7 +131,7 @@ struct Loss{Reg,Metric,Predict,DataCycle,R<:Real}
         dataset::TimeseriesDataset,
         batchsize = length(dataset.tsteps),
     )
-        dataloader = timeseries_dataloader(dataset, batchsize)
+        dataloader = TimeseriesDataloader(dataset, batchsize)
         datacycle = dataloader |> Iterators.cycle |> Iterators.Stateful
         return new{
             false,
@@ -153,7 +153,7 @@ struct Loss{Reg,Metric,Predict,DataCycle,R<:Real}
         dataset::TimeseriesDataset,
         batchsize = length(dataset.tsteps),
     )
-        dataloader = timeseries_dataloader(dataset, batchsize)
+        dataloader = TimeseriesDataloader(dataset, batchsize)
         datacycle = dataloader |> Iterators.cycle |> Iterators.Stateful
         return new{
             true,

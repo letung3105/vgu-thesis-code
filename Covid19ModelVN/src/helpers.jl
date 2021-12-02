@@ -52,18 +52,22 @@ struct TimeseriesDataset{R<:Real,Data<:AbstractMatrix{R},Tspan<:Tuple{R,R},Tstep
     tsteps::Tsteps
 end
 
-"""
-    timeseries_dataloader(dataset::TimeseriesDataset, batchsize::Integer)
+struct TimeseriesDataloader{DS<:TimeseriesDataset}
+    dataset::DS
+    batchsize::Int
+end
 
-Create a `Flux.Dataloader` that returns the data and time steps within a time span from the dataset.
+Base.iterate(loader::TimeseriesDataloader) = iterate(loader, 1)
 
-# Arguments
-
-* `dataset`: the dataset that the loaders will use
-* `batchsize`: number of data points that are in a batch
-"""
-timeseries_dataloader(dataset::TimeseriesDataset, batchsize::Integer) =
-    Flux.DataLoader((dataset.data, dataset.tsteps); batchsize)
+function Base.iterate(loader::TimeseriesDataloader, start)
+    if start > size(loader.dataset.data, 2) - loader.batchsize + 1
+        return nothing
+    end
+    stop = start + loader.batchsize - 1
+    @views data = loader.dataset.data[:, start:stop]
+    @views tsteps = loader.dataset.tsteps[start:stop]
+    return (data, tsteps), start + 1
+end
 
 """
     train_test_split(
