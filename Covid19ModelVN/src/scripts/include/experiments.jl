@@ -32,7 +32,13 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
     end
 
     # select data starting from when total deaths >= 1 and confirmed >= 500
-    dates = subset(df, :confirmed_total => x -> x .>= 500, view = true).date
+    dates =
+        subset(
+            df,
+            :deaths_total => x -> x .>= 1,
+            :confirmed_total => x -> x .>= 500,
+            view = true,
+        ).date
     first_date = first(dates)
     split_date = first_date + train_range - Day(1)
     last_date = split_date + forecast_range
