@@ -77,7 +77,7 @@ function (p::Predictor)(params, tspan, saveat)
 end
 
 """
-    Loss{Metric,Predict,DataIter,R<:Real}
+    Loss{Metric,Predict,DataIter}
 
 A callable struct that uses `metric` to calculate the loss between the output of
 `predict` and `dataset`.
@@ -107,7 +107,7 @@ A callable struct that uses `metric` to calculate the loss between the output of
 
 # Callable
 
-    (l::Loss{Metric,Predict,DataCycle,R})(
+    (l::Loss{Metric,Predict,DataCycle})(
         params,
     ) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful,R<:Real}
 
@@ -119,11 +119,10 @@ truth data.
 
 * `params`: the set of parameters of the model
 """
-struct Loss{Reg,Metric,Predict,DataCycle,R<:Real}
+struct Loss{Reg,Metric,Predict,DataCycle}
     metric::Metric
     predict::Predict
     datacycle::DataCycle
-    tspan::Tuple{R,R}
 
     function Loss{false}(
         metric,
@@ -133,17 +132,10 @@ struct Loss{Reg,Metric,Predict,DataCycle,R<:Real}
     )
         dataloader = TimeseriesDataloader(dataset, batchsize)
         datacycle = dataloader |> Iterators.cycle |> Iterators.Stateful
-        return new{
-            false,
-            typeof(metric),
-            typeof(predict),
-            typeof(datacycle),
-            eltype(dataset.tspan),
-        }(
+        return new{false,typeof(metric),typeof(predict),typeof(datacycle)}(
             metric,
             predict,
             datacycle,
-            dataset.tspan,
         )
     end
 
@@ -155,26 +147,19 @@ struct Loss{Reg,Metric,Predict,DataCycle,R<:Real}
     )
         dataloader = TimeseriesDataloader(dataset, batchsize)
         datacycle = dataloader |> Iterators.cycle |> Iterators.Stateful
-        return new{
-            true,
-            typeof(metric),
-            typeof(predict),
-            typeof(datacycle),
-            eltype(dataset.tspan),
-        }(
+        return new{true,typeof(metric),typeof(predict),typeof(datacycle)}(
             metric,
             predict,
             datacycle,
-            dataset.tspan,
         )
     end
 end
 
-function (l::Loss{false,Metric,Predict,DataCycle,R})(
+function (l::Loss{false,Metric,Predict,DataCycle})(
     params,
 ) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful,R<:Real}
-    data, tsteps = popfirst!(l.datacycle)
-    sol = l.predict(params, l.tspan, tsteps)
+    data, tspan, tsteps = popfirst!(l.datacycle)
+    sol = l.predict(params, tspan, tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
         return Inf
@@ -187,11 +172,11 @@ function (l::Loss{false,Metric,Predict,DataCycle,R})(
     return l.metric(pred, data)
 end
 
-function (l::Loss{true,Metric,Predict,DataCycle,R})(
+function (l::Loss{true,Metric,Predict,DataCycle})(
     params,
 ) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful,R<:Real}
-    data, tsteps = popfirst!(l.datacycle)
-    sol = l.predict(params, l.tspan, tsteps)
+    data, tspan, tsteps = popfirst!(l.datacycle)
+    sol = l.predict(params, tspan, tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
         return Inf

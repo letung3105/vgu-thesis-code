@@ -66,7 +66,8 @@ function Base.iterate(loader::TimeseriesDataloader, start)
     stop = start + loader.batchsize - 1
     @views data = loader.dataset.data[:, start:stop]
     @views tsteps = loader.dataset.tsteps[start:stop]
-    return (data, tsteps), start + 1
+    tspan = (loader.dataset.tspan[1], tsteps[end])
+    return (data, tspan, tsteps), start + 1
 end
 
 """
