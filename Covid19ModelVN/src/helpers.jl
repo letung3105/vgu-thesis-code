@@ -55,19 +55,34 @@ end
 struct TimeseriesDataloader{DS<:TimeseriesDataset}
     dataset::DS
     batchsize::Int
+    indices::Vector{Int}
+
+    TimeseriesDataloader(dataset, batchsize::Int) = new{typeof(dataset)}(
+        dataset,
+        batchsize,
+        Vector{Int}(undef, size(dataset.data, 2) - batchsize + 1),
+    )
+
 end
 
-Base.iterate(loader::TimeseriesDataloader) = iterate(loader, 1)
+function Base.iterate(loader::TimeseriesDataloader)
+    randperm!(loader.indices)
+    return iterate(loader, 1)
+end
 
-function Base.iterate(loader::TimeseriesDataloader, start)
-    if start > size(loader.dataset.data, 2) - loader.batchsize + 1
+function Base.iterate(loader::TimeseriesDataloader, cursor)
+    if cursor > length(loader.indices)
         return nothing
     end
+
+    start = loader.indices[cursor]
     stop = start + loader.batchsize - 1
-    @views data = loader.dataset.data[:, start:stop]
-    @views tsteps = loader.dataset.tsteps[start:stop]
+
+    data = @view loader.dataset.data[:, start:stop]
+    tsteps = loader.dataset.tsteps[start:stop]
     tspan = (loader.dataset.tspan[1], tsteps[end])
-    return (data, tspan, tsteps), start + 1
+
+    return (data, tspan, tsteps), cursor + 1
 end
 
 """

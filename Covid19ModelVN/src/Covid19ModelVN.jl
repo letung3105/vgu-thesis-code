@@ -1,6 +1,6 @@
 module Covid19ModelVN
 
-using Dates, Statistics, Serialization
+using Dates, Statistics, Serialization, Random
 using CairoMakie, DataDeps, DataFrames, CSV
 using OrdinaryDiffEq, DiffEqFlux
 using StaticArrays
