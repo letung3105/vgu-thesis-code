@@ -52,7 +52,14 @@ function experiment_movement_range(loc::AbstractString, first_date::Date, last_d
     df[!, cols] .= Float32.(df[!, cols])
     # smooth out weekly seasonality
     moving_average!(df, cols, 7)
-    return load_timeseries(TimeseriesConfig(df, "ds", cols), first_date, last_date)
+    movement_range_data =
+        load_timeseries(TimeseriesConfig(df, "ds", cols), first_date, last_date)
+    # min-max scaling
+    movement_range_min = minimum(movement_range_data, dims = 2)
+    movement_range_max = maximum(movement_range_data, dims = 2)
+    movement_range_data .-= movement_range_min
+    movement_range_data ./= movement_range_max .- movement_range_min
+    return movement_range_data
 end
 
 function experiment_social_proximity(loc::AbstractString, first_date::Date, last_date::Date)
@@ -60,7 +67,14 @@ function experiment_social_proximity(loc::AbstractString, first_date::Date, last
     df[!, col] .= Float32.(df[!, col])
     # smooth out weekly seasonality
     moving_average!(df, col, 7)
-    return load_timeseries(TimeseriesConfig(df, "date", [col]), first_date, last_date)
+    social_proximity_data =
+        load_timeseries(TimeseriesConfig(df, "date", [col]), first_date, last_date)
+    # min-max scaling
+    social_proximity_min = minimum(social_proximity_data, dims = 2)
+    social_proximity_max = maximum(social_proximity_data, dims = 2)
+    social_proximity_data .-= social_proximity_min
+    social_proximity_data ./= social_proximity_max .- social_proximity_min
+    return social_proximity_data
 end
 
 function experiment_SEIRD_initial_states(
