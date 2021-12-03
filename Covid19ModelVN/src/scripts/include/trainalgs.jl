@@ -120,7 +120,7 @@ function train_growing_trajectory(
         )
 
         @info("Training with ADAM optimizer", uuid)
-        # NOTE: order must be WeightDecay --> ADAM --> ExpDecay
+        # NOTE: order must be ADAM --> ExpDecay
         res = DiffEqFlux.sciml_train(
             Loss{true}(lossfn, predictor, train_dataset_batch),
             params,
@@ -186,7 +186,7 @@ function train_growing_trajectory_two_stages(
         )
 
         @info("Training with ADAM optimizer", uuid)
-        # NOTE: order must be WeightDecay --> ADAM --> ExpDecay
+        # NOTE: order must be ADAM --> ExpDecay
         res = DiffEqFlux.sciml_train(
             Loss{true}(lossfn, predictor, train_dataset_batch),
             params,
@@ -245,12 +245,12 @@ function train_whole_trajectory(
     )
 
     @info("Training with ADAM optimizer", uuid)
-    # NOTE: order must be WeightDecay --> ADAM --> ExpDecay
+    # NOTE: order must be ADAM --> ExpDecay
     DiffEqFlux.sciml_train(
         if minibatching != 0
-            Loss(lossfn, predictor, train_dataset, minibatching)
+            Loss{true}(lossfn, predictor, train_dataset, minibatching)
         else
-            Loss(lossfn, predictor, train_dataset)
+            Loss{true}(lossfn, predictor, train_dataset)
         end,
         params,
         Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit));
@@ -295,7 +295,7 @@ function train_whole_trajectory_two_stages(
     )
 
     @info("Training with ADAM optimizer", uuid)
-    # NOTE: order must be WeightDecay --> ADAM --> ExpDecay
+    # NOTE: order must be ADAM --> ExpDecay
     DiffEqFlux.sciml_train(
         if minibatching != 0
             Loss{true}(lossfn, predictor, train_dataset, minibatching)
