@@ -58,11 +58,7 @@ struct TimeseriesDataLoader{DS<:TimeseriesDataset}
     indices::Vector{Int}
 
     TimeseriesDataLoader(dataset::DS, batchsize::Int) where {DS<:TimeseriesDataset} =
-        new{DS}(
-            dataset,
-            batchsize,
-            Vector{Int}(undef, size(dataset.data, 2) - batchsize + 1),
-        )
+        new{DS}(dataset, batchsize, randperm(size(dataset.data, 2) - batchsize + 1))
 end
 
 function Base.iterate(loader::TimeseriesDataLoader)
