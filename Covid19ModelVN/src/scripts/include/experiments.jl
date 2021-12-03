@@ -128,7 +128,7 @@ function experiment_loss_ssle() where {R<:Real}
         s = zero(R)
         sz = size(y)
         @inbounds for j ∈ 1:sz[2], i ∈ 1:sz[1]
-            s += (log(ŷ[i, j] + 1) - log(y[i, j] + 1))^2
+            s += (log(ŷ[i, j] + 1) - log(y[i, j] + 1))^2 / sz[2]
         end
         return s
     end
@@ -141,7 +141,7 @@ function experiment_loss_sse(min::AbstractVector{R}, max::AbstractVector{R}) whe
         s = zero(R)
         sz = size(y)
         @inbounds for j ∈ 1:sz[2], i ∈ 1:sz[1]
-            s += ((ŷ[i, j] - y[i, j]) / scale[i])^2
+            s += ((ŷ[i, j] - y[i, j]) / scale[i])^2 / sz[2]
         end
         return s
     end
