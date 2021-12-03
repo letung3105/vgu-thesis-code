@@ -61,10 +61,7 @@ struct TimeseriesDataLoader{DS<:TimeseriesDataset}
         new{DS}(dataset, batchsize, Vector(1:(size(dataset.data, 2)-batchsize+1)))
 end
 
-function Base.iterate(loader::TimeseriesDataLoader)
-    Zygote.@ignore randperm!(loader.indices)
-    return iterate(loader, 0)
-end
+Base.iterate(loader::TimeseriesDataLoader) = iterate(loader, 0)
 
 function Base.iterate(loader::TimeseriesDataLoader, cursor)
     cursor += 1
