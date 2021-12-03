@@ -186,7 +186,7 @@ function (l::Loss{true,Metric,Predict,DataCycle})(
         # Unstable trajectories / Wrong inputs
         return Inf
     end
-    return l.metric(pred, data, params)
+    return l.metric(pred, data, params, tsteps)
 end
 
 """

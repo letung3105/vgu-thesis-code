@@ -43,6 +43,7 @@ get_baseline_hyperparams(parsed_args) = (
     forecast_range = Day(parsed_args[:test_days]),
     loss_type = parsed_args[:loss_type],
     loss_regularization = parsed_args[:loss_regularization],
+    loss_time_weighting = parsed_args[:loss_time_weighting],
 )
 
 get_fbmobility1_hyperparams(parsed_args) = (
@@ -56,6 +57,7 @@ get_fbmobility1_hyperparams(parsed_args) = (
     forecast_range = Day(parsed_args[:test_days]),
     loss_type = parsed_args[:loss_type],
     loss_regularization = parsed_args[:loss_regularization],
+    loss_time_weighting = parsed_args[:loss_time_weighting],
 )
 
 get_fbmobility2_hyperparams(parsed_args) = (
@@ -70,6 +72,7 @@ get_fbmobility2_hyperparams(parsed_args) = (
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     loss_type = parsed_args[:loss_type],
     loss_regularization = parsed_args[:loss_regularization],
+    loss_time_weighting = parsed_args[:loss_time_weighting],
 )
 
 get_fbmobility3_hyperparams(parsed_args) = (
@@ -85,6 +88,7 @@ get_fbmobility3_hyperparams(parsed_args) = (
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     loss_type = parsed_args[:loss_type],
     loss_regularization = parsed_args[:loss_regularization],
+    loss_time_weighting = parsed_args[:loss_time_weighting],
 )
 
 get_fbmobility4_hyperparams(parsed_args) = (
@@ -99,6 +103,7 @@ get_fbmobility4_hyperparams(parsed_args) = (
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     loss_type = parsed_args[:loss_type],
     loss_regularization = parsed_args[:loss_regularization],
+    loss_time_weighting = parsed_args[:loss_time_weighting],
 )
 
 get_fbmobility5_hyperparams(parsed_args) = (
@@ -113,6 +118,7 @@ get_fbmobility5_hyperparams(parsed_args) = (
     social_proximity_lag = Day(parsed_args[:spc_lag_days]),
     loss_type = parsed_args[:loss_type],
     loss_regularization = parsed_args[:loss_regularization],
+    loss_time_weighting = parsed_args[:loss_time_weighting],
 )
 
 function parse_commandline(args)
@@ -126,7 +132,7 @@ function parse_commandline(args)
         name == :fbmobility4 ||
         name == :fbmobility5
 
-    isvalidloss(name) = name == :ssle || name == :polar || name == :sse
+    isvalidloss(name) = name == :ssle || name == :sse
 
     @add_arg_table s begin
         "model_name"
@@ -247,6 +253,10 @@ function parse_commandline(args)
         arg_type = Float64
         default = 0.0
 
+        "--loss_time_weighting"
+        help = "scaling factor for the time scaling"
+        arg_type = Float64
+        default = 0.0
     end
 
     @add_arg_table s["train_growing_trajectory"] begin

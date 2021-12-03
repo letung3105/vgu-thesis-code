@@ -103,45 +103,29 @@ function experiment_SEIRD_initial_states(
     return u0, vars, labels
 end
 
-normed_ld(a, b) = abs(norm(a) - norm(b)) / (norm(a) + norm(b))
-cosine_similarity(a, b) = dot(a, b) / (norm(a) * norm(b))
-cosine_distance(a, b) = (1 - cosine_similarity(a, b)) / 2
-
-"""
-[1] R. Vortmeyer-Kley, P. Nieters, and G. Pipa, “A trajectory-based loss function to learn missing terms in bifurcating dynamical systems,” Sci Rep, vol. 11, no. 1, p. 20394, Oct. 2021, doi: 10.1038/s41598-021-99609-x.
-"""
-function experiment_loss_polar(w::Tuple{R,R}) where {R<:Real}
-    lossfn = function (ŷ::AbstractArray{R}, y) where {R<:Real}
-        s = zero(R)
-        sz = size(ŷ)
-        @inbounds for j = 1:sz[2]
-            @views s += w[1] * normed_ld(y[:, j], ŷ[:, j])
-            @views s += w[2] * cosine_distance(y[:, j], ŷ[:, j])
-        end
-        return s
-    end
-    return lossfn
-end
-
-function experiment_loss_ssle() where {R<:Real}
-    lossfn = function (ŷ::AbstractArray{R}, y) where {R<:Real}
+function experiment_loss_ssle(ζ::R) where {R<:Real}
+    lossfn = function (ŷ::AbstractArray{R}, y, tsteps) where {R<:Real}
         s = zero(R)
         sz = size(y)
         @inbounds for j ∈ 1:sz[2], i ∈ 1:sz[1]
-            s += (log(ŷ[i, j] + 1) - log(y[i, j] + 1))^2 / sz[2]
+            s += (log(ŷ[i, j] + 1) - log(y[i, j] + 1))^2 / sz[2] * exp(ζ * tsteps[j])
         end
         return s
     end
     return lossfn
 end
 
-function experiment_loss_sse(min::AbstractVector{R}, max::AbstractVector{R}) where {R<:Real}
+function experiment_loss_sse(
+    min::AbstractVector{R},
+    max::AbstractVector{R},
+    ζ::R,
+) where {R<:Real}
     scale = max .- min
-    lossfn = function (ŷ::AbstractArray{R}, y) where {R<:Real}
+    lossfn = function (ŷ::AbstractArray{R}, y, tsteps) where {R<:Real}
         s = zero(R)
         sz = size(y)
         @inbounds for j ∈ 1:sz[2], i ∈ 1:sz[1]
-            s += ((ŷ[i, j] - y[i, j]) / scale[i])^2 / sz[2]
+            s += ((ŷ[i, j] - y[i, j]) / scale[i])^2 / sz[2] * exp(ζ * tsteps[j])
         end
         return s
     end
@@ -160,6 +144,7 @@ function setup_baseline(
     forecast_range::Day,
     loss_type::Symbol,
     loss_regularization::Float64,
+    loss_time_weighting::Float64,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -184,21 +169,22 @@ function setup_baseline(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
+
     lossfn_inner = if loss_type == :ssle
-        experiment_loss_ssle()
+        experiment_loss_ssle(loss_time_weighting)
     elseif loss_type == :sse
         min = vec(minimum(train_dataset.data, dims = 2))
         max = vec(maximum(train_dataset.data, dims = 2))
-        experiment_loss_sse(min, max)
-    elseif loss_type == :polar
-        experiment_loss_polar((5e-1, 5e-1))
+        experiment_loss_sse(min, max, loss_time_weighting)
     else
         error("Invalid loss function type")
     end
-    lossfn = function (ŷ, y, params)
+
+    lossfn = function (ŷ, y, params, tsteps)
         pnamed = namedparams(model, params)
-        lossfn_inner(ŷ, y) + loss_regularization * sum(abs2, pnamed.θ)
+        return lossfn_inner(ŷ, y, tsteps) + loss_regularization * sum(abs2, pnamed.θ)
     end
+
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -214,6 +200,7 @@ function setup_fbmobility1(
     forecast_range::Day,
     loss_type::Symbol,
     loss_regularization::Float64,
+    loss_time_weighting::Float64,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -243,21 +230,22 @@ function setup_fbmobility1(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
+
     lossfn_inner = if loss_type == :ssle
-        experiment_loss_ssle()
+        experiment_loss_ssle(loss_time_weighting)
     elseif loss_type == :sse
         min = vec(minimum(train_dataset.data, dims = 2))
         max = vec(maximum(train_dataset.data, dims = 2))
-        experiment_loss_sse(min, max)
-    elseif loss_type == :polar
-        experiment_loss_polar((5e-1, 5e-1))
+        experiment_loss_sse(min, max, loss_time_weighting)
     else
         error("Invalid loss function type")
     end
-    lossfn = function (ŷ, y, params)
+
+    lossfn = function (ŷ, y, params, tsteps)
         pnamed = namedparams(model, params)
-        lossfn_inner(ŷ, y) + loss_regularization * sum(abs2, pnamed.θ)
+        return lossfn_inner(ŷ, y, tsteps) + loss_regularization * sum(abs2, pnamed.θ)
     end
+
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -274,6 +262,7 @@ function setup_fbmobility2(
     social_proximity_lag::Day,
     loss_type::Symbol,
     loss_regularization::Float64,
+    loss_time_weighting::Float64,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -312,21 +301,22 @@ function setup_fbmobility2(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
+
     lossfn_inner = if loss_type == :ssle
-        experiment_loss_ssle()
+        experiment_loss_ssle(loss_time_weighting)
     elseif loss_type == :sse
         min = vec(minimum(train_dataset.data, dims = 2))
         max = vec(maximum(train_dataset.data, dims = 2))
-        experiment_loss_sse(min, max)
-    elseif loss_type == :polar
-        experiment_loss_polar((5e-1, 5e-1))
+        experiment_loss_sse(min, max, loss_time_weighting)
     else
         error("Invalid loss function type")
     end
-    lossfn = function (ŷ, y, params)
+
+    lossfn = function (ŷ, y, params, tsteps)
         pnamed = namedparams(model, params)
-        lossfn_inner(ŷ, y) + loss_regularization * sum(abs2, pnamed.θ)
+        return lossfn_inner(ŷ, y, tsteps) + loss_regularization * sum(abs2, pnamed.θ)
     end
+
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -344,6 +334,7 @@ function setup_fbmobility3(
     social_proximity_lag::Day,
     loss_type::Symbol,
     loss_regularization::Float64,
+    loss_time_weighting::Float64,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -383,21 +374,22 @@ function setup_fbmobility3(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0, α0)
+
     lossfn_inner = if loss_type == :ssle
-        experiment_loss_ssle()
+        experiment_loss_ssle(loss_time_weighting)
     elseif loss_type == :sse
         min = vec(minimum(train_dataset.data, dims = 2))
         max = vec(maximum(train_dataset.data, dims = 2))
-        experiment_loss_sse(min, max)
-    elseif loss_type == :polar
-        experiment_loss_polar((5e-1, 5e-1))
+        experiment_loss_sse(min, max, loss_time_weighting)
     else
         error("Invalid loss function type")
     end
-    lossfn = function (ŷ, y, params)
+
+    lossfn = function (ŷ, y, params, tsteps)
         pnamed = namedparams(model, params)
-        lossfn_inner(ŷ, y) + loss_regularization * sum(abs2, pnamed.θ)
+        return lossfn_inner(ŷ, y, tsteps) + loss_regularization * sum(abs2, pnamed.θ)
     end
+
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -414,6 +406,7 @@ function setup_fbmobility4(
     social_proximity_lag::Day,
     loss_type::Symbol,
     loss_regularization::Float64,
+    loss_time_weighting::Float64,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -453,22 +446,23 @@ function setup_fbmobility4(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0)
+
     lossfn_inner = if loss_type == :ssle
-        experiment_loss_ssle()
+        experiment_loss_ssle(loss_time_weighting)
     elseif loss_type == :sse
         min = vec(minimum(train_dataset.data, dims = 2))
         max = vec(maximum(train_dataset.data, dims = 2))
-        experiment_loss_sse(min, max)
-    elseif loss_type == :polar
-        experiment_loss_polar((5e-1, 5e-1))
+        experiment_loss_sse(min, max, loss_time_weighting)
     else
         error("Invalid loss function type")
     end
-    lossfn = function (ŷ, y, params)
+
+    lossfn = function (ŷ, y, params, tsteps)
         pnamed = namedparams(model, params)
-        lossfn_inner(ŷ, y) +
-        loss_regularization * (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
+        return lossfn_inner(ŷ, y, tsteps) +
+               loss_regularization * (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
     end
+
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
@@ -485,6 +479,7 @@ function setup_fbmobility5(
     social_proximity_lag::Day,
     loss_type::Symbol,
     loss_regularization::Float64,
+    loss_time_weighting::Float64,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -524,21 +519,22 @@ function setup_fbmobility5(
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
     p0 = initparams(model, γ0, λ0)
+
     lossfn_inner = if loss_type == :ssle
-        experiment_loss_ssle()
+        experiment_loss_ssle(loss_time_weighting)
     elseif loss_type == :sse
         min = vec(minimum(train_dataset.data, dims = 2))
         max = vec(maximum(train_dataset.data, dims = 2))
-        experiment_loss_sse(min, max)
-    elseif loss_type == :polar
-        experiment_loss_polar((5e-1, 5e-1))
+        experiment_loss_sse(min, max, loss_time_weighting)
     else
         error("Invalid loss function type")
     end
-    lossfn = function (ŷ, y, params)
+
+    lossfn = function (ŷ, y, params, tsteps)
         pnamed = namedparams(model, params)
-        lossfn_inner(ŷ, y) + loss_regularization * sum(abs2, pnamed.θ)
+        return lossfn_inner(ŷ, y, tsteps) + loss_regularization * sum(abs2, pnamed.θ)
     end
+
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
 end
 
