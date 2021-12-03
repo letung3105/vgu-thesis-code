@@ -58,7 +58,7 @@ struct TimeseriesDataLoader{DS<:TimeseriesDataset}
     indices::Vector{Int}
 
     TimeseriesDataLoader(dataset::DS, batchsize::Int) where {DS<:TimeseriesDataset} =
-        new{DS}(dataset, batchsize, Vector(1:(size(dataset.data, 2)-batchsize+1)))
+        new{DS}(dataset, batchsize, Vector(1:batchsize:size(dataset.data, 2)))
 end
 
 Base.iterate(loader::TimeseriesDataLoader) = iterate(loader, 0)
@@ -70,7 +70,7 @@ function Base.iterate(loader::TimeseriesDataLoader, cursor)
     end
 
     start = loader.indices[cursor]
-    stop = start + loader.batchsize - 1
+    stop = min(start + loader.batchsize - 1, size(loader.dataset.data, 2))
 
     data = @view loader.dataset.data[:, start:stop]
     tsteps = loader.dataset.tsteps[start:stop]
