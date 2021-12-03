@@ -97,6 +97,8 @@ time-/covariate-dependent whose value is determined by a neural network.
         γ_bounds::Tuple{T,T},
         λ_bounds::Tuple{T,T},
         α_bounds::Tuple{T,T},
+        population::T,
+        time_scale::T,
     ) where {T<:Real}
 
 ## Arguments
@@ -104,6 +106,8 @@ time-/covariate-dependent whose value is determined by a neural network.
 * `γ_bounds`: lower and upper bounds of the γ parameter
 * `λ_bounds`: lower and upper bounds of the λ parameter
 * `α_bounds`: lower and upper bounds of the α parameter
+* `population`: population of the area that is being modelled
+* `time_scale`: the length of time that is simulated
 """
 struct SEIRDBaseline{ANN<:FastChain,T<:Real} <: AbstractCovidModel
     β_ann::ANN
@@ -237,6 +241,8 @@ parameter is time-/covariate-dependent whose value is determined by a neural net
         γ_bounds::Tuple{T,T},
         λ_bounds::Tuple{T,T},
         α_bounds::Tuple{T,T},
+        population::T,
+        time_scale::T,
         movement_range_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
 
@@ -245,6 +251,8 @@ parameter is time-/covariate-dependent whose value is determined by a neural net
 * `γ_bounds`: lower and upper bounds of the γ parameter
 * `λ_bounds`: lower and upper bounds of the λ parameter
 * `α_bounds`: lower and upper bounds of the α parameter
+* `population`: population of the area that is being modelled
+* `time_scale`: the length of time that is simulated
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 """
 struct SEIRDFbMobility1{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: AbstractCovidModel
@@ -390,6 +398,8 @@ time-/covariate-dependent whose value is determined by a neural network
         γ_bounds::Tuple{T,T},
         λ_bounds::Tuple{T,T},
         α_bounds::Tuple{T,T},
+        population::T,
+        time_scale::T,
         movement_range_data::DS,
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
@@ -399,6 +409,8 @@ time-/covariate-dependent whose value is determined by a neural network
 * `γ_bounds`: lower and upper bounds of the γ parameter
 * `λ_bounds`: lower and upper bounds of the λ parameter
 * `α_bounds`: lower and upper bounds of the α parameter
+* `population`: population of the area that is being modelled
+* `time_scale`: the length of time that is simulated
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
 """
@@ -555,6 +567,8 @@ of the network in this model is constrained using sigmoid function.
         γ_bounds::Tuple{T,T},
         λ_bounds::Tuple{T,T},
         α_bounds::Tuple{T,T},
+        population::T,
+        time_scale::T,
         movement_range_data::DS,
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
@@ -564,6 +578,8 @@ of the network in this model is constrained using sigmoid function.
 * `γ_bounds`: lower and upper bounds of the γ parameter
 * `λ_bounds`: lower and upper bounds of the λ parameter
 * `α_bounds`: lower and upper bounds of the α parameter
+* `population`: population of the area that is being modelled
+* `time_scale`: the length of time that is simulated
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
 """
@@ -768,6 +784,8 @@ time-/covariate-dependent whose values are determined by 2 separate neural netwo
         γ_bounds::Tuple{T,T},
         λ_bounds::Tuple{T,T},
         α_bounds::Tuple{T,T},
+        population::T,
+        time_scale::T,
         movement_range_data::DS,
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
@@ -778,6 +796,8 @@ time-/covariate-dependent whose values are determined by 2 separate neural netwo
 * `γ_bounds`: lower and upper bounds of the γ parameter
 * `λ_bounds`: lower and upper bounds of the λ parameter
 * `α_bounds`: lower and upper bounds of the α parameter
+* `population`: population of the area that is being modelled
+* `time_scale`: the length of time that is simulated
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
 """
@@ -1015,6 +1035,8 @@ time-/covariate-dependent whose values are determined by a neural network
         γ_bounds::Tuple{T,T},
         λ_bounds::Tuple{T,T},
         α_bounds::Tuple{T,T},
+        population::T,
+        time_scale::T,
         movement_range_data::DS,
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
@@ -1025,6 +1047,8 @@ time-/covariate-dependent whose values are determined by a neural network
 * `γ_bounds`: lower and upper bounds of the γ parameter
 * `λ_bounds`: lower and upper bounds of the λ parameter
 * `α_bounds`: lower and upper bounds of the α parameter
+* `population`: population of the area that is being modelled
+* `time_scale`: the length of time that is simulated
 * `movement_range_data`: the matrix for the Facebook movement range timeseries data
 * `social_proximity_data`: the matrix for the social proximity to cases timeseries data
 """
