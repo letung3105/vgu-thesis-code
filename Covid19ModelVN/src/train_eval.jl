@@ -130,7 +130,7 @@ struct Loss{Reg,Metric,Predict,DataCycle}
         dataset::TimeseriesDataset,
         batchsize = length(dataset.tsteps),
     )
-        dataloader = TimeseriesDataloader(dataset, batchsize)
+        dataloader = TimeseriesDataLoader(dataset, batchsize)
         datacycle = dataloader |> Iterators.cycle |> Iterators.Stateful
         return new{false,typeof(metric),typeof(predict),typeof(datacycle)}(
             metric,
@@ -145,7 +145,7 @@ struct Loss{Reg,Metric,Predict,DataCycle}
         dataset::TimeseriesDataset,
         batchsize = length(dataset.tsteps),
     )
-        dataloader = TimeseriesDataloader(dataset, batchsize)
+        dataloader = TimeseriesDataLoader(dataset, batchsize)
         datacycle = dataloader |> Iterators.cycle |> Iterators.Stateful
         return new{true,typeof(metric),typeof(predict),typeof(datacycle)}(
             metric,
@@ -157,34 +157,34 @@ end
 
 function (l::Loss{false,Metric,Predict,DataCycle})(
     params,
-) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful,R<:Real}
+) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful}
     data, tspan, tsteps = popfirst!(l.datacycle)
     sol = l.predict(params, tspan, tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
-        return Inf
+        return Inf32
     end
     pred = @view sol[:, :]
     if size(pred) != size(data)
         # Unstable trajectories / Wrong inputs
-        return Inf
+        return Inf32
     end
     return l.metric(pred, data)
 end
 
 function (l::Loss{true,Metric,Predict,DataCycle})(
     params,
-) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful,R<:Real}
+) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful}
     data, tspan, tsteps = popfirst!(l.datacycle)
     sol = l.predict(params, tspan, tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
-        return Inf
+        return Inf32
     end
     pred = @view sol[:, :]
     if size(pred) != size(data)
         # Unstable trajectories / Wrong inputs
-        return Inf
+        return Inf32
     end
     return l.metric(pred, data, params)
 end

@@ -52,25 +52,26 @@ struct TimeseriesDataset{R<:Real,Data<:AbstractMatrix{R},Tspan<:Tuple{R,R},Tstep
     tsteps::Tsteps
 end
 
-struct TimeseriesDataloader{DS<:TimeseriesDataset}
+struct TimeseriesDataLoader{DS<:TimeseriesDataset}
     dataset::DS
     batchsize::Int
     indices::Vector{Int}
 
-    TimeseriesDataloader(dataset, batchsize::Int) = new{typeof(dataset)}(
-        dataset,
-        batchsize,
-        Vector{Int}(undef, size(dataset.data, 2) - batchsize + 1),
-    )
-
+    TimeseriesDataLoader(dataset::DS, batchsize::Int) where {DS<:TimeseriesDataset} =
+        new{DS}(
+            dataset,
+            batchsize,
+            Vector{Int}(undef, size(dataset.data, 2) - batchsize + 1),
+        )
 end
 
-function Base.iterate(loader::TimeseriesDataloader)
-    randperm!(loader.indices)
-    return iterate(loader, 1)
+function Base.iterate(loader::TimeseriesDataLoader)
+    Zygote.@ignore randperm!(loader.indices)
+    return iterate(loader, 0)
 end
 
-function Base.iterate(loader::TimeseriesDataloader, cursor)
+function Base.iterate(loader::TimeseriesDataLoader, cursor)
+    cursor += 1
     if cursor > length(loader.indices)
         return nothing
     end
@@ -82,7 +83,7 @@ function Base.iterate(loader::TimeseriesDataloader, cursor)
     tsteps = loader.dataset.tsteps[start:stop]
     tspan = (loader.dataset.tspan[1], tsteps[end])
 
-    return (data, tspan, tsteps), cursor + 1
+    return (data, tspan, tsteps), cursor
 end
 
 """
