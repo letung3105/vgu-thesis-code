@@ -24,7 +24,7 @@ let
         predictor = Predictor(prob, vars)
 
         loss1 = let
-            l = experiment_loss_polar((0.5f0, 0.5f0))
+            l = experiment_loss_polar((0.5, 0.5))
             Loss(lossfn, predictor, train_dataset)
         end
         loss2 = let

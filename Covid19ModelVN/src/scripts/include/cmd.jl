@@ -199,42 +199,42 @@ function parse_commandline(args)
 
         "--gamma0"
         help = "inverse of the mean incubation period"
-        arg_type = Float32
-        default = 1.0f0 / 3.0f0
+        arg_type = Float64
+        default = 1.0 / 3.0
 
         "--lambda0"
         help = "inverse of the mean infectious period"
-        arg_type = Float32
-        default = 1.0f0 / 14.0f0
+        arg_type = Float64
+        default = 1.0 / 14.0
 
         "--alpha0"
         help = "the fatality rate"
-        arg_type = Float32
-        default = 2.5f-2
+        arg_type = Float64
+        default = 2.5e-2
 
         "--beta_bounds"
         help = "lower and upper bounds contraints for the average contact rate"
         nargs = 2
-        arg_type = Float32
-        default = [0.0f0, 1.336f0] # Re ∈ [0.0; 6.68]
+        arg_type = Float64
+        default = [0.0, 1.336] # Re ∈ [0.0; 6.68]
 
         "--gamma_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean incubation period"
         nargs = 2
-        arg_type = Float32
-        default = [1.0f0 / 5.0f0, 1.0f0 / 2.0f0]
+        arg_type = Float64
+        default = [1.0 / 5.0, 1.0 / 2.0]
 
         "--lambda_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean infectious period"
         nargs = 2
-        arg_type = Float32
-        default = [1.0f0 / 21.0f0, 1.0f0 / 7.0f0]
+        arg_type = Float64
+        default = [1.0 / 21.0, 1.0 / 7.0]
 
         "--alpha_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean infectious period"
         nargs = 2
-        arg_type = Float32
-        default = [5f-3, 5f-2]
+        arg_type = Float64
+        default = [5e-3, 5e-2]
 
         "--loss_type"
         help = "choose the loss function that is used for training"
@@ -244,21 +244,21 @@ function parse_commandline(args)
 
         "--loss_regularization"
         help = "scaling factor for the weight decay term"
-        arg_type = Float32
-        default = 0.0f0
+        arg_type = Float64
+        default = 0.0
 
     end
 
     @add_arg_table s["train_growing_trajectory"] begin
         "--lr"
         help = "learning rate to be given to ADAM"
-        arg_type = Float32
-        default = 1f-1
+        arg_type = Float64
+        default = 1e-1
 
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
-        arg_type = Float32
-        default = 1.0f0
+        arg_type = Float64
+        default = 1.0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
@@ -267,8 +267,8 @@ function parse_commandline(args)
 
         "--lr_limit"
         help = "the minimum value at which learning rate decay is stopped"
-        arg_type = Float32
-        default = 1f-4
+        arg_type = Float64
+        default = 1e-4
 
         "--maxiters_initial"
         help = "the max number of iterations used for fiting the first time span"
@@ -294,13 +294,13 @@ function parse_commandline(args)
     @add_arg_table s["train_growing_trajectory_two_stages"] begin
         "--lr"
         help = "learning rate to be given to ADAM"
-        arg_type = Float32
-        default = 1f-1
+        arg_type = Float64
+        default = 1e-1
 
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
-        arg_type = Float32
-        default = 1.0f0
+        arg_type = Float64
+        default = 1.0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
@@ -309,8 +309,8 @@ function parse_commandline(args)
 
         "--lr_limit"
         help = "the minimum value at which learning rate decay is stopped"
-        arg_type = Float32
-        default = 1f-4
+        arg_type = Float64
+        default = 1e-4
 
         "--maxiters_initial"
         help = "the max number of iterations used for fiting the first time span"
@@ -341,13 +341,13 @@ function parse_commandline(args)
     @add_arg_table s["train_whole_trajectory"] begin
         "--lr"
         help = "learning rate to be given to ADAM"
-        arg_type = Float32
-        default = 1f-1
+        arg_type = Float64
+        default = 1e-1
 
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
-        arg_type = Float32
-        default = 1.0f0
+        arg_type = Float64
+        default = 1.0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
@@ -356,8 +356,8 @@ function parse_commandline(args)
 
         "--lr_limit"
         help = "the minimum value at which learning rate decay is stopped"
-        arg_type = Float32
-        default = 1f-4
+        arg_type = Float64
+        default = 1e-4
 
         "--maxiters"
         help = "the max number of iterations used"
@@ -373,13 +373,13 @@ function parse_commandline(args)
     @add_arg_table s["train_whole_trajectory_two_stages"] begin
         "--lr"
         help = "learning rate to be given to ADAM"
-        arg_type = Float32
-        default = 1f-1
+        arg_type = Float64
+        default = 1e-1
 
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
-        arg_type = Float32
-        default = 1.0f0
+        arg_type = Float64
+        default = 1.0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
@@ -388,8 +388,8 @@ function parse_commandline(args)
 
         "--lr_limit"
         help = "the minimum value at which learning rate decay is stopped"
-        arg_type = Float32
-        default = 1f-4
+        arg_type = Float64
+        default = 1e-4
 
         "--maxiters_first"
         help = "the max number of iterations used in the first stage"

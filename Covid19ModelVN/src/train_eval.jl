@@ -33,8 +33,8 @@ struct Predictor{
     problem::P
     solver::SO
     sensealg::SE
-    abstol::Float32
-    reltol::Float32
+    abstol::Float64
+    reltol::Float64
     save_idxs::Vector{Int}
 
     function Predictor(problem::SciMLBase.DEProblem, save_idxs::Vector{Int})
@@ -162,12 +162,12 @@ function (l::Loss{false,Metric,Predict,DataCycle})(
     sol = l.predict(params, tspan, tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
-        return Inf32
+        return Inf
     end
     pred = @view sol[:, :]
     if size(pred) != size(data)
         # Unstable trajectories / Wrong inputs
-        return Inf32
+        return Inf
     end
     return l.metric(pred, data)
 end
@@ -179,12 +179,12 @@ function (l::Loss{true,Metric,Predict,DataCycle})(
     sol = l.predict(params, tspan, tsteps)
     if sol.retcode != :Success
         # Unstable trajectories => hard penalize
-        return Inf32
+        return Inf
     end
     pred = @view sol[:, :]
     if size(pred) != size(data)
         # Unstable trajectories / Wrong inputs
-        return Inf32
+        return Inf
     end
     return l.metric(pred, data, params)
 end

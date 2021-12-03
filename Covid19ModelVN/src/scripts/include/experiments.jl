@@ -20,7 +20,7 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
     df[2:end, :confirmed] .= diff(df[!, :confirmed_total])
     # ensure data type stability
     datacols = names(df, Not(:date))
-    df[!, datacols] .= Float32.(df[!, datacols])
+    df[!, datacols] .= Float64.(df[!, datacols])
 
     if loc == Covid19ModelVN.LOC_CODE_VIETNAM || loc ∈ keys(Covid19ModelVN.LOC_NAMES_VN)
         # we considered 27th April 2021 to be the start of the outbreak in Vietnam
@@ -55,7 +55,7 @@ end
 function experiment_movement_range(loc::AbstractString, first_date::Date, last_date::Date)
     df = get_prebuilt_movement_range(loc)
     cols = ["all_day_bing_tiles_visited_relative_change", "all_day_ratio_single_tile_users"]
-    df[!, cols] .= Float32.(df[!, cols])
+    df[!, cols] .= Float64.(df[!, cols])
     # smooth out weekly seasonality
     moving_average!(df, cols, 7)
     movement_range_data =
@@ -70,7 +70,7 @@ end
 
 function experiment_social_proximity(loc::AbstractString, first_date::Date, last_date::Date)
     df, col = get_prebuilt_social_proximity(loc)
-    df[!, col] .= Float32.(df[!, col])
+    df[!, col] .= Float64.(df[!, col])
     # smooth out weekly seasonality
     moving_average!(df, col, 7)
     social_proximity_data =
@@ -97,7 +97,7 @@ function experiment_SEIRD_initial_states(
     E0 = I0 * 5 # exposed individuals
     S0 = population - E0 - df_first_date.confirmed_total[1] # susceptible individuals
     # initial state
-    u0 = Float32[S0, E0, I0, R0, D0, N0, C0, T0]
+    u0 = Float64[S0, E0, I0, R0, D0, N0, C0, T0]
     vars = [5, 7]
     labels = ["deaths", "new cases"]
     return u0, vars, labels
@@ -150,16 +150,16 @@ end
 
 function setup_baseline(
     loc::AbstractString;
-    γ0::Float32,
-    λ0::Float32,
-    α0::Float32,
-    γ_bounds::Tuple{Float32,Float32},
-    λ_bounds::Tuple{Float32,Float32},
-    α_bounds::Tuple{Float32,Float32},
+    γ0::Float64,
+    λ0::Float64,
+    α0::Float64,
+    γ_bounds::Tuple{Float64,Float64},
+    λ_bounds::Tuple{Float64,Float64},
+    α_bounds::Tuple{Float64,Float64},
     train_range::Day,
     forecast_range::Day,
     loss_type::Symbol,
-    loss_regularization::Float32,
+    loss_regularization::Float64,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -174,8 +174,8 @@ function setup_baseline(
         γ_bounds,
         λ_bounds,
         α_bounds,
-        Float32(get_prebuilt_population(loc)),
-        Float32(Dates.value(last_date - first_date)),
+        Float64(get_prebuilt_population(loc)),
+        Float64(Dates.value(last_date - first_date)),
     )
     # get the initial states and available observations depending on the model type
     # and the considered location
@@ -191,7 +191,7 @@ function setup_baseline(
         max = vec(maximum(train_dataset.data, dims = 2))
         experiment_loss_sse(min, max)
     elseif loss_type == :polar
-        experiment_loss_polar((5f-1, 5f-1))
+        experiment_loss_polar((5e-1, 5e-1))
     else
         error("Invalid loss function type")
     end
@@ -204,16 +204,16 @@ end
 
 function setup_fbmobility1(
     loc::AbstractString;
-    γ0::Float32,
-    λ0::Float32,
-    α0::Float32,
-    γ_bounds::Tuple{Float32,Float32},
-    λ_bounds::Tuple{Float32,Float32},
-    α_bounds::Tuple{Float32,Float32},
+    γ0::Float64,
+    λ0::Float64,
+    α0::Float64,
+    γ_bounds::Tuple{Float64,Float64},
+    λ_bounds::Tuple{Float64,Float64},
+    α_bounds::Tuple{Float64,Float64},
     train_range::Day,
     forecast_range::Day,
     loss_type::Symbol,
-    loss_regularization::Float32,
+    loss_regularization::Float64,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -232,8 +232,8 @@ function setup_fbmobility1(
         γ_bounds,
         λ_bounds,
         α_bounds,
-        Float32(get_prebuilt_population(loc)),
-        Float32(Dates.value(last_date - first_date)),
+        Float64(get_prebuilt_population(loc)),
+        Float64(Dates.value(last_date - first_date)),
         movement_range_data,
     )
     # get the initial states and available observations depending on the model type
@@ -250,7 +250,7 @@ function setup_fbmobility1(
         max = vec(maximum(train_dataset.data, dims = 2))
         experiment_loss_sse(min, max)
     elseif loss_type == :polar
-        experiment_loss_polar((5f-1, 5f-1))
+        experiment_loss_polar((5e-1, 5e-1))
     else
         error("Invalid loss function type")
     end
@@ -263,17 +263,17 @@ end
 
 function setup_fbmobility2(
     loc::AbstractString;
-    γ0::Float32,
-    λ0::Float32,
-    α0::Float32,
-    γ_bounds::Tuple{Float32,Float32},
-    λ_bounds::Tuple{Float32,Float32},
-    α_bounds::Tuple{Float32,Float32},
+    γ0::Float64,
+    λ0::Float64,
+    α0::Float64,
+    γ_bounds::Tuple{Float64,Float64},
+    λ_bounds::Tuple{Float64,Float64},
+    α_bounds::Tuple{Float64,Float64},
     train_range::Day,
     forecast_range::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
-    loss_regularization::Float32,
+    loss_regularization::Float64,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -300,8 +300,8 @@ function setup_fbmobility2(
         γ_bounds,
         λ_bounds,
         α_bounds,
-        Float32(get_prebuilt_population(loc)),
-        Float32(Dates.value(last_date - first_date)),
+        Float64(get_prebuilt_population(loc)),
+        Float64(Dates.value(last_date - first_date)),
         movement_range_data,
         social_proximity_data,
     )
@@ -319,7 +319,7 @@ function setup_fbmobility2(
         max = vec(maximum(train_dataset.data, dims = 2))
         experiment_loss_sse(min, max)
     elseif loss_type == :polar
-        experiment_loss_polar((5f-1, 5f-1))
+        experiment_loss_polar((5e-1, 5e-1))
     else
         error("Invalid loss function type")
     end
@@ -332,18 +332,18 @@ end
 
 function setup_fbmobility3(
     loc::AbstractString;
-    γ0::Float32,
-    λ0::Float32,
-    α0::Float32,
-    β_bounds::Tuple{Float32,Float32},
-    γ_bounds::Tuple{Float32,Float32},
-    λ_bounds::Tuple{Float32,Float32},
-    α_bounds::Tuple{Float32,Float32},
+    γ0::Float64,
+    λ0::Float64,
+    α0::Float64,
+    β_bounds::Tuple{Float64,Float64},
+    γ_bounds::Tuple{Float64,Float64},
+    λ_bounds::Tuple{Float64,Float64},
+    α_bounds::Tuple{Float64,Float64},
     train_range::Day,
     forecast_range::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
-    loss_regularization::Float32,
+    loss_regularization::Float64,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -371,8 +371,8 @@ function setup_fbmobility3(
         γ_bounds,
         λ_bounds,
         α_bounds,
-        Float32(get_prebuilt_population(loc)),
-        Float32(Dates.value(last_date - first_date)),
+        Float64(get_prebuilt_population(loc)),
+        Float64(Dates.value(last_date - first_date)),
         movement_range_data,
         social_proximity_data,
     )
@@ -390,7 +390,7 @@ function setup_fbmobility3(
         max = vec(maximum(train_dataset.data, dims = 2))
         experiment_loss_sse(min, max)
     elseif loss_type == :polar
-        experiment_loss_polar((5f-1, 5f-1))
+        experiment_loss_polar((5e-1, 5e-1))
     else
         error("Invalid loss function type")
     end
@@ -403,17 +403,17 @@ end
 
 function setup_fbmobility4(
     loc::AbstractString;
-    γ0::Float32,
-    λ0::Float32,
-    β_bounds::Tuple{Float32,Float32},
-    γ_bounds::Tuple{Float32,Float32},
-    λ_bounds::Tuple{Float32,Float32},
-    α_bounds::Tuple{Float32,Float32},
+    γ0::Float64,
+    λ0::Float64,
+    β_bounds::Tuple{Float64,Float64},
+    γ_bounds::Tuple{Float64,Float64},
+    λ_bounds::Tuple{Float64,Float64},
+    α_bounds::Tuple{Float64,Float64},
     train_range::Day,
     forecast_range::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
-    loss_regularization::Float32,
+    loss_regularization::Float64,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -441,8 +441,8 @@ function setup_fbmobility4(
         γ_bounds,
         λ_bounds,
         α_bounds,
-        Float32(get_prebuilt_population(loc)),
-        Float32(Dates.value(last_date - first_date)),
+        Float64(get_prebuilt_population(loc)),
+        Float64(Dates.value(last_date - first_date)),
         movement_range_data,
         social_proximity_data,
     )
@@ -460,7 +460,7 @@ function setup_fbmobility4(
         max = vec(maximum(train_dataset.data, dims = 2))
         experiment_loss_sse(min, max)
     elseif loss_type == :polar
-        experiment_loss_polar((5f-1, 5f-1))
+        experiment_loss_polar((5e-1, 5e-1))
     else
         error("Invalid loss function type")
     end
@@ -474,17 +474,17 @@ end
 
 function setup_fbmobility5(
     loc::AbstractString;
-    γ0::Float32,
-    λ0::Float32,
-    β_bounds::Tuple{Float32,Float32},
-    γ_bounds::Tuple{Float32,Float32},
-    λ_bounds::Tuple{Float32,Float32},
-    α_bounds::Tuple{Float32,Float32},
+    γ0::Float64,
+    λ0::Float64,
+    β_bounds::Tuple{Float64,Float64},
+    γ_bounds::Tuple{Float64,Float64},
+    λ_bounds::Tuple{Float64,Float64},
+    α_bounds::Tuple{Float64,Float64},
     train_range::Day,
     forecast_range::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
-    loss_regularization::Float32,
+    loss_regularization::Float64,
 )
     # get data for model
     dataconf, first_date, split_date, last_date =
@@ -512,8 +512,8 @@ function setup_fbmobility5(
         γ_bounds,
         λ_bounds,
         α_bounds,
-        Float32(get_prebuilt_population(loc)),
-        Float32(Dates.value(last_date - first_date)),
+        Float64(get_prebuilt_population(loc)),
+        Float64(Dates.value(last_date - first_date)),
         movement_range_data,
         social_proximity_data,
     )
@@ -531,7 +531,7 @@ function setup_fbmobility5(
         max = vec(maximum(train_dataset.data, dims = 2))
         experiment_loss_sse(min, max)
     elseif loss_type == :polar
-        experiment_loss_polar((5f-1, 5f-1))
+        experiment_loss_polar((5e-1, 5e-1))
     else
         error("Invalid loss function type")
     end
@@ -657,8 +657,8 @@ function experiment_run(
     batch_timestamp = Dates.format(now(), "yyyymmddHHMMSS")
 
     lk_eval = ReentrantLock()
-    minimizers = Vector{Float32}[]
-    final_losses = Float32[]
+    minimizers = Vector{Float64}[]
+    final_losses = Float64[]
     queue_eval = Tuple{String,Function,Vector{Int},String}[]
 
     runexp = function (loc)
