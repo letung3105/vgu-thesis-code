@@ -104,11 +104,12 @@ function experiment_SEIRD_initial_states(
 end
 
 function experiment_loss_ssle(ζ::R) where {R<:Real}
+    ϵ = eps(R)
     lossfn = function (ŷ::AbstractArray{R}, y, tsteps) where {R<:Real}
         s = zero(R)
         sz = size(y)
         @inbounds for j ∈ 1:sz[2], i ∈ 1:sz[1]
-            s += (log(ŷ[i, j] + 1) - log(y[i, j] + 1))^2 / sz[2] * exp(ζ * tsteps[j])
+            s += (log(ŷ[i, j] + ϵ) - log(y[i, j] + ϵ))^2 / sz[2] * exp(ζ * tsteps[j])
         end
         return s
     end
