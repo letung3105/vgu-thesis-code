@@ -121,9 +121,9 @@ function train_growing_trajectory(
         )
 
         # evaluate the parameters on the minibatch
-        eval_loss = Loss{true}(lossfn, predictor, train_dataset_batch)
+        batch_eval_loss = Loss{true}(lossfn, predictor, train_dataset_batch)
         cb_log.config = LogCallbackConfig(
-            eval_loss,
+            batch_eval_loss,
             test_loss,
             get_losses_save_fpath(snapshots_dir, uuid),
             get_params_save_fpath(snapshots_dir, uuid),
@@ -198,9 +198,9 @@ function train_growing_trajectory_two_stages(
         )
 
         # evaluate the parameters on the minibatch
-        eval_loss = Loss{true}(lossfn, predictor, train_dataset_batch)
+        batch_eval_loss = Loss{true}(lossfn, predictor, train_dataset_batch)
         cb_log.config = LogCallbackConfig(
-            eval_loss,
+            batch_eval_loss,
             test_loss,
             get_losses_save_fpath(snapshots_dir, uuid),
             get_params_save_fpath(snapshots_dir, uuid),
@@ -220,6 +220,12 @@ function train_growing_trajectory_two_stages(
         maxiters += maxiters_growth
     end
 
+    cb_log.config = LogCallbackConfig(
+        eval_loss,
+        test_loss,
+        get_losses_save_fpath(snapshots_dir, uuid),
+        get_params_save_fpath(snapshots_dir, uuid),
+    )
 
     @info("Training with BFGS optimizer", uuid)
     opt = BFGS(initial_stepnorm = 1e-2)
