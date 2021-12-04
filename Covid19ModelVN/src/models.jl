@@ -126,10 +126,10 @@ struct SEIRDBaseline{ANN<:FastChain,T<:Real} <: AbstractCovidModel
         time_scale::T,
     ) where {T<:Real}
         β_ann = FastChain(
-            StaticDense(3, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 1, softplus),
+            StaticDense(3, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 1, softplus, initW = Flux.glorot_normal),
         )
         return new{typeof(β_ann),T}(
             β_ann,
@@ -274,10 +274,10 @@ struct SEIRDFbMobility1{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         movement_range_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(5, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 1, softplus),
+            StaticDense(5, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 1, softplus, initW = Flux.glorot_normal),
         )
         return new{typeof(β_ann),T,DS}(
             β_ann,
@@ -435,10 +435,10 @@ struct SEIRDFbMobility2{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(6, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 1, softplus),
+            StaticDense(6, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 1, softplus, initW = Flux.glorot_normal),
         )
         return new{typeof(β_ann),T,DS}(
             β_ann,
@@ -606,10 +606,10 @@ struct SEIRDFbMobility3{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(6, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(6, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 1, x -> boxconst(x, β_bounds), initW = Flux.glorot_normal),
         )
         return new{typeof(β_ann),T,DS}(
             β_ann,
@@ -827,14 +827,14 @@ struct SEIRDFbMobility4{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(6, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(6, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 1, x -> boxconst(x, β_bounds), initW = Flux.glorot_normal),
         )
         α_ann = FastChain(
-            StaticDense(3, 8, mish),
-            StaticDense(8, 1, x -> boxconst(x, α_bounds)),
+            StaticDense(3, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 1, x -> boxconst(x, α_bounds), initW = Flux.glorot_normal),
         )
         return new{typeof(β_ann),typeof(α_ann),T,DS}(
             β_ann,
@@ -1075,10 +1075,10 @@ struct SEIRDFbMobility5{ANN<:FastChain,T<:Real,DS<:AbstractMatrix{T}} <: Abstrac
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         ann = FastChain(
-            StaticDense(8, 16, mish),
-            StaticDense(16, 16, mish),
-            StaticDense(16, 16, mish),
-            StaticDense(16, 2),
+            StaticDense(8, 16, mish, initW = Flux.glorot_normal),
+            StaticDense(16, 16, mish, initW = Flux.glorot_normal),
+            StaticDense(16, 16, mish, initW = Flux.glorot_normal),
+            StaticDense(16, 2, initW = Flux.glorot_normal),
         )
         return new{typeof(ann),T,DS}(
             ann,
