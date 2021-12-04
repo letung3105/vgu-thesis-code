@@ -201,7 +201,6 @@ function train_growing_trajectory_two_stages(
         params,
         opt;
         maxiters = maxiters_second,
-        allow_f_increases = true,
         cb,
     )
 
@@ -304,7 +303,6 @@ function train_whole_trajectory_two_stages(
         cb_log.state.minimizer,
         opt;
         maxiters = maxiters_second,
-        allow_f_increases = true,
         cb,
     )
 
