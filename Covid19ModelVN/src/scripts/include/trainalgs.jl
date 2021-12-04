@@ -85,6 +85,7 @@ function train_growing_trajectory(
     maxiters_growth::Integer,
     tspan_size_initial::Integer,
     tspan_size_growth::Integer,
+    minibatching::Integer,
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, _ = setup()
     predictor, eval_loss, test_loss =
@@ -119,13 +120,26 @@ function train_growing_trajectory(
             tsteps = repr(train_dataset_batch.tsteps),
         )
 
+        # evaluate the parameters on the minibatch
+        eval_loss = Loss{true}(lossfn, predictor, train_dataset_batch)
+        cb_log.config = LogCallbackConfig(
+            eval_loss,
+            test_loss,
+            get_losses_save_fpath(snapshots_dir, uuid),
+            get_params_save_fpath(snapshots_dir, uuid),
+        )
+
         @info("Training with ADAM optimizer", uuid)
         # NOTE: order must be ADAM --> ExpDecay
         opt = Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit))
-        loss = Loss{true}(lossfn, predictor, train_dataset_batch)
-        res = DiffEqFlux.sciml_train(loss, params, opt; maxiters, cb)
+        loss = if minibatching != 0
+            Loss{true}(lossfn, predictor, train_dataset_batch, minibatching)
+        else
+            Loss{true}(lossfn, predictor, train_dataset_batch)
+        end
+        DiffEqFlux.sciml_train(loss, params, opt; maxiters, cb)
 
-        params .= res.minimizer
+        params .= cb_log.state.minimizer
         maxiters += maxiters_growth
     end
 
@@ -148,6 +162,7 @@ function train_growing_trajectory_two_stages(
     maxiters_second::Integer,
     tspan_size_initial::Integer,
     tspan_size_growth::Integer,
+    minibatching::Integer,
 )
     model, u0, params, lossfn, train_dataset, test_dataset, vars, _ = setup()
     predictor, eval_loss, test_loss =
@@ -182,13 +197,26 @@ function train_growing_trajectory_two_stages(
             tsteps = repr(train_dataset_batch.tsteps),
         )
 
+        # evaluate the parameters on the minibatch
+        eval_loss = Loss{true}(lossfn, predictor, train_dataset_batch)
+        cb_log.config = LogCallbackConfig(
+            eval_loss,
+            test_loss,
+            get_losses_save_fpath(snapshots_dir, uuid),
+            get_params_save_fpath(snapshots_dir, uuid),
+        )
+
         @info("Training with ADAM optimizer", uuid)
         # NOTE: order must be ADAM --> ExpDecay
         opt = Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit))
-        loss = Loss{true}(lossfn, predictor, train_dataset_batch)
-        res = DiffEqFlux.sciml_train(loss, params, opt; maxiters, cb)
+        loss = if minibatching != 0
+            Loss{true}(lossfn, predictor, train_dataset_batch, minibatching)
+        else
+            Loss{true}(lossfn, predictor, train_dataset_batch)
+        end
+        DiffEqFlux.sciml_train(loss, params, opt; maxiters, cb)
 
-        params .= res.minimizer
+        params .= cb_log.state.minimizer
         maxiters += maxiters_growth
     end
 
