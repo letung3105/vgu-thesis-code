@@ -104,6 +104,10 @@ function train_growing_trajectory(
         make_animation,
     )
 
+    @info("Training with ADAM optimizer", uuid)
+    # NOTE: order must be ADAM --> ExpDecay
+    opt = Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit))
+
     maxiters = maxiters_initial
     tspan_size_max = length(train_dataset.tsteps)
     for k = tspan_size_initial:tspan_size_growth:tspan_size_max
@@ -119,15 +123,8 @@ function train_growing_trajectory(
             tsteps = repr(train_dataset_batch.tsteps),
         )
 
-        @info("Training with ADAM optimizer", uuid)
-        # NOTE: order must be ADAM --> ExpDecay
-        res = DiffEqFlux.sciml_train(
-            Loss{true}(lossfn, predictor, train_dataset_batch),
-            params,
-            Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit));
-            maxiters,
-            cb,
-        )
+        loss = Loss{true}(lossfn, predictor, train_dataset_batch)
+        res = DiffEqFlux.sciml_train(loss, params, opt; maxiters, cb)
         params .= res.minimizer
         maxiters += maxiters_growth
     end
@@ -170,6 +167,10 @@ function train_growing_trajectory_two_stages(
         make_animation,
     )
 
+    @info("Training with ADAM optimizer", uuid)
+    # NOTE: order must be ADAM --> ExpDecay
+    opt = Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit))
+
     maxiters = maxiters_initial
     tspan_size_max = length(train_dataset.tsteps)
     for k = tspan_size_initial:tspan_size_growth:tspan_size_max
@@ -185,25 +186,20 @@ function train_growing_trajectory_two_stages(
             tsteps = repr(train_dataset_batch.tsteps),
         )
 
-        @info("Training with ADAM optimizer", uuid)
-        # NOTE: order must be ADAM --> ExpDecay
-        res = DiffEqFlux.sciml_train(
-            Loss{true}(lossfn, predictor, train_dataset_batch),
-            params,
-            Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit));
-            maxiters,
-            cb,
-        )
+        loss = Loss{true}(lossfn, predictor, train_dataset_batch)
+        res = DiffEqFlux.sciml_train(loss, params, opt; maxiters, cb)
         params .= res.minimizer
         maxiters += maxiters_growth
     end
 
 
     @info("Training with BFGS optimizer", uuid)
+    opt = BFGS(initial_stepnorm = 1e-2)
+    loss = Loss{true}(lossfn, predictor, train_dataset)
     res = DiffEqFlux.sciml_train(
-        Loss{true}(lossfn, predictor, train_dataset),
+        loss,
         params,
-        BFGS(initial_stepnorm = 1e-2);
+        opt;
         maxiters = maxiters_second,
         allow_f_increases = true,
         cb,
@@ -246,17 +242,13 @@ function train_whole_trajectory(
 
     @info("Training with ADAM optimizer", uuid)
     # NOTE: order must be ADAM --> ExpDecay
-    DiffEqFlux.sciml_train(
-        if minibatching != 0
-            Loss{true}(lossfn, predictor, train_dataset, minibatching)
-        else
-            Loss{true}(lossfn, predictor, train_dataset)
-        end,
-        params,
-        Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit));
-        maxiters,
-        cb,
-    )
+    opt = Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit))
+    loss = if minibatching != 0
+        Loss{true}(lossfn, predictor, train_dataset, minibatching)
+    else
+        Loss{true}(lossfn, predictor, train_dataset)
+    end
+    DiffEqFlux.sciml_train(loss, params, opt; maxiters, cb)
 
     return cb_log.state.minimizer, cb_log.state.eval_losses, cb_log.state.test_losses
 end
@@ -296,23 +288,21 @@ function train_whole_trajectory_two_stages(
 
     @info("Training with ADAM optimizer", uuid)
     # NOTE: order must be ADAM --> ExpDecay
-    DiffEqFlux.sciml_train(
-        if minibatching != 0
-            Loss{true}(lossfn, predictor, train_dataset, minibatching)
-        else
-            Loss{true}(lossfn, predictor, train_dataset)
-        end,
-        params,
-        Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit));
-        maxiters = maxiters_first,
-        cb,
-    )
+    opt = Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit))
+    loss = if minibatching != 0
+        Loss{true}(lossfn, predictor, train_dataset, minibatching)
+    else
+        Loss{true}(lossfn, predictor, train_dataset)
+    end
+    DiffEqFlux.sciml_train(loss, params, opt; maxiters = maxiters_first, cb)
 
     @info("Training with BFGS optimizer", uuid)
+    opt = BFGS(initial_stepnorm = 1e-2)
+    loss = Loss{true}(lossfn, predictor, train_dataset)
     DiffEqFlux.sciml_train(
-        Loss{true}(lossfn, predictor, train_dataset),
+        loss,
         cb_log.state.minimizer,
-        BFGS(initial_stepnorm = 1e-2);
+        opt;
         maxiters = maxiters_second,
         allow_f_increases = true,
         cb,
