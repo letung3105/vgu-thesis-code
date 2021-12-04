@@ -128,6 +128,7 @@ function train_growing_trajectory(
             get_losses_save_fpath(snapshots_dir, uuid),
             get_params_save_fpath(snapshots_dir, uuid),
         )
+        cb_log.state.minimizer_loss = typemax(typeof(cb_log.state.minimizer_loss))
 
         @info("Training with ADAM optimizer", uuid)
         # NOTE: order must be ADAM --> ExpDecay
@@ -205,6 +206,7 @@ function train_growing_trajectory_two_stages(
             get_losses_save_fpath(snapshots_dir, uuid),
             get_params_save_fpath(snapshots_dir, uuid),
         )
+        cb_log.state.minimizer_loss = typemax(typeof(cb_log.state.minimizer_loss))
 
         @info("Training with ADAM optimizer", uuid)
         # NOTE: order must be ADAM --> ExpDecay
