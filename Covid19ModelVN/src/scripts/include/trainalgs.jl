@@ -196,13 +196,7 @@ function train_growing_trajectory_two_stages(
     @info("Training with BFGS optimizer", uuid)
     opt = BFGS(initial_stepnorm = 1e-2)
     loss = Loss{true}(lossfn, predictor, train_dataset)
-    res = DiffEqFlux.sciml_train(
-        loss,
-        params,
-        opt;
-        maxiters = maxiters_second,
-        cb,
-    )
+    res = DiffEqFlux.sciml_train(loss, params, opt; maxiters = maxiters_second, cb)
 
     return res.minimizer, cb_log.state.eval_losses, cb_log.state.test_losses
 end
