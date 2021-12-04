@@ -293,9 +293,9 @@ training process
 * `params`: the model's parameters
 * `train_loss`: loss from the training step
 """
-struct LogCallback{R<:Real,L<:Loss}
-    state::LogCallbackState{R}
-    config::LogCallbackConfig{L}
+mutable struct LogCallback
+    state::LogCallbackState
+    config::LogCallbackConfig
 end
 
 function (cb::LogCallback)(params::AbstractVector{R}, train_loss::R) where {R<:Real}
