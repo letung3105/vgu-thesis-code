@@ -7,8 +7,6 @@ let
         ("baseline", get_baseline_hyperparams, setup_baseline),
         ("fbmobility1", get_fbmobility1_hyperparams, setup_fbmobility1),
         ("fbmobility2", get_fbmobility2_hyperparams, setup_fbmobility2),
-        ("fbmobility3", get_fbmobility3_hyperparams, setup_fbmobility3),
-        ("fbmobility4", get_fbmobility4_hyperparams, setup_fbmobility4),
     ]
 
     for (name, gethyperparams, setup) ∈ models

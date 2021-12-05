@@ -25,9 +25,6 @@ function setupcmd(parsed_args)
         :baseline => ("baseline", get_baseline_hyperparams, setup_baseline),
         :fbmobility1 => ("fbmobility1", get_fbmobility1_hyperparams, setup_fbmobility1),
         :fbmobility2 => ("fbmobility2", get_fbmobility2_hyperparams, setup_fbmobility2),
-        :fbmobility3 => ("fbmobility3", get_fbmobility3_hyperparams, setup_fbmobility3),
-        :fbmobility4 => ("fbmobility4", get_fbmobility4_hyperparams, setup_fbmobility4),
-        :fbmobility5 => ("fbmobility5", get_fbmobility5_hyperparams, setup_fbmobility5),
     )
     return cmdmappings[parsed_args[:model_name]]
 end
@@ -35,7 +32,7 @@ end
 get_baseline_hyperparams(parsed_args) = (
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
-    α0 = parsed_args[:alpha0],
+    β_bounds = (parsed_args[:beta_bounds][1], parsed_args[:beta_bounds][2]),
     γ_bounds = (parsed_args[:gamma_bounds][1], parsed_args[:gamma_bounds][2]),
     λ_bounds = (parsed_args[:lambda_bounds][1], parsed_args[:lambda_bounds][2]),
     α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
@@ -49,7 +46,7 @@ get_baseline_hyperparams(parsed_args) = (
 get_fbmobility1_hyperparams(parsed_args) = (
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
-    α0 = parsed_args[:alpha0],
+    β_bounds = (parsed_args[:beta_bounds][1], parsed_args[:beta_bounds][2]),
     γ_bounds = (parsed_args[:gamma_bounds][1], parsed_args[:gamma_bounds][2]),
     λ_bounds = (parsed_args[:lambda_bounds][1], parsed_args[:lambda_bounds][2]),
     α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
@@ -62,55 +59,6 @@ get_fbmobility1_hyperparams(parsed_args) = (
 )
 
 get_fbmobility2_hyperparams(parsed_args) = (
-    γ0 = parsed_args[:gamma0],
-    λ0 = parsed_args[:lambda0],
-    α0 = parsed_args[:alpha0],
-    γ_bounds = (parsed_args[:gamma_bounds][1], parsed_args[:gamma_bounds][2]),
-    λ_bounds = (parsed_args[:lambda_bounds][1], parsed_args[:lambda_bounds][2]),
-    α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
-    train_range = Day(parsed_args[:train_days]),
-    forecast_range = Day(parsed_args[:test_days]),
-    movement_range_lag = Day(parsed_args[:movement_range_lag_days]),
-    social_proximity_lag = Day(parsed_args[:social_proximity_lag_days]),
-    loss_type = parsed_args[:loss_type],
-    loss_regularization = parsed_args[:loss_regularization],
-    loss_time_weighting = parsed_args[:loss_time_weighting],
-)
-
-get_fbmobility3_hyperparams(parsed_args) = (
-    γ0 = parsed_args[:gamma0],
-    λ0 = parsed_args[:lambda0],
-    α0 = parsed_args[:alpha0],
-    β_bounds = (parsed_args[:beta_bounds][1], parsed_args[:beta_bounds][2]),
-    γ_bounds = (parsed_args[:gamma_bounds][1], parsed_args[:gamma_bounds][2]),
-    λ_bounds = (parsed_args[:lambda_bounds][1], parsed_args[:lambda_bounds][2]),
-    α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
-    train_range = Day(parsed_args[:train_days]),
-    forecast_range = Day(parsed_args[:test_days]),
-    movement_range_lag = Day(parsed_args[:movement_range_lag_days]),
-    social_proximity_lag = Day(parsed_args[:social_proximity_lag_days]),
-    loss_type = parsed_args[:loss_type],
-    loss_regularization = parsed_args[:loss_regularization],
-    loss_time_weighting = parsed_args[:loss_time_weighting],
-)
-
-get_fbmobility4_hyperparams(parsed_args) = (
-    γ0 = parsed_args[:gamma0],
-    λ0 = parsed_args[:lambda0],
-    β_bounds = (parsed_args[:beta_bounds][1], parsed_args[:beta_bounds][2]),
-    γ_bounds = (parsed_args[:gamma_bounds][1], parsed_args[:gamma_bounds][2]),
-    λ_bounds = (parsed_args[:lambda_bounds][1], parsed_args[:lambda_bounds][2]),
-    α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
-    train_range = Day(parsed_args[:train_days]),
-    forecast_range = Day(parsed_args[:test_days]),
-    movement_range_lag = Day(parsed_args[:movement_range_lag_days]),
-    social_proximity_lag = Day(parsed_args[:social_proximity_lag_days]),
-    loss_type = parsed_args[:loss_type],
-    loss_regularization = parsed_args[:loss_regularization],
-    loss_time_weighting = parsed_args[:loss_time_weighting],
-)
-
-get_fbmobility5_hyperparams(parsed_args) = (
     γ0 = parsed_args[:gamma0],
     λ0 = parsed_args[:lambda0],
     β_bounds = (parsed_args[:beta_bounds][1], parsed_args[:beta_bounds][2]),
@@ -129,13 +77,7 @@ get_fbmobility5_hyperparams(parsed_args) = (
 function parse_commandline(args)
     s = ArgParseSettings()
 
-    isvalidmodel(name) =
-        name == :baseline ||
-        name == :fbmobility1 ||
-        name == :fbmobility2 ||
-        name == :fbmobility3 ||
-        name == :fbmobility4 ||
-        name == :fbmobility5
+    isvalidmodel(name) = name == :baseline || name == :fbmobility1 || name == :fbmobility2
 
     isvalidloss(name) = name == :ssle || name == :sse
 
@@ -222,11 +164,6 @@ function parse_commandline(args)
         help = "inverse of the mean infectious period"
         arg_type = Float64
         default = 1.0 / 14.0
-
-        "--alpha0"
-        help = "the fatality rate"
-        arg_type = Float64
-        default = 2.5e-2
 
         "--beta_bounds"
         help = "lower and upper bounds contraints for the average contact rate"

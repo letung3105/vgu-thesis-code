@@ -150,7 +150,7 @@ function setup_baseline(
     loc::AbstractString;
     γ0::Float64,
     λ0::Float64,
-    α0::Float64,
+    β_bounds::Tuple{Float64,Float64},
     γ_bounds::Tuple{Float64,Float64},
     λ_bounds::Tuple{Float64,Float64},
     α_bounds::Tuple{Float64,Float64},
@@ -170,6 +170,7 @@ function setup_baseline(
 
     # initialize the model
     model = SEIRDBaseline(
+        β_bounds,
         γ_bounds,
         λ_bounds,
         α_bounds,
@@ -182,7 +183,7 @@ function setup_baseline(
         loc,
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
-    p0 = initparams(model, γ0, λ0, α0)
+    p0 = initparams(model, γ0, λ0)
 
     lossfn_inner = if loss_type == :ssle
         experiment_loss_ssle(loss_time_weighting)
@@ -196,7 +197,8 @@ function setup_baseline(
 
     lossfn = function (ŷ, y, params, tsteps)
         pnamed = namedparams(model, params)
-        return lossfn_inner(ŷ, y, tsteps) + loss_regularization * sum(abs2, pnamed.θ)
+        return lossfn_inner(ŷ, y, tsteps) +
+               loss_regularization * (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
     end
 
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
@@ -206,7 +208,7 @@ function setup_fbmobility1(
     loc::AbstractString;
     γ0::Float64,
     λ0::Float64,
-    α0::Float64,
+    β_bounds::Tuple{Float64,Float64},
     γ_bounds::Tuple{Float64,Float64},
     λ_bounds::Tuple{Float64,Float64},
     α_bounds::Tuple{Float64,Float64},
@@ -232,6 +234,7 @@ function setup_fbmobility1(
 
     # initialize the model
     model = SEIRDFbMobility1(
+        β_bounds,
         γ_bounds,
         λ_bounds,
         α_bounds,
@@ -245,7 +248,7 @@ function setup_fbmobility1(
         loc,
         subset(dataconf.df, :date => x -> x .== first_date, view = true),
     )
-    p0 = initparams(model, γ0, λ0, α0)
+    p0 = initparams(model, γ0, λ0)
 
     lossfn_inner = if loss_type == :ssle
         experiment_loss_ssle(loss_time_weighting)
@@ -259,7 +262,8 @@ function setup_fbmobility1(
 
     lossfn = function (ŷ, y, params, tsteps)
         pnamed = namedparams(model, params)
-        return lossfn_inner(ŷ, y, tsteps) + loss_regularization * sum(abs2, pnamed.θ)
+        return lossfn_inner(ŷ, y, tsteps) +
+               loss_regularization * (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
     end
 
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
@@ -269,7 +273,7 @@ function setup_fbmobility2(
     loc::AbstractString;
     γ0::Float64,
     λ0::Float64,
-    α0::Float64,
+    β_bounds::Tuple{Float64,Float64},
     γ_bounds::Tuple{Float64,Float64},
     λ_bounds::Tuple{Float64,Float64},
     α_bounds::Tuple{Float64,Float64},
@@ -301,148 +305,6 @@ function setup_fbmobility2(
 
     # build the model
     model = SEIRDFbMobility2(
-        γ_bounds,
-        λ_bounds,
-        α_bounds,
-        Float64(get_prebuilt_population(loc)),
-        Float64(Dates.value(last_date - first_date)),
-        movement_range_data,
-        social_proximity_data,
-    )
-    # get the initial states and available observations depending on the model type
-    # and the considered location
-    u0, vars, labels = experiment_SEIRD_initial_states(
-        loc,
-        subset(dataconf.df, :date => x -> x .== first_date, view = true),
-    )
-    p0 = initparams(model, γ0, λ0, α0)
-
-    lossfn_inner = if loss_type == :ssle
-        experiment_loss_ssle(loss_time_weighting)
-    elseif loss_type == :sse
-        min = vec(minimum(train_dataset.data, dims = 2))
-        max = vec(maximum(train_dataset.data, dims = 2))
-        experiment_loss_sse(min, max, loss_time_weighting)
-    else
-        error("Invalid loss function type")
-    end
-
-    lossfn = function (ŷ, y, params, tsteps)
-        pnamed = namedparams(model, params)
-        return lossfn_inner(ŷ, y, tsteps) + loss_regularization * sum(abs2, pnamed.θ)
-    end
-
-    return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
-end
-
-function setup_fbmobility3(
-    loc::AbstractString;
-    γ0::Float64,
-    λ0::Float64,
-    α0::Float64,
-    β_bounds::Tuple{Float64,Float64},
-    γ_bounds::Tuple{Float64,Float64},
-    λ_bounds::Tuple{Float64,Float64},
-    α_bounds::Tuple{Float64,Float64},
-    train_range::Day,
-    forecast_range::Day,
-    movement_range_lag::Day,
-    social_proximity_lag::Day,
-    loss_type::Symbol,
-    loss_regularization::Float64,
-    loss_time_weighting::Float64,
-)
-    # get data for model
-    dataconf, first_date, split_date, last_date =
-        experiment_covid19_data(loc, train_range, forecast_range)
-    train_dataset, test_dataset =
-        train_test_split(dataconf, first_date, split_date, last_date)
-    @assert size(train_dataset.data, 2) == Dates.value(train_range)
-    @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
-
-    movement_range_data =
-        experiment_movement_range(loc, first_date, last_date, movement_range_lag)
-    @assert size(movement_range_data, 2) ==
-            Dates.value(train_range) + Dates.value(forecast_range)
-
-    social_proximity_data =
-        experiment_social_proximity(loc, first_date, last_date, social_proximity_lag)
-    @assert size(social_proximity_data, 2) ==
-            Dates.value(train_range) + Dates.value(forecast_range)
-
-    # build the model
-    model = SEIRDFbMobility3(
-        β_bounds,
-        γ_bounds,
-        λ_bounds,
-        α_bounds,
-        Float64(get_prebuilt_population(loc)),
-        Float64(Dates.value(last_date - first_date)),
-        movement_range_data,
-        social_proximity_data,
-    )
-    # get the initial states and available observations depending on the model type
-    # and the considered location
-    u0, vars, labels = experiment_SEIRD_initial_states(
-        loc,
-        subset(dataconf.df, :date => x -> x .== first_date, view = true),
-    )
-    p0 = initparams(model, γ0, λ0, α0)
-
-    lossfn_inner = if loss_type == :ssle
-        experiment_loss_ssle(loss_time_weighting)
-    elseif loss_type == :sse
-        min = vec(minimum(train_dataset.data, dims = 2))
-        max = vec(maximum(train_dataset.data, dims = 2))
-        experiment_loss_sse(min, max, loss_time_weighting)
-    else
-        error("Invalid loss function type")
-    end
-
-    lossfn = function (ŷ, y, params, tsteps)
-        pnamed = namedparams(model, params)
-        return lossfn_inner(ŷ, y, tsteps) + loss_regularization * sum(abs2, pnamed.θ)
-    end
-
-    return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
-end
-
-function setup_fbmobility4(
-    loc::AbstractString;
-    γ0::Float64,
-    λ0::Float64,
-    β_bounds::Tuple{Float64,Float64},
-    γ_bounds::Tuple{Float64,Float64},
-    λ_bounds::Tuple{Float64,Float64},
-    α_bounds::Tuple{Float64,Float64},
-    train_range::Day,
-    forecast_range::Day,
-    movement_range_lag::Day,
-    social_proximity_lag::Day,
-    loss_type::Symbol,
-    loss_regularization::Float64,
-    loss_time_weighting::Float64,
-)
-    # get data for model
-    dataconf, first_date, split_date, last_date =
-        experiment_covid19_data(loc, train_range, forecast_range)
-    train_dataset, test_dataset =
-        train_test_split(dataconf, first_date, split_date, last_date)
-    @assert size(train_dataset.data, 2) == Dates.value(train_range)
-    @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
-
-    movement_range_data =
-        experiment_movement_range(loc, first_date, last_date, movement_range_lag)
-    @assert size(movement_range_data, 2) ==
-            Dates.value(train_range) + Dates.value(forecast_range)
-
-    social_proximity_data =
-        experiment_social_proximity(loc, first_date, last_date, social_proximity_lag)
-    @assert size(social_proximity_data, 2) ==
-            Dates.value(train_range) + Dates.value(forecast_range)
-
-    # build the model
-    model = SEIRDFbMobility4(
         β_bounds,
         γ_bounds,
         λ_bounds,
@@ -474,77 +336,6 @@ function setup_fbmobility4(
         pnamed = namedparams(model, params)
         return lossfn_inner(ŷ, y, tsteps) +
                loss_regularization * (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
-    end
-
-    return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
-end
-
-function setup_fbmobility5(
-    loc::AbstractString;
-    γ0::Float64,
-    λ0::Float64,
-    β_bounds::Tuple{Float64,Float64},
-    γ_bounds::Tuple{Float64,Float64},
-    λ_bounds::Tuple{Float64,Float64},
-    α_bounds::Tuple{Float64,Float64},
-    train_range::Day,
-    forecast_range::Day,
-    movement_range_lag::Day,
-    social_proximity_lag::Day,
-    loss_type::Symbol,
-    loss_regularization::Float64,
-    loss_time_weighting::Float64,
-)
-    # get data for model
-    dataconf, first_date, split_date, last_date =
-        experiment_covid19_data(loc, train_range, forecast_range)
-    train_dataset, test_dataset =
-        train_test_split(dataconf, first_date, split_date, last_date)
-    @assert size(train_dataset.data, 2) == Dates.value(train_range)
-    @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
-
-    movement_range_data =
-        experiment_movement_range(loc, first_date, last_date, movement_range_lag)
-    @assert size(movement_range_data, 2) ==
-            Dates.value(train_range) + Dates.value(forecast_range)
-
-    social_proximity_data =
-        experiment_social_proximity(loc, first_date, last_date, social_proximity_lag)
-    @assert size(social_proximity_data, 2) ==
-            Dates.value(train_range) + Dates.value(forecast_range)
-
-    # build the model
-    model = SEIRDFbMobility5(
-        β_bounds,
-        γ_bounds,
-        λ_bounds,
-        α_bounds,
-        Float64(get_prebuilt_population(loc)),
-        Float64(Dates.value(last_date - first_date)),
-        movement_range_data,
-        social_proximity_data,
-    )
-    # get the initial states and available observations depending on the model type
-    # and the considered location
-    u0, vars, labels = experiment_SEIRD_initial_states(
-        loc,
-        subset(dataconf.df, :date => x -> x .== first_date, view = true),
-    )
-    p0 = initparams(model, γ0, λ0)
-
-    lossfn_inner = if loss_type == :ssle
-        experiment_loss_ssle(loss_time_weighting)
-    elseif loss_type == :sse
-        min = vec(minimum(train_dataset.data, dims = 2))
-        max = vec(maximum(train_dataset.data, dims = 2))
-        experiment_loss_sse(min, max, loss_time_weighting)
-    else
-        error("Invalid loss function type")
-    end
-
-    lossfn = function (ŷ, y, params, tsteps)
-        pnamed = namedparams(model, params)
-        return lossfn_inner(ŷ, y, tsteps) + loss_regularization * sum(abs2, pnamed.θ)
     end
 
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
@@ -604,26 +395,19 @@ function experiment_eval(
             save(fpath_Re, fig_Re)
 
             # the fatality rate in this model changes over time
-            if model isa SEIRDFbMobility4 || model isa SEIRDFbMobility5
-                αt1 = fatality_rate(
-                    model,
-                    u0,
-                    minimizer,
-                    train_dataset.tspan,
-                    train_dataset.tsteps,
-                )
-                αt2 = fatality_rate(
-                    model,
-                    u0,
-                    minimizer,
-                    test_dataset.tspan,
-                    test_dataset.tsteps,
-                )
-                fig_αt = plot_fatality_rate([αt1; αt2], train_dataset.tspan[2])
-                fpath_αt = joinpath(snapshots_dir, "$dataname.fatality_rate.png")
-                @info("Generating effective fatality rate plot", uuid, fpath_αt)
-                save(fpath_αt, fig_αt)
-            end
+            αt1 = fatality_rate(
+                model,
+                u0,
+                minimizer,
+                train_dataset.tspan,
+                train_dataset.tsteps,
+            )
+            αt2 =
+                fatality_rate(model, u0, minimizer, test_dataset.tspan, test_dataset.tsteps)
+            fig_αt = plot_fatality_rate([αt1; αt2], train_dataset.tspan[2])
+            fpath_αt = joinpath(snapshots_dir, "$dataname.fatality_rate.png")
+            @info("Generating effective fatality rate plot", uuid, fpath_αt)
+            save(fpath_αt, fig_αt)
 
         elseif datatype == "forecasts"
             fit, pred = Serialization.deserialize(fpath)

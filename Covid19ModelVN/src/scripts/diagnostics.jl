@@ -42,7 +42,7 @@ function visualize_data(loc; train_range = Day(32), forecast_range = Day(28))
     display(fig)
 
     movement_range_data = try
-        experiment_movement_range(loc, first_date, last_date)
+        experiment_movement_range(loc, first_date, last_date, Day(0))
     catch e
         @warn e
     end
@@ -52,7 +52,7 @@ function visualize_data(loc; train_range = Day(32), forecast_range = Day(28))
     end
 
     social_proximity_data = try
-        experiment_social_proximity(loc, first_date, last_date)
+        experiment_social_proximity(loc, first_date, last_date, Day(0))
     catch e
         @warn e
     end
@@ -115,12 +115,11 @@ function check_model_methods(loc, model)
     R2 = Re(model, u0, p0, test_dataset.tspan, test_dataset.tsteps)
     fig = plot_Re([R1; R2], train_dataset.tspan[2])
     display(fig)
-    if model isa SEIRDFbMobility4 || model isa SEIRDFbMobility5
-        αt1 = fatality_rate(model, u0, p0, train_dataset.tspan, train_dataset.tsteps)
-        αt2 = fatality_rate(model, u0, p0, test_dataset.tspan, test_dataset.tsteps)
-        fig_αt = plot_fatality_rate([αt1; αt2], train_dataset.tspan[2])
-        display(fig_αt)
-    end
+
+    αt1 = fatality_rate(model, u0, p0, train_dataset.tspan, train_dataset.tsteps)
+    αt2 = fatality_rate(model, u0, p0, test_dataset.tspan, test_dataset.tsteps)
+    fig_αt = plot_fatality_rate([αt1; αt2], train_dataset.tspan[2])
+    display(fig_αt)
 
     # test forecasts plot
     fit = predictor(p0, train_dataset.tspan, train_dataset.tsteps)
@@ -130,7 +129,7 @@ function check_model_methods(loc, model)
     display(fig)
 end
 
-function check_model_performance(loc, model; benchmark = false)
+function check_model_performance(loc, model)
     parsed_args =
         parse_commandline(["--locations=$loc", "--", model, "train_growing_trajectory"])
     _, gethyper, setup = setupcmd(parsed_args)
@@ -138,33 +137,22 @@ function check_model_performance(loc, model; benchmark = false)
 
     model, u0, p0, lossfn, train_dataset, _, vars, _ = setup(loc; hyperparams...)
     du = similar(u0)
-    # check if dynamics function is type stable
-    @code_warntype model(du, u0, p0, 0.0)
 
     prob = ODEProblem(model, u0, train_dataset.tspan)
     predictor = Predictor(prob, vars)
-    # check if prediction function is type stable
-    @code_warntype predictor(p0, train_dataset.tspan, train_dataset.tsteps)
+    loss = Loss{true}(lossfn, predictor, train_dataset)
 
     sol = predictor(p0, train_dataset.tspan, train_dataset.tsteps)
     pred = @view sol[:, :]
-    # check if loss metric function with regularization is type stable
-    @code_warntype lossfn(pred, train_dataset.data)
 
-    loss = Loss{true}(lossfn, predictor, train_dataset)
-    # check if training loss is type stable
-    @code_warntype loss(p0)
-
-    if benchmark
-        display(@benchmark $model($du, $u0, $p0, 0))
-        display(@benchmark $predictor($p0, $train_dataset.tspan, $train_dataset.tsteps))
-        display(@benchmark $lossfn($pred, $train_dataset.data))
-        display(@benchmark $loss($p0))
-        display(@benchmark Zygote.gradient($loss, $p0))
-    end
+    display(@benchmark $model($du, $u0, $p0, 0))
+    display(@benchmark $predictor($p0, $train_dataset.tspan, $train_dataset.tsteps))
+    display(@benchmark $lossfn($pred, $train_dataset.data))
+    display(@benchmark $loss($p0))
+    display(@benchmark Zygote.gradient($loss, $p0))
 end
 
-function check_models()
+function check_models(; benchmark = false)
     for loc ∈ [
             Covid19ModelVN.LOC_CODE_VIETNAM
             Covid19ModelVN.LOC_CODE_UNITED_STATES
@@ -174,15 +162,15 @@ function check_models()
         model ∈ ["baseline", "fbmobility1"]
 
         check_model_methods(loc, model)
-        check_model_performance(loc, model)
+        benchmark && check_model_performance(loc, model)
     end
     for loc ∈ [
             collect(keys(Covid19ModelVN.LOC_NAMES_VN))
             collect(keys(Covid19ModelVN.LOC_NAMES_US))
         ],
-        model ∈ ["fbmobility2", "fbmobility3", "fbmobility4"]
+        model ∈ ["fbmobility2"]
 
         check_model_methods(loc, model)
-        check_model_performance(loc, model)
+        benchmark && check_model_performance(loc, model)
     end
 end
