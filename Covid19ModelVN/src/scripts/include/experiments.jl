@@ -52,14 +52,19 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
     return conf, first_date, split_date, last_date
 end
 
-function experiment_movement_range(loc::AbstractString, first_date::Date, last_date::Date)
+function experiment_movement_range(
+    loc::AbstractString,
+    first_date::Date,
+    last_date::Date,
+    lag::Day,
+)
     df = get_prebuilt_movement_range(loc)
     cols = ["all_day_bing_tiles_visited_relative_change", "all_day_ratio_single_tile_users"]
     df[!, cols] .= Float64.(df[!, cols])
     # smooth out weekly seasonality
     moving_average!(df, cols, 7)
     movement_range_data =
-        load_timeseries(TimeseriesConfig(df, "ds", cols), first_date, last_date)
+        load_timeseries(TimeseriesConfig(df, "ds", cols), first_date - lag, last_date - lag)
     # min-max scaling
     movement_range_min = minimum(movement_range_data, dims = 2)
     movement_range_max = maximum(movement_range_data, dims = 2)
@@ -68,13 +73,21 @@ function experiment_movement_range(loc::AbstractString, first_date::Date, last_d
     return movement_range_data
 end
 
-function experiment_social_proximity(loc::AbstractString, first_date::Date, last_date::Date)
+function experiment_social_proximity(
+    loc::AbstractString,
+    first_date::Date,
+    last_date::Date,
+    lag::Day,
+)
     df, col = get_prebuilt_social_proximity(loc)
     df[!, col] .= Float64.(df[!, col])
     # smooth out weekly seasonality
     moving_average!(df, col, 7)
-    social_proximity_data =
-        load_timeseries(TimeseriesConfig(df, "date", [col]), first_date, last_date)
+    social_proximity_data = load_timeseries(
+        TimeseriesConfig(df, "date", [col]),
+        first_date - lag,
+        last_date - lag,
+    )
     # min-max scaling
     social_proximity_min = minimum(social_proximity_data, dims = 2)
     social_proximity_max = maximum(social_proximity_data, dims = 2)
@@ -199,6 +212,7 @@ function setup_fbmobility1(
     α_bounds::Tuple{Float64,Float64},
     train_range::Day,
     forecast_range::Day,
+    movement_range_lag::Day,
     loss_type::Symbol,
     loss_regularization::Float64,
     loss_time_weighting::Float64,
@@ -211,7 +225,8 @@ function setup_fbmobility1(
     @assert size(train_dataset.data, 2) == Dates.value(train_range)
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
-    movement_range_data = experiment_movement_range(loc, first_date, last_date)
+    movement_range_data =
+        experiment_movement_range(loc, first_date, last_date, movement_range_lag)
     @assert size(movement_range_data, 2) ==
             Dates.value(train_range) + Dates.value(forecast_range)
 
@@ -260,6 +275,7 @@ function setup_fbmobility2(
     α_bounds::Tuple{Float64,Float64},
     train_range::Day,
     forecast_range::Day,
+    movement_range_lag::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
     loss_regularization::Float64,
@@ -273,15 +289,13 @@ function setup_fbmobility2(
     @assert size(train_dataset.data, 2) == Dates.value(train_range)
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
-    movement_range_data = experiment_movement_range(loc, first_date, last_date)
+    movement_range_data =
+        experiment_movement_range(loc, first_date, last_date, movement_range_lag)
     @assert size(movement_range_data, 2) ==
             Dates.value(train_range) + Dates.value(forecast_range)
 
-    social_proximity_data = experiment_social_proximity(
-        loc,
-        first_date - social_proximity_lag,
-        last_date - social_proximity_lag,
-    )
+    social_proximity_data =
+        experiment_social_proximity(loc, first_date, last_date, social_proximity_lag)
     @assert size(social_proximity_data, 2) ==
             Dates.value(train_range) + Dates.value(forecast_range)
 
@@ -332,6 +346,7 @@ function setup_fbmobility3(
     α_bounds::Tuple{Float64,Float64},
     train_range::Day,
     forecast_range::Day,
+    movement_range_lag::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
     loss_regularization::Float64,
@@ -345,15 +360,13 @@ function setup_fbmobility3(
     @assert size(train_dataset.data, 2) == Dates.value(train_range)
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
-    movement_range_data = experiment_movement_range(loc, first_date, last_date)
+    movement_range_data =
+        experiment_movement_range(loc, first_date, last_date, movement_range_lag)
     @assert size(movement_range_data, 2) ==
             Dates.value(train_range) + Dates.value(forecast_range)
 
-    social_proximity_data = experiment_social_proximity(
-        loc,
-        first_date - social_proximity_lag,
-        last_date - social_proximity_lag,
-    )
+    social_proximity_data =
+        experiment_social_proximity(loc, first_date, last_date, social_proximity_lag)
     @assert size(social_proximity_data, 2) ==
             Dates.value(train_range) + Dates.value(forecast_range)
 
@@ -404,6 +417,7 @@ function setup_fbmobility4(
     α_bounds::Tuple{Float64,Float64},
     train_range::Day,
     forecast_range::Day,
+    movement_range_lag::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
     loss_regularization::Float64,
@@ -417,15 +431,13 @@ function setup_fbmobility4(
     @assert size(train_dataset.data, 2) == Dates.value(train_range)
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
-    movement_range_data = experiment_movement_range(loc, first_date, last_date)
+    movement_range_data =
+        experiment_movement_range(loc, first_date, last_date, movement_range_lag)
     @assert size(movement_range_data, 2) ==
             Dates.value(train_range) + Dates.value(forecast_range)
 
-    social_proximity_data = experiment_social_proximity(
-        loc,
-        first_date - social_proximity_lag,
-        last_date - social_proximity_lag,
-    )
+    social_proximity_data =
+        experiment_social_proximity(loc, first_date, last_date, social_proximity_lag)
     @assert size(social_proximity_data, 2) ==
             Dates.value(train_range) + Dates.value(forecast_range)
 
@@ -477,6 +489,7 @@ function setup_fbmobility5(
     α_bounds::Tuple{Float64,Float64},
     train_range::Day,
     forecast_range::Day,
+    movement_range_lag::Day,
     social_proximity_lag::Day,
     loss_type::Symbol,
     loss_regularization::Float64,
@@ -490,15 +503,13 @@ function setup_fbmobility5(
     @assert size(train_dataset.data, 2) == Dates.value(train_range)
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
-    movement_range_data = experiment_movement_range(loc, first_date, last_date)
+    movement_range_data =
+        experiment_movement_range(loc, first_date, last_date, movement_range_lag)
     @assert size(movement_range_data, 2) ==
             Dates.value(train_range) + Dates.value(forecast_range)
 
-    social_proximity_data = experiment_social_proximity(
-        loc,
-        first_date - social_proximity_lag,
-        last_date - social_proximity_lag,
-    )
+    social_proximity_data =
+        experiment_social_proximity(loc, first_date, last_date, social_proximity_lag)
     @assert size(social_proximity_data, 2) ==
             Dates.value(train_range) + Dates.value(forecast_range)
 

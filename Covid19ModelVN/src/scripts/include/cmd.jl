@@ -55,6 +55,7 @@ get_fbmobility1_hyperparams(parsed_args) = (
     α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
+    movement_range_lag = Day(parsed_args[:movement_range_lag_days]),
     loss_type = parsed_args[:loss_type],
     loss_regularization = parsed_args[:loss_regularization],
     loss_time_weighting = parsed_args[:loss_time_weighting],
@@ -69,7 +70,8 @@ get_fbmobility2_hyperparams(parsed_args) = (
     α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
-    social_proximity_lag = Day(parsed_args[:spc_lag_days]),
+    movement_range_lag = Day(parsed_args[:movement_range_lag_days]),
+    social_proximity_lag = Day(parsed_args[:social_proximity_lag_days]),
     loss_type = parsed_args[:loss_type],
     loss_regularization = parsed_args[:loss_regularization],
     loss_time_weighting = parsed_args[:loss_time_weighting],
@@ -85,7 +87,8 @@ get_fbmobility3_hyperparams(parsed_args) = (
     α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
-    social_proximity_lag = Day(parsed_args[:spc_lag_days]),
+    movement_range_lag = Day(parsed_args[:movement_range_lag_days]),
+    social_proximity_lag = Day(parsed_args[:social_proximity_lag_days]),
     loss_type = parsed_args[:loss_type],
     loss_regularization = parsed_args[:loss_regularization],
     loss_time_weighting = parsed_args[:loss_time_weighting],
@@ -100,7 +103,8 @@ get_fbmobility4_hyperparams(parsed_args) = (
     α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
-    social_proximity_lag = Day(parsed_args[:spc_lag_days]),
+    movement_range_lag = Day(parsed_args[:movement_range_lag_days]),
+    social_proximity_lag = Day(parsed_args[:social_proximity_lag_days]),
     loss_type = parsed_args[:loss_type],
     loss_regularization = parsed_args[:loss_regularization],
     loss_time_weighting = parsed_args[:loss_time_weighting],
@@ -115,7 +119,8 @@ get_fbmobility5_hyperparams(parsed_args) = (
     α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
     train_range = Day(parsed_args[:train_days]),
     forecast_range = Day(parsed_args[:test_days]),
-    social_proximity_lag = Day(parsed_args[:spc_lag_days]),
+    movement_range_lag = Day(parsed_args[:movement_range_lag_days]),
+    social_proximity_lag = Day(parsed_args[:social_proximity_lag_days]),
     loss_type = parsed_args[:loss_type],
     loss_regularization = parsed_args[:loss_regularization],
     loss_time_weighting = parsed_args[:loss_time_weighting],
@@ -198,7 +203,12 @@ function parse_commandline(args)
         arg_type = Int
         default = 28
 
-        "--spc_lag_days"
+        "--movement_range_lag_days"
+        help = "number of lag days that is used when reading the Movement Range Maps dataset"
+        arg_type = Int
+        default = 14
+
+        "--social_proximity_lag_days"
         help = "number of lag days that is used when reading the Social Proximity to Cases index"
         arg_type = Int
         default = 14
