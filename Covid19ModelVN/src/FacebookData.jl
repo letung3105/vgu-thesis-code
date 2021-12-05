@@ -84,8 +84,7 @@ function calculate_social_proximity_to_cases(
             second_loc = getloc(row.fr_loc)
             second_loc = isempty(second_loc) ? continue : first(second_loc)
             # only calculate SPC for location that has confirmed cases
-            if second_loc.NAME_1 ∈ locs_with_confirmed &&
-               second_loc.NAME_1 != first_loc.NAME_1
+            if second_loc.NAME_1 ∈ locs_with_confirmed
                 df_spc[!, first_loc.NAME_1] .+=
                     (
                         df_covid_timeseries_confirmed[!, second_loc.NAME_1] ./
