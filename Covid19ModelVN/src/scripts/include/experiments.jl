@@ -48,7 +48,7 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
     # smooth out weekly seasonality
     moving_average!(df, datacols, 7)
     # observable compartments
-    conf = TimeseriesConfig(df, "date", ["deaths_total", "confirmed"])
+    conf = TimeseriesConfig(df, "date", ["deaths_total", "confirmed", "confirmed_total"])
     return conf, first_date, split_date, last_date
 end
 
@@ -63,14 +63,11 @@ function experiment_movement_range(
     df[!, cols] .= Float64.(df[!, cols])
     # smooth out weekly seasonality
     moving_average!(df, cols, 7)
-    movement_range_data =
-        load_timeseries(TimeseriesConfig(df, "ds", cols), first_date - lag, last_date - lag)
-    # min-max scaling
-    movement_range_min = minimum(movement_range_data, dims = 2)
-    movement_range_max = maximum(movement_range_data, dims = 2)
-    movement_range_data .-= movement_range_min
-    movement_range_data ./= movement_range_max .- movement_range_min
-    return movement_range_data
+    return load_timeseries(
+        TimeseriesConfig(df, "ds", cols),
+        first_date - lag,
+        last_date - lag,
+    )
 end
 
 function experiment_social_proximity(
@@ -83,17 +80,11 @@ function experiment_social_proximity(
     df[!, col] .= Float64.(df[!, col])
     # smooth out weekly seasonality
     moving_average!(df, col, 7)
-    social_proximity_data = load_timeseries(
+    return load_timeseries(
         TimeseriesConfig(df, "date", [col]),
         first_date - lag,
         last_date - lag,
     )
-    # min-max scaling
-    social_proximity_min = minimum(social_proximity_data, dims = 2)
-    social_proximity_max = maximum(social_proximity_data, dims = 2)
-    social_proximity_data .-= social_proximity_min
-    social_proximity_data ./= social_proximity_max .- social_proximity_min
-    return social_proximity_data
 end
 
 function experiment_SEIRD_initial_states(
@@ -111,8 +102,8 @@ function experiment_SEIRD_initial_states(
     S0 = population - E0 - df_first_date.confirmed_total[1] # susceptible individuals
     # initial state
     u0 = Float64[S0, E0, I0, R0, D0, N0, C0, T0]
-    vars = [5, 7]
-    labels = ["deaths", "new cases"]
+    vars = [5, 7, 8]
+    labels = ["deaths", "new cases", "total cases"]
     return u0, vars, labels
 end
 
