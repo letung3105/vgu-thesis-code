@@ -32,7 +32,13 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
     end
 
     # select data starting from when total deaths >= 1 and confirmed >= 500
-    dates = subset(df, :confirmed_total => x -> x .>= 500, view = true).date
+    dates =
+        subset(
+            df,
+            :deaths_total => x -> x .>= 1,
+            :confirmed_total => x -> x .>= 500,
+            view = true,
+        ).date
     first_date = first(dates)
     split_date = first_date + train_range - Day(1)
     last_date = split_date + forecast_range
@@ -74,10 +80,6 @@ function experiment_social_proximity(
     df[!, col] .= Float64.(df[!, col])
     # smooth out weekly seasonality
     moving_average!(df, col, 7)
-    # min-max scaling
-    min = minimum(Array(df[!, col]), dims = 1)
-    max = maximum(Array(df[!, col]), dims = 1)
-    df[!, col] .= (df[!, col] .- min) ./ (max .- min)
     return load_timeseries(
         TimeseriesConfig(df, "date", [col]),
         first_date - lag,
@@ -94,7 +96,7 @@ function experiment_SEIRD_initial_states(
     D0 = df_first_date.deaths_total[1] # total deaths
     C0 = df_first_date.confirmed[1] # new cases
     T0 = df_first_date.confirmed_total[1] # total cases
-    R0 = 0 # recovered individuals
+    R0 = T0 - I0 - D0 # recovered individuals
     N0 = population - D0 # effective population
     E0 = I0 * 5 # exposed individuals
     S0 = population - E0 - df_first_date.confirmed_total[1] # susceptible individuals
