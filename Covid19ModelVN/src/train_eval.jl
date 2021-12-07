@@ -177,7 +177,13 @@ function (l::Loss{true,Metric,Predict,DataCycle})(
     params,
 ) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful}
     data, tspan, tsteps = popfirst!(l.datacycle)
-    pred = l.predict(params, tspan, tsteps)
+    sol = l.predict(params, tspan, tsteps)
+    if sol.retcode != :Success
+        # Unstable trajectories
+        return Inf
+    end
+
+    pred = @view sol[:, :]
     if size(pred) != size(data)
         # Unstable trajectories / Wrong inputs
         return Inf
