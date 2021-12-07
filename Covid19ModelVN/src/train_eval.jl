@@ -159,12 +159,7 @@ function (l::Loss{false,Metric,Predict,DataCycle})(
     params,
 ) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful}
     data, tspan, tsteps = popfirst!(l.datacycle)
-    sol = l.predict(params, tspan, tsteps)
-    if sol.retcode != :Success
-        # Unstable trajectories => hard penalize
-        return Inf
-    end
-    pred = @view sol[:, :]
+    pred = l.predict(params, tspan, tsteps)
     if size(pred) != size(data)
         # Unstable trajectories / Wrong inputs
         return Inf
@@ -176,12 +171,7 @@ function (l::Loss{true,Metric,Predict,DataCycle})(
     params,
 ) where {Metric<:Function,Predict<:Predictor,DataCycle<:Iterators.Stateful}
     data, tspan, tsteps = popfirst!(l.datacycle)
-    sol = l.predict(params, tspan, tsteps)
-    if sol.retcode != :Success
-        # Unstable trajectories => hard penalize
-        return Inf
-    end
-    pred = @view sol[:, :]
+    pred = l.predict(params, tspan, tsteps)
     if size(pred) != size(data)
         # Unstable trajectories / Wrong inputs
         return Inf
