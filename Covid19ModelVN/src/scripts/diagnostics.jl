@@ -4,62 +4,69 @@ using OrdinaryDiffEq.EnsembleAnalysis
 
 include("include/cmd.jl")
 
-function plot_movement_range(loc, data::AbstractMatrix{<:Real})
-    fig = Figure()
-    ax = Axis(fig[1, 1], title = "Movement Range Data for '$loc'")
-    ln1 = lines!(ax, data[1, :])
-    ln2 = lines!(ax, data[2, :])
-    Legend(
-        fig[2, 1],
-        [ln1, ln2],
-        ["relative change in movement", "stay put index"],
-        tellwidth = false,
-        tellheight = true,
-        orientation = :horizontal,
-    )
-    return fig
-end
-
-function plot_social_proximity(loc, data::AbstractMatrix{<:Real})
-    fig = Figure()
-    ax = Axis(fig[1, 1], title = "Social Proximity to Cases for '$loc'")
-    lines!(ax, data[1, :], label = "social proximity to cases")
+function plot_movement_range!(
+    pos::GridPosition,
+    loc::AbstractString,
+    data::AbstractMatrix{<:Real},
+)
+    ax = Axis(pos, title = "Movement Range Data for '$loc'")
+    @views lines!(ax, data[1, :], label = "rel. change")
+    @views lines!(ax, data[2, :], label = "stay put")
     axislegend(ax, position = :lt)
-    return fig
+    return ax
 end
 
-function visualize_data(loc; train_range = Day(32), forecast_range = Day(28))
-    train_dataset, test_dataset, first_date, last_date =
+function plot_social_proximity!(
+    pos::GridPosition,
+    loc::AbstractString,
+    data::AbstractMatrix{<:Real},
+)
+    ax = Axis(pos, title = "Social Proximity to Cases for '$loc'")
+    @views lines!(ax, data[1, :], label = "social proximity to cases")
+    axislegend(ax, position = :lt)
+    return ax
+end
+
+function visualize_data(
+    loc;
+    train_range = Day(32),
+    forecast_range = Day(28),
+    lag_movement_range = Day(0),
+    lag_social_proximity = Day(0),
+)
+    conf, first_date, split_date, last_date =
         experiment_covid19_data(loc, train_range, forecast_range)
+    train_dataset, test_dataset = train_test_split(conf, first_date, split_date, last_date)
 
     fig = Figure()
+    current_row = 1
+
     ncompartments = size(train_dataset.data, 1)
     for i ∈ 1:ncompartments
-        ax = Axis(fig[1, i])
+        ax = Axis(fig[i, 1])
         @views data = [train_dataset.data[i, :]; test_dataset.data[i, :]]
         lines!(ax, data)
+        current_row += 1
     end
-    display(fig)
 
-    movement_range_data = try
-        experiment_movement_range(loc, first_date, last_date, Day(0))
+    try
+        data = experiment_movement_range(loc, first_date, last_date, lag_movement_range)
+        plot_movement_range!(fig[current_row, 1], loc, data)
+        current_row += 1
     catch e
         @warn e
     end
-    if !isnothing(movement_range_data)
-        fig = plot_movement_range(loc, movement_range_data)
-        display(fig)
-    end
 
-    social_proximity_data = try
-        experiment_social_proximity(loc, first_date, last_date, Day(0))
+    try
+        data = experiment_social_proximity(loc, first_date, last_date, lag_social_proximity)
+        plot_social_proximity!(fig[current_row, 1], loc, data)
+        current_row += 1
     catch e
         @warn e
     end
-    if !isnothing(social_proximity_data)
-        fig = plot_social_proximity(loc, social_proximity_data)
-        display(fig)
-    end
+
+    fig.scene.resolution = (600, 300 * (current_row - 1))
+    return fig
 end
 
 function visualize_data_all_locations()
@@ -69,7 +76,8 @@ function visualize_data_all_locations()
         collect(keys(Covid19ModelVN.LOC_NAMES_VN))
         collect(keys(Covid19ModelVN.LOC_NAMES_US))
     ]
-        visualize_data(loc)
+        fig = visualize_data(loc)
+        display(fig)
     end
 end
 
@@ -102,11 +110,13 @@ function check_model_methods(loc, model)
 
     # plot Fb's data
     if hasfield(typeof(model), :movement_range_data)
-        fig = plot_movement_range(loc, model.movement_range_data)
+        fig = Figure()
+        plot_movement_range!(fig[1, 1], loc, model.movement_range_data)
         display(fig)
     end
     if hasfield(typeof(model), :social_proximity_data)
-        fig = plot_social_proximity(loc, model.social_proximity_data)
+        fig = Figure()
+        plot_social_proximity!(fig[1, 1], loc, model.social_proximity_data)
         display(fig)
     end
 
