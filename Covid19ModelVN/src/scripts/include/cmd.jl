@@ -79,7 +79,7 @@ function parse_commandline(args)
 
     isvalidmodel(name) = name == :baseline || name == :fbmobility1 || name == :fbmobility2
 
-    isvalidloss(name) = name == :ssle || name == :sse
+    isvalidloss(name) = name == :polar || name == :sse
 
     @add_arg_table s begin
         "model_name"

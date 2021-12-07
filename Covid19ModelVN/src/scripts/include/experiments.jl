@@ -107,13 +107,18 @@ function experiment_SEIRD_initial_states(
     return u0, vars, labels
 end
 
-function experiment_loss_ssle(ζ::R) where {R<:Real}
-    ϵ = eps(R)
+normed_ld(a, b) = abs(norm(a) - norm(b)) / (norm(a) + norm(b))
+cosine_similarity(a, b) = dot(a, b) / (norm(a) * norm(b))
+cosine_distance(a, b) = (1 - cosine_similarity(a, b)) / 2
+
+function experiment_loss_polar(w::Tuple{R,R}, ζ::R) where {R<:Real}
     lossfn = function (ŷ::AbstractArray{R}, y, tsteps) where {R<:Real}
         s = zero(R)
         sz = size(y)
-        @inbounds for j ∈ 1:sz[2], i ∈ 1:sz[1]
-            s += (log(ŷ[i, j] + ϵ) - log(y[i, j] + ϵ))^2 / sz[2] * exp(ζ * tsteps[j])
+        @inbounds for j ∈ 1:sz[2]
+            @views s += w[1] * normed_ld(y[:, j], ŷ[:, j])
+            @views s += w[2] * cosine_distance(y[:, j], ŷ[:, j])
+            s *= exp(ζ * tsteps[j])
         end
         return s
     end
@@ -176,8 +181,8 @@ function setup_baseline(
     )
     p0 = initparams(model, γ0, λ0)
 
-    lossfn_inner = if loss_type == :ssle
-        experiment_loss_ssle(loss_time_weighting)
+    lossfn_inner = if loss_type == :polar
+        experiment_loss_polar((0.5, 0.5), loss_time_weighting)
     elseif loss_type == :sse
         min = vec(minimum(train_dataset.data, dims = 2))
         max = vec(maximum(train_dataset.data, dims = 2))
@@ -241,8 +246,8 @@ function setup_fbmobility1(
     )
     p0 = initparams(model, γ0, λ0)
 
-    lossfn_inner = if loss_type == :ssle
-        experiment_loss_ssle(loss_time_weighting)
+    lossfn_inner = if loss_type == :polar
+        experiment_loss_polar((0.5, 0.5), loss_time_weighting)
     elseif loss_type == :sse
         min = vec(minimum(train_dataset.data, dims = 2))
         max = vec(maximum(train_dataset.data, dims = 2))
@@ -313,8 +318,8 @@ function setup_fbmobility2(
     )
     p0 = initparams(model, γ0, λ0)
 
-    lossfn_inner = if loss_type == :ssle
-        experiment_loss_ssle(loss_time_weighting)
+    lossfn_inner = if loss_type == :polar
+        experiment_loss_polar((0.5, 0.5), loss_time_weighting)
     elseif loss_type == :sse
         min = vec(minimum(train_dataset.data, dims = 2))
         max = vec(maximum(train_dataset.data, dims = 2))

@@ -30,7 +30,7 @@ let
             Loss(l, predictor, train_dataset)
         end
         loss2 = let
-            l = experiment_loss_ssle(hyperparams.loss_time_weighting)
+            l = experiment_loss_polar((0.5, 0.5), hyperparams.loss_time_weighting)
             Loss(l, predictor, train_dataset)
         end
 
