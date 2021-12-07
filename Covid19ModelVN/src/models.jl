@@ -313,7 +313,51 @@ namedparams(model::AbstractCovidModel, params::AbstractVector{<:Real}) = @inboun
 )
 
 function fatality_rate(
-    model::AbstractCovidModel,
+    model::SEIRDBaseline,
+    u0::AbstractVector{T},
+    params::AbstractVector{T},
+    tspan::Tuple{T,T},
+    saveat::Ts,
+) where {T<:Real,Ts}
+    sol = default_solve(model, u0, params, tspan, saveat)
+    states = Array(sol)
+    I = @view states[3, :]
+    D = @view states[5, :]
+
+    pnamed = namedparams(model, params)
+    α_ann_input = [
+        (collect(saveat) ./ model.time_scale)'
+        (I ./ model.population)'
+        (D ./ model.population)'
+    ]
+    αt = vec(model.α_ann(α_ann_input, pnamed.θ2))
+    return αt
+end
+
+function fatality_rate(
+    model::SEIRDFbMobility1,
+    u0::AbstractVector{T},
+    params::AbstractVector{T},
+    tspan::Tuple{T,T},
+    saveat::Ts,
+) where {T<:Real,Ts}
+    sol = default_solve(model, u0, params, tspan, saveat)
+    states = Array(sol)
+    I = @view states[3, :]
+    D = @view states[5, :]
+
+    pnamed = namedparams(model, params)
+    α_ann_input = [
+        (collect(saveat) ./ model.time_scale)'
+        (I ./ model.population)'
+        (D ./ model.population)'
+    ]
+    αt = vec(model.α_ann(α_ann_input, pnamed.θ2))
+    return αt
+end
+
+function fatality_rate(
+    model::SEIRDFbMobility2,
     u0::AbstractVector{T},
     params::AbstractVector{T},
     tspan::Tuple{T,T},
