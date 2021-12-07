@@ -494,7 +494,7 @@ end
 """
     calculate_forecasts_errors(
         config::EvalConfig,
-        pred::SciMLBase.AbstractTimeseriesSolution,
+        pred,
         test_dataset::TimeseriesDataset,
     )::DataFrame
 
@@ -514,7 +514,7 @@ calculated with different metrics and forecasting horizons
 """
 function calculate_forecasts_errors(
     config::EvalConfig,
-    pred::SciMLBase.AbstractTimeseriesSolution,
+    pred,
     test_dataset::TimeseriesDataset,
 )
     horizons = repeat(config.forecast_ranges, inner = length(config.metrics))
@@ -647,8 +647,8 @@ end
 """
     plot_forecasts(
         config::EvalConfig,
-        fit::SciMLBase.AbstractTimeseriesSolution,
-        pred::SciMLBase.AbstractTimeseriesSolution,
+        fit,
+        pred,
         train_dataset::TimeseriesDataset,
         test_dataset::TimeseriesDataset,
     )
