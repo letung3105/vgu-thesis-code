@@ -74,6 +74,10 @@ function experiment_social_proximity(
     df[!, col] .= Float64.(df[!, col])
     # smooth out weekly seasonality
     moving_average!(df, col, 7)
+    # min-max scaling
+    min = minimum(Array(df[!, col]), dims = 1)
+    max = maximum(Array(df[!, col]), dims = 1)
+    df[!, col] .= (df[!, col] .- min) ./ (max .- min)
     return load_timeseries(
         TimeseriesConfig(df, "date", [col]),
         first_date - lag,
