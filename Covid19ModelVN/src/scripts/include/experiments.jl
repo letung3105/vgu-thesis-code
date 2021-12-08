@@ -170,7 +170,7 @@ function setup_baseline(
         λ_bounds,
         α_bounds,
         Float64(get_prebuilt_population(loc)),
-        Float64(Dates.value(last_date - first_date)),
+        Float64(Dates.value(split_date - first_date)),
     )
     # get the initial states and available observations depending on the model type
     # and the considered location
@@ -236,7 +236,7 @@ function setup_fbmobility1(
         λ_bounds,
         α_bounds,
         Float64(get_prebuilt_population(loc)),
-        Float64(Dates.value(last_date - first_date)),
+        Float64(Dates.value(split_date - first_date)),
         movement_range_data,
     )
     # get the initial states and available observations depending on the model type

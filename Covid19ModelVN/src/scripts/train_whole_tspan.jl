@@ -18,7 +18,7 @@ let
         "--alpha_bounds",
         0.005,
         0.05,
-        "--train_days=28",
+        "--train_days=60",
         "--movement_range_lag_days=0",
         "--social_proximity_lag_days=0",
         "--loss_type=sse",
@@ -27,13 +27,13 @@ let
 
     args_train = [
         "train_whole_trajectory_two_stages",
-        "--lr=0.05",
+        "--lr=0.01",
         "--lr_limit=0.0001",
-        "--lr_decay_rate=0.05",
+        "--lr_decay_rate=0.5",
         "--lr_decay_step=1000",
         "--maxiters_first=10000",
         "--maxiters_second=1000",
-        "--minibatching=8",
+        "--minibatching=15",
     ]
 
     runcmd(

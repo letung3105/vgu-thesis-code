@@ -1,86 +1,39 @@
 include("include/cmd.jl")
 
-let
-    args_model = [
-        "--beta_bounds",
-        0.2 / 4,
-        6.68 / 4,
-        "--gamma0",
-        1 / 4,
-        "--gamma_bounds",
-        1 / 4,
-        1 / 4,
-        "--lambda0",
-        1 / 14,
-        "--lambda_bounds",
-        1 / 14,
-        1 / 14,
-        "--alpha_bounds",
-        0.005,
-        0.05,
-        "--train_days=28",
-        "--movement_range_lag_days=0",
-        "--social_proximity_lag_days=0",
-        "--loss_type=sse",
-        "--loss_regularization=0.0001",
-    ]
+# runcmd(
+#     string.([
+#         "--train_days=60",
+#         "--loss_regularization=0.0001",
+#         "--loss_time_weighting=-0.001",
+#         "--locations=cook_il",
+#         "--savedir=testsnapshots/testhyperparams",
+#         "--show_progress",
+#         "fbmobility2",
+#         "train_growing_trajectory",
+#         "--lr=0.05",
+#         "--lr_limit=0.00001",
+#         "--lr_decay_rate=0.3",
+#         "--lr_decay_step=1000",
+#         "--maxiters_initial=500",
+#         "--maxiters_growth=500",
+#         "--tspan_size_initial=6",
+#         "--tspan_size_growth=6",
+#     ]),
+# )
 
-    args_train = [
-        "train_growing_trajectory_two_stages",
-        "--lr=0.05",
-        "--lr_limit=0.0001",
-        "--lr_decay_rate=0.5",
-        "--lr_decay_step=1000",
-        "--maxiters_initial=1000",
-        "--maxiters_growth=1000",
-        "--maxiters_second=1000",
-        "--tspan_size_initial=7",
-        "--tspan_size_growth=7",
-    ]
-
-    runcmd(
-        string.([
-            args_model...,
-            "--locations",
-            "cook_il",
-            "--savedir=testsnapshots/testhyperparams",
-            "--show_progress",
-            "fbmobility2",
-            args_train...,
-        ]),
-    )
-end
 
 let
     args_model = [
-        "--beta_bounds",
-        0.2 / 4,
-        6.68 / 4,
-        "--gamma0",
-        1 / 4,
-        "--gamma_bounds",
-        1 / 4,
-        1 / 4,
-        "--lambda0",
-        1 / 14,
-        "--lambda_bounds",
-        1 / 14,
-        1 / 14,
-        "--alpha_bounds",
-        0.005,
-        0.05,
         "--train_days=60",
-        "--movement_range_lag_days=0",
-        "--social_proximity_lag_days=0",
-        "--loss_type=sse",
-        # "--loss_regularization=0.001",
+        "--loss_regularization=0.0001",
+        "--loss_time_weighting=-0.001",
     ]
 
     args_train = [
         "train_growing_trajectory_two_stages",
         "--lr=0.05",
-        "--lr_limit=0.0001",
-        "--lr_decay_rate=0.5",
+        "--lr_limit=0.00001",
+        "--lr_decay_rate=0.3",
         "--lr_decay_step=1000",
         "--maxiters_initial=500",
         "--maxiters_growth=500",
@@ -124,34 +77,16 @@ end
 
 let
     args_model = [
-        "--beta_bounds",
-        0.2 / 4,
-        6.68 / 4,
-        "--gamma0",
-        1 / 4,
-        "--gamma_bounds",
-        1 / 4,
-        1 / 4,
-        "--lambda0",
-        1 / 14,
-        "--lambda_bounds",
-        1 / 14,
-        1 / 14,
-        "--alpha_bounds",
-        0.005,
-        0.05,
         "--train_days=45",
-        "--movement_range_lag_days=0",
-        "--social_proximity_lag_days=0",
-        "--loss_type=sse",
-        # "--loss_regularization=0.001",
+        "--loss_regularization=0.0001",
+        "--loss_time_weighting=-0.001",
     ]
 
     args_train = [
         "train_growing_trajectory_two_stages",
         "--lr=0.05",
-        "--lr_limit=0.0001",
-        "--lr_decay_rate=0.5",
+        "--lr_limit=0.00001",
+        "--lr_decay_rate=0.3",
         "--lr_decay_step=1000",
         "--maxiters_initial=500",
         "--maxiters_growth=500",
@@ -195,34 +130,16 @@ end
 
 let
     args_model = [
-        "--beta_bounds",
-        0.2 / 4,
-        6.68 / 4,
-        "--gamma0",
-        1 / 4,
-        "--gamma_bounds",
-        1 / 4,
-        1 / 4,
-        "--lambda0",
-        1 / 14,
-        "--lambda_bounds",
-        1 / 14,
-        1 / 14,
-        "--alpha_bounds",
-        0.005,
-        0.05,
         "--train_days=32",
-        "--movement_range_lag_days=0",
-        "--social_proximity_lag_days=0",
-        "--loss_type=sse",
-        # "--loss_regularization=0.001",
+        "--loss_regularization=0.0001",
+        "--loss_time_weighting=-0.001",
     ]
 
     args_train = [
         "train_growing_trajectory_two_stages",
         "--lr=0.05",
-        "--lr_limit=0.0001",
-        "--lr_decay_rate=0.5",
+        "--lr_limit=0.00001",
+        "--lr_decay_rate=0.3",
         "--lr_decay_step=1000",
         "--maxiters_initial=500",
         "--maxiters_growth=500",

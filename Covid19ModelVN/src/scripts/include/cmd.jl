@@ -175,7 +175,7 @@ function parse_commandline(args)
         help = "lower and upper bounds contraints for the average contact rate"
         nargs = 2
         arg_type = Float64
-        default = [0.0, 1.336] # Re ∈ [0.0; 6.68]
+        default = [0.0, 6.68 / 4] # Re ∈ [0.0; 6.68]
 
         "--gamma_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean incubation period"
