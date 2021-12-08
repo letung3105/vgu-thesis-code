@@ -252,11 +252,6 @@ function parse_commandline(args)
         help = "number of new data points taken when growing the time span"
         arg_type = Int
         default = 8
-
-        "--minibatching"
-        help = "size of the minibatch used when training, 0 means no minibatching"
-        arg_type = Int
-        default = 0
     end
 
     @add_arg_table s["train_growing_trajectory_two_stages"] begin
@@ -304,11 +299,6 @@ function parse_commandline(args)
         help = "number of new data points taken when growing the time span"
         arg_type = Int
         default = 8
-
-        "--minibatching"
-        help = "size of the minibatch used when training, 0 means no minibatching"
-        arg_type = Int
-        default = 0
     end
 
     @add_arg_table s["train_whole_trajectory"] begin

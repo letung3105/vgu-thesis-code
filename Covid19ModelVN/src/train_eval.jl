@@ -276,7 +276,7 @@ training process
 * `params`: the model's parameters
 * `train_loss`: loss from the training step
 """
-mutable struct LogCallback
+struct LogCallback
     state::LogCallbackState
     config::LogCallbackConfig
 end
