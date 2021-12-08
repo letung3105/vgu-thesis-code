@@ -82,7 +82,7 @@ const COVID19MODEL_FILES = String[
 
 function __init__()
     register(
-        DataDep(DATADEP_NAME, "Dataset: Datsets for the experiments", COVID19MODEL_FILES),
+        DataDep(DATADEP_NAME, "Dataset: Datsets for the experiments", COVID19MODEL_FILES)
     )
     return nothing
 end
@@ -104,8 +104,7 @@ function get_prebuilt_covid_timeseries(location_code::AbstractString)
         LOC_CODE_LONG_AN => datadep"vncdc/LongAn.json",
     ])
     jhu_data = Dict([
-        LOC_CODE_VIETNAM =>
-            @datadep_str("$DATADEP_NAME/$FNAME_COVID19_TIMESERIES_VIETNAM"),
+        LOC_CODE_VIETNAM => @datadep_str("$DATADEP_NAME/$FNAME_COVID19_TIMESERIES_VIETNAM"),
         LOC_CODE_UNITED_STATES =>
             @datadep_str("$DATADEP_NAME/$FNAME_COVID19_TIMESERIES_UNITED_STATES"),
         LOC_CODE_LOS_ANGELES_CA =>
@@ -140,16 +139,14 @@ Create all the combined Covid-19 datasets that are used by the experiments
 * `dir`: the path to the directory where the datasets are saved
 * `recreate`: choose whether to overwrite a dataset that already exists in the directory
 """
-function make_covid_timeseries(dir::AbstractString; recreate::Bool = false)
+function make_covid_timeseries(dir::AbstractString; recreate::Bool=false)
     JHUCSSEData.save_country_level_timeseries(
         [
             JHUCSSEData.CountryCovidTimeseriesFile(
-                joinpath(dir, FNAME_COVID19_TIMESERIES_VIETNAM),
-                "Vietnam",
+                joinpath(dir, FNAME_COVID19_TIMESERIES_VIETNAM), "Vietnam"
             ),
             JHUCSSEData.CountryCovidTimeseriesFile(
-                joinpath(dir, FNAME_COVID19_TIMESERIES_UNITED_STATES),
-                "US",
+                joinpath(dir, FNAME_COVID19_TIMESERIES_UNITED_STATES), "US"
             ),
         ];
         recreate,
@@ -162,14 +159,10 @@ function make_covid_timeseries(dir::AbstractString; recreate::Bool = false)
                 "Los Angeles",
             ),
             JHUCSSEData.CountyCovidTimeseriesFile(
-                joinpath(dir, FNAME_COVID19_TIMESERIES_COOK_COUNTY_IL),
-                "Illinois",
-                "Cook",
+                joinpath(dir, FNAME_COVID19_TIMESERIES_COOK_COUNTY_IL), "Illinois", "Cook"
             ),
             JHUCSSEData.CountyCovidTimeseriesFile(
-                joinpath(dir, FNAME_COVID19_TIMESERIES_HARRIS_COUNTY_TX),
-                "Texas",
-                "Harris",
+                joinpath(dir, FNAME_COVID19_TIMESERIES_HARRIS_COUNTY_TX), "Texas", "Harris"
             ),
             JHUCSSEData.CountyCovidTimeseriesFile(
                 joinpath(dir, FNAME_COVID19_TIMESERIES_MARICOPA_COUNTY_AZ),
@@ -223,14 +216,12 @@ Create all the population datasets that are used by the experiments
 * `dir`: the path to the directory where the datasets are saved
 * `recreate`: choose whether to overwrite a dataset that already exists in the directory
 """
-function make_population(dir::AbstractString; recreate::Bool = false)
+function make_population(dir::AbstractString; recreate::Bool=false)
     PopulationData.save_vietnam_province_level_gadm_and_gso_population(
-        joinpath(dir, FNAME_AVERAGE_POPULATION_VN_PROVINCES);
-        recreate,
+        joinpath(dir, FNAME_AVERAGE_POPULATION_VN_PROVINCES); recreate
     )
     JHUCSSEData.save_us_counties_population(
-        joinpath(dir, FNAME_AVERAGE_POPULATION_US_COUNTIES);
-        recreate,
+        joinpath(dir, FNAME_AVERAGE_POPULATION_US_COUNTIES); recreate
     )
     return nothing
 end
@@ -247,12 +238,10 @@ Get the average movement range maps dataset, that is created for the model, for 
 function get_prebuilt_movement_range(location_code::AbstractString)
     data = Dict([
         LOC_CODE_VIETNAM => @datadep_str("$DATADEP_NAME/$FNAME_MOVEMENT_RANGE_VIETNAM"),
-        LOC_CODE_HCM_CITY =>
-            @datadep_str("$DATADEP_NAME/$FNAME_MOVEMENT_RANGE_HCM_CITY"),
+        LOC_CODE_HCM_CITY => @datadep_str("$DATADEP_NAME/$FNAME_MOVEMENT_RANGE_HCM_CITY"),
         LOC_CODE_BINH_DUONG =>
             @datadep_str("$DATADEP_NAME/$FNAME_MOVEMENT_RANGE_BINH_DUONG"),
-        LOC_CODE_DONG_NAI =>
-            @datadep_str("$DATADEP_NAME/$FNAME_MOVEMENT_RANGE_DONG_NAI"),
+        LOC_CODE_DONG_NAI => @datadep_str("$DATADEP_NAME/$FNAME_MOVEMENT_RANGE_DONG_NAI"),
         LOC_CODE_LONG_AN => @datadep_str("$DATADEP_NAME/$FNAME_MOVEMENT_RANGE_LONG_AN"),
         LOC_CODE_UNITED_STATES =>
             @datadep_str("$DATADEP_NAME/$FNAME_MOVEMENT_RANGE_UNITED_STATES"),
@@ -286,58 +275,38 @@ Create all the average indices from the movement range maps dataset
 * `dir`: the path to the directory where the datasets are saved
 * `recreate`: choose whether to overwrite a dataset that already exists in the directory
 """
-function make_movement_range(dir::AbstractString; recreate::Bool = false)
+function make_movement_range(dir::AbstractString; recreate::Bool=false)
     FacebookData.save_region_average_movement_range(
         [
             FacebookData.RegionMovementRangeFile(
-                joinpath(dir, FNAME_MOVEMENT_RANGE_VIETNAM),
-                "VNM",
-                nothing,
+                joinpath(dir, FNAME_MOVEMENT_RANGE_VIETNAM), "VNM", nothing
             ),
             FacebookData.RegionMovementRangeFile(
-                joinpath(dir, FNAME_MOVEMENT_RANGE_HCM_CITY),
-                "VNM",
-                26,
+                joinpath(dir, FNAME_MOVEMENT_RANGE_HCM_CITY), "VNM", 26
             ),
             FacebookData.RegionMovementRangeFile(
-                joinpath(dir, FNAME_MOVEMENT_RANGE_BINH_DUONG),
-                "VNM",
-                10,
+                joinpath(dir, FNAME_MOVEMENT_RANGE_BINH_DUONG), "VNM", 10
             ),
             FacebookData.RegionMovementRangeFile(
-                joinpath(dir, FNAME_MOVEMENT_RANGE_DONG_NAI),
-                "VNM",
-                2,
+                joinpath(dir, FNAME_MOVEMENT_RANGE_DONG_NAI), "VNM", 2
             ),
             FacebookData.RegionMovementRangeFile(
-                joinpath(dir, FNAME_MOVEMENT_RANGE_LONG_AN),
-                "VNM",
-                39,
+                joinpath(dir, FNAME_MOVEMENT_RANGE_LONG_AN), "VNM", 39
             ),
             FacebookData.RegionMovementRangeFile(
-                joinpath(dir, FNAME_MOVEMENT_RANGE_UNITED_STATES),
-                "USA",
-                nothing,
+                joinpath(dir, FNAME_MOVEMENT_RANGE_UNITED_STATES), "USA", nothing
             ),
             FacebookData.RegionMovementRangeFile(
-                joinpath(dir, FNAME_MOVEMENT_RANGE_LOS_ANGELES_CA),
-                "USA",
-                6037,
+                joinpath(dir, FNAME_MOVEMENT_RANGE_LOS_ANGELES_CA), "USA", 6037
             ),
             FacebookData.RegionMovementRangeFile(
-                joinpath(dir, FNAME_MOVEMENT_RANGE_COOK_COUNTY_IL),
-                "USA",
-                17031,
+                joinpath(dir, FNAME_MOVEMENT_RANGE_COOK_COUNTY_IL), "USA", 17031
             ),
             FacebookData.RegionMovementRangeFile(
-                joinpath(dir, FNAME_MOVEMENT_RANGE_HARRIS_COUNTY_TX),
-                "USA",
-                13145,
+                joinpath(dir, FNAME_MOVEMENT_RANGE_HARRIS_COUNTY_TX), "USA", 13145
             ),
             FacebookData.RegionMovementRangeFile(
-                joinpath(dir, FNAME_MOVEMENT_RANGE_MARICOPA_COUNTY_AZ),
-                "USA",
-                4013,
+                joinpath(dir, FNAME_MOVEMENT_RANGE_MARICOPA_COUNTY_AZ), "USA", 4013
             ),
         ];
         recreate,
@@ -345,32 +314,22 @@ function make_movement_range(dir::AbstractString; recreate::Bool = false)
     FacebookData.save_region_average_movement_range(
         [
             FacebookData.RegionMovementRangeFile(
-                joinpath(dir, FNAME_MOVEMENT_RANGE_UNITED_STATES_2020),
-                "USA",
-                nothing,
+                joinpath(dir, FNAME_MOVEMENT_RANGE_UNITED_STATES_2020), "USA", nothing
             ),
             FacebookData.RegionMovementRangeFile(
-                joinpath(dir, FNAME_MOVEMENT_RANGE_LOS_ANGELES_CA_2020),
-                "USA",
-                6037,
+                joinpath(dir, FNAME_MOVEMENT_RANGE_LOS_ANGELES_CA_2020), "USA", 6037
             ),
             FacebookData.RegionMovementRangeFile(
-                joinpath(dir, FNAME_MOVEMENT_RANGE_COOK_COUNTY_IL_2020),
-                "USA",
-                17031,
+                joinpath(dir, FNAME_MOVEMENT_RANGE_COOK_COUNTY_IL_2020), "USA", 17031
             ),
             FacebookData.RegionMovementRangeFile(
-                joinpath(dir, FNAME_MOVEMENT_RANGE_HARRIS_COUNTY_TX_2020),
-                "USA",
-                13145,
+                joinpath(dir, FNAME_MOVEMENT_RANGE_HARRIS_COUNTY_TX_2020), "USA", 13145
             ),
             FacebookData.RegionMovementRangeFile(
-                joinpath(dir, FNAME_MOVEMENT_RANGE_MARICOPA_COUNTY_AZ_2020),
-                "USA",
-                4013,
+                joinpath(dir, FNAME_MOVEMENT_RANGE_MARICOPA_COUNTY_AZ_2020), "USA", 4013
             ),
         ];
-        fpath_movement_range = datadep"facebook/movement-range-data-2020-03-01--2020-12-31.txt",
+        fpath_movement_range=datadep"facebook/movement-range-data-2020-03-01--2020-12-31.txt",
         recreate,
     )
     return nothing
@@ -420,9 +379,9 @@ Create all the social proximity to cases datasets that are used by the experimen
 """
 function make_social_proximity(
     dir::AbstractString;
-    recreate::Bool = false,
-    fpath_population_vn = joinpath(dir, FNAME_AVERAGE_POPULATION_VN_PROVINCES),
-    fpath_population_us = joinpath(dir, FNAME_AVERAGE_POPULATION_US_COUNTIES),
+    recreate::Bool=false,
+    fpath_population_vn=joinpath(dir, FNAME_AVERAGE_POPULATION_VN_PROVINCES),
+    fpath_population_us=joinpath(dir, FNAME_AVERAGE_POPULATION_US_COUNTIES),
 )
     fpath_spc_vn = joinpath(dir, FNAME_SOCIAL_PROXIMITY_TO_CASES_VN_PROVINCES)
     if !isfile(fpath_spc_vn) || recreate
@@ -432,22 +391,19 @@ function make_social_proximity(
 
         @info "Reading social connectedness index dataset"
         df_sci = FacebookData.read_social_connectedness(
-            datadep"facebook/gadm1_nuts2_gadm1_nuts2.tsv",
+            datadep"facebook/gadm1_nuts2_gadm1_nuts2.tsv"
         )
         df_sci_vn = FacebookData.inter_province_social_connectedness(df_sci, "VNM")
         @info "Reading population data"
         df_population = CSV.read(fpath_population_vn, DataFrame)
         @info "Reading Covid-19 timeseries"
         df_covid = CSV.read(
-            datadep"vnexpress/timeseries-vietnam-provinces-confirmed.csv",
-            DataFrame,
+            datadep"vnexpress/timeseries-vietnam-provinces-confirmed.csv", DataFrame
         )
 
         @info "Calculating social proximity to cases index"
         df_scp_vn = FacebookData.calculate_social_proximity_to_cases(
-            df_population,
-            df_covid,
-            df_sci_vn,
+            df_population, df_covid, df_sci_vn
         )
         save_dataframe(df_scp_vn, fpath_spc_vn)
     end
@@ -459,20 +415,19 @@ function make_social_proximity(
         end
 
         @info "Reading social connectedness index dataset"
-        df_sci_counties =
-            FacebookData.read_social_connectedness(datadep"facebook/county_county.tsv")
+        df_sci_counties = FacebookData.read_social_connectedness(
+            datadep"facebook/county_county.tsv"
+        )
         @info "Reading population data"
         df_population = CSV.read(fpath_population_us, DataFrame)
         @info "Reading Covid-19 timeseries"
         df_covid = JHUCSSEData.get_us_counties_timeseries_confirmed(
-            CSV.read(datadep"jhu-csse/time_series_covid19_confirmed_US.csv", DataFrame),
+            CSV.read(datadep"jhu-csse/time_series_covid19_confirmed_US.csv", DataFrame)
         )
 
         @info "Calculating social proximity to cases index"
         df_scp_us = FacebookData.calculate_social_proximity_to_cases(
-            df_population,
-            df_covid,
-            df_sci_counties,
+            df_population, df_covid, df_sci_counties
         )
         save_dataframe(df_scp_us, fpath_spc_us)
     end

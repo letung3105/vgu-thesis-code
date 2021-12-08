@@ -29,8 +29,8 @@ Request and parse Vietnam country-level Covid-19 timeseries from vnexpress into 
 + `last_date`: the latest date that can exist in the dataframe
 """
 function get_timeseries_vietnam_combined(
-    url::AbstractString = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_day";
-    last_date::Date = today() - Day(1),
+    url::AbstractString="https://vnexpress.net/microservice/sheet/type/covid19_2021_by_day";
+    last_date::Date=today() - Day(1),
 )
     # request data
     res = HTTP.get(url)
@@ -60,8 +60,8 @@ Request and parse Vietnam province-level Covid-19 confirmed cases timeseries fro
 + `last_date`: the latest date that can exist in the dataframe
 """
 function get_timeseries_vietnam_provinces_confirmed(
-    url::AbstractString = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_location";
-    last_date::Date = today() - Day(1),
+    url::AbstractString="https://vnexpress.net/microservice/sheet/type/covid19_2021_by_location";
+    last_date::Date=today() - Day(1),
 )
     # request data
     res = HTTP.get(url)
@@ -87,8 +87,8 @@ Request and parse Vietnam province-level Covid-19 total confirmed cases timeseri
 + `last_date`: the latest date that can exist in the dataframe
 """
 function get_timeseries_vietnam_provinces_confirmed_total(
-    url::AbstractString = "https://vnexpress.net/microservice/sheet/type/covid19_2021_by_total";
-    last_date::Date = today() - Day(1),
+    url::AbstractString="https://vnexpress.net/microservice/sheet/type/covid19_2021_by_total";
+    last_date::Date=today() - Day(1),
 )
     # request data
     res = HTTP.get(url)
@@ -110,8 +110,9 @@ Check if there's any missing data cell
 
 + `df`: the dataframe to be checked
 """
-hasmissing(df::AbstractDataFrame) =
-    any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
+function hasmissing(df::AbstractDataFrame)
+    return any(Iterators.flatten(map(row -> ismissing.(values(row)), eachrow(df))))
+end
 
 """
 Rename the provinces so that they match the data from GADM
@@ -144,9 +145,7 @@ function clean_provinces_confirmed_cases_timeseries!(df::AbstractDataFrame)
     rename_vnexpress_cities_provinces_names_to_gadm!(df)
     # Convert string to date and only select needed columns
     select!(
-        df,
-        "Ngày" => (x -> Date.(x .* "/2021", dateformat"d/m/Y")) => :date,
-        Not("Ngày"),
+        df, "Ngày" => (x -> Date.(x .* "/2021", dateformat"d/m/Y")) => :date, Not("Ngày")
     )
     return df
 end

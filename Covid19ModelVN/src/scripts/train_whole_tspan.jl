@@ -1,7 +1,7 @@
 include("include/cmd.jl")
 
-runcmd(
-    string.([
+let
+    args_model = [
         "--beta_bounds",
         0.2 / 4,
         6.68 / 4,
@@ -18,24 +18,45 @@ runcmd(
         "--alpha_bounds",
         0.005,
         0.05,
-        "--locations",
-        # union(keys(Covid19ModelVN.LOC_NAMES_US), keys(Covid19ModelVN.LOC_NAMES_VN))...,
-        "harris_tx",
-        "--train_days=45",
-        "--spc_lag_days=0",
+        "--train_days=28",
+        "--movement_range_lag_days=0",
+        "--social_proximity_lag_days=0",
         "--loss_type=sse",
-        "--loss_regularization=0.00001",
-        "--savedir=testsnapshots/newmodel",
-        "--show_progress",
-        # "--multithreading",
-        "fbmobility4",
+        "--loss_regularization=0.0001",
+    ]
+
+    args_train = [
         "train_whole_trajectory_two_stages",
         "--lr=0.05",
         "--lr_limit=0.0001",
-        "--lr_decay_rate=0.1",
-        "--lr_decay_step=10000",
-        "--maxiters_first=30000",
-        "--maxiters_second=10000",
-        "--minibatching=7",
+        "--lr_decay_rate=0.05",
+        "--lr_decay_step=1000",
+        "--maxiters_first=10000",
+        "--maxiters_second=1000",
+        "--minibatching=8",
+    ]
+
+    runcmd(
+        string.([
+            args_model...,
+            "--locations",
+            "cook_il",
+            "--savedir=testsnapshots/testhyperparams",
+            "--show_progress",
+            "fbmobility2",
+            args_train...,
+        ]),
+    )
+end
+
+runcmd(
+    string.([
+        args_model...,
+        "--locations",
+        union(keys(Covid19ModelVN.LOC_NAMES_US), keys(Covid19ModelVN.LOC_NAMES_VN))...,
+        "--savedir=testsnapshots/batchrun01",
+        "--multithreading",
+        "fbmobility2",
+        args_train...,
     ]),
 )

@@ -17,8 +17,8 @@ function __init__()
                 "https://github.com/letung3105/coviddata/raw/master/facebook/movement-range-data-2020-03-01-2020-12-31.zip"
                 "https://github.com/letung3105/coviddata/raw/master/facebook/gadm1_nuts2-gadm1_nuts2-fb-social-connectedness-index-october-2021.zip"
                 "https://github.com/letung3105/coviddata/raw/master/facebook/us-counties-us-counties-fb-social-connectedness-index-october-2021.zip"
-            ],
-            post_fetch_method = unpack,
+            ];
+            post_fetch_method=unpack,
         ),
     )
     return nothing
@@ -56,15 +56,16 @@ function calculate_social_proximity_to_cases(
     df_social_connectedness::AbstractDataFrame,
 )
     # gadm code
-    getloc(id::AbstractString) =
-        subset(df_population, :ID_1 => x -> x .== parse(Int, id[4:end]), view = true)
+    function getloc(id::AbstractString)
+        return subset(df_population, :ID_1 => x -> x .== parse(Int, id[4:end]); view=true)
+    end
     # fips code
-    getloc(id::AbstractFloat) = subset(df_population, :ID_1 => x -> x .== id, view = true)
+    getloc(id::AbstractFloat) = subset(df_population, :ID_1 => x -> x .== id; view=true)
 
     # initialize the dataframe with dates and zeros
     df_spc = DataFrame()
     df_spc.date = df_covid_timeseries_confirmed.date
-    for locid ∈ unique(df_social_connectedness.user_loc)
+    for locid in unique(df_social_connectedness.user_loc)
         loc = getloc(locid)
         loc = isempty(loc) ? continue : first(loc)
         df_spc[!, loc.NAME_1] .= 0
@@ -72,14 +73,14 @@ function calculate_social_proximity_to_cases(
     # names of all locations that have confirmed cases
     locs_with_confirmed = Set(names(df_covid_timeseries_confirmed))
     # go through each dataframe that is grouped by the first location
-    Threads.@threads for (key, df_group) ∈
+    Threads.@threads for (key, df_group) in
                          collect(pairs(groupby(df_social_connectedness, :user_loc)))
         # check if population data for the first location is available, skip if not
         first_loc = getloc(key.user_loc)
         first_loc = isempty(first_loc) ? continue : first(first_loc)
         sum_sci = sum(df_group.scaled_sci)
         # go through each location that is connected with the first location
-        for row ∈ eachrow(df_group)
+        for row in eachrow(df_group)
             # check if population data for the second location is available, skip if not
             second_loc = getloc(row.fr_loc)
             second_loc = isempty(second_loc) ? continue : first(second_loc)
@@ -106,7 +107,7 @@ Read the Movement Range Maps dataset from Facebook
 + `fpath`: path the tab-delimited file contains the movement range data
 """
 function read_movement_range(fpath::AbstractString)
-    data, header = readdlm(fpath, '\t', header = true)
+    data, header = readdlm(fpath, '\t'; header=true)
     df = identity.(DataFrame(data, vec(header)))
     df[!, :ds] .= Date.(df[!, :ds])
     return df
@@ -131,28 +132,30 @@ as given by Facebook
 function region_average_movement_range(
     df_movement_range::AbstractDataFrame,
     country_code::AbstractString,
-    subdivision_id::Union{Nothing,<:Integer} = nothing,
+    subdivision_id::Union{Nothing,<:Integer}=nothing,
 )
     # gadm code
     parse_subdivision(x::AbstractString) = parse(Int, split(x, ".")[2])
     # fips code
     parse_subdivision(x::Int) = x
 
-    df_movement_range_region =
-        subset(df_movement_range, :country => x -> x .== country_code, view = true)
+    df_movement_range_region = subset(
+        df_movement_range, :country => x -> x .== country_code; view=true
+    )
     if !isnothing(subdivision_id)
         df_movement_range_region = subset(
             df_movement_range_region,
             [:polygon_id, :polygon_source] =>
-                (x, y) -> subdivision_id .== parse_subdivision.(x),
-            view = true,
+                (x, y) -> subdivision_id .== parse_subdivision.(x);
+            view=true,
         )
     end
 
     df_movement_range_region_avg = combine(
         DataFrames.groupby(df_movement_range_region, :ds),
-        [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users] .=> mean,
-        renamecols = false,
+        [:all_day_bing_tiles_visited_relative_change, :all_day_ratio_single_tile_users] .=>
+            mean;
+        renamecols=false,
     )
     return df_movement_range_region_avg
 end
@@ -187,8 +190,8 @@ Save a subset of the movement range maps dataset for a specific region to CSV fi
 """
 function save_region_average_movement_range(
     files::AbstractVector{RegionMovementRangeFile};
-    fpath_movement_range::AbstractString = datadep"facebook/movement-range-2021-11-24.txt",
-    recreate::Bool = false,
+    fpath_movement_range::AbstractString=datadep"facebook/movement-range-2021-11-24.txt",
+    recreate::Bool=false,
 )
     if all(f -> isfile(f.path), files) && !recreate
         return nothing
@@ -197,7 +200,7 @@ function save_region_average_movement_range(
     @info("Reading Movement Range Maps dataset", fpath_movement_range)
     df_movement_range = FacebookData.read_movement_range(fpath_movement_range)
 
-    Threads.@threads for f ∈ files
+    Threads.@threads for f in files
         if isfile(f.path) && !recreate
             continue
         end
@@ -212,9 +215,7 @@ function save_region_average_movement_range(
             f.subdivision
         )
         df_region_movement_range = FacebookData.region_average_movement_range(
-            df_movement_range,
-            f.country,
-            f.subdivision,
+            df_movement_range, f.country, f.subdivision
         )
         CSV.write(f.path, df_region_movement_range)
     end
@@ -231,7 +232,7 @@ Read the Social Connectedness Index dataset from Facebook
 + `fpath`: path the tab-delimited file contains the social connectedness data
 """
 function read_social_connectedness(fpath::AbstractString)
-    data, header = readdlm(fpath, '\t', header = true)
+    data, header = readdlm(fpath, '\t'; header=true)
     df = identity.(DataFrame(data, vec(header)))
     return df
 end
@@ -250,15 +251,16 @@ Get the social connectedness between regions within a country
 dataset from by Facebook
 + `country_code`: The ISO-3166 country code
 """
-inter_province_social_connectedness(
-    df_social_connectedness::AbstractDataFrame,
-    country_code::AbstractString,
-) = subset(
-    df_social_connectedness,
-    [:user_loc, :fr_loc] =>
-        ((x, y) -> startswith.(x, country_code) .& startswith.(y, country_code)),
-    view = true,
+function inter_province_social_connectedness(
+    df_social_connectedness::AbstractDataFrame, country_code::AbstractString
 )
+    return subset(
+        df_social_connectedness,
+        [:user_loc, :fr_loc] =>
+            ((x, y) -> startswith.(x, country_code) .& startswith.(y, country_code));
+        view=true,
+    )
+end
 
 """
     InterProvinceSocialConnectednessFile
@@ -288,8 +290,8 @@ Save a subset of the social connectedness index dataset for specific countries t
 """
 function save_inter_province_social_connectedness(
     files::AbstractVector{InterProvinceSocialConnectednessFile};
-    fpath_social_connectedness::AbstractString = datadep"facebook/gadm1_nuts2_gadm1_nuts2.tsv",
-    recreate::Bool = false,
+    fpath_social_connectedness::AbstractString=datadep"facebook/gadm1_nuts2_gadm1_nuts2.tsv",
+    recreate::Bool=false,
 )
     if all(f -> isfile(f.path), files) && !recreate
         return nothing
@@ -298,7 +300,7 @@ function save_inter_province_social_connectedness(
     @info("Reading Social Connectedness Index dataset", fpath_social_connectedness)
     df_social_connectedness = read_social_connectedness(fpath_social_connectedness)
 
-    Threads.@threads for f ∈ files
+    Threads.@threads for f in files
         if isfile(f.path) && !recreate
             continue
         end
@@ -307,8 +309,9 @@ function save_inter_province_social_connectedness(
         end
 
         @info("Generating average social connectedness index", f.path, f.country,)
-        df_country_social_connectedness =
-            inter_province_social_connectedness(df_social_connectedness, f.country)
+        df_country_social_connectedness = inter_province_social_connectedness(
+            df_social_connectedness, f.country
+        )
         CSV.write(f.path, df_country_social_connectedness)
     end
 

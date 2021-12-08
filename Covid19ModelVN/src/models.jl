@@ -65,14 +65,14 @@ struct SEIRDBaseline{ANN1<:FastChain,ANN2<:FastChain,T<:Real} <: AbstractCovidMo
         time_scale::T,
     ) where {T<:Real}
         β_ann = FastChain(
-            StaticDense(3, 8, mish, initW = Flux.glorot_normal),
-            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
-            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
-            StaticDense(8, 1, x -> boxconst(x, β_bounds), initW = Flux.glorot_normal),
+            StaticDense(3, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(8, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(8, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(8, 1, x -> boxconst(x, β_bounds); initW=Flux.glorot_normal),
         )
         α_ann = FastChain(
-            StaticDense(3, 8, mish, initW = Flux.glorot_normal),
-            StaticDense(8, 1, x -> boxconst(x, α_bounds), initW = Flux.glorot_normal),
+            StaticDense(3, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(8, 1, x -> boxconst(x, α_bounds); initW=Flux.glorot_normal),
         )
         return new{typeof(β_ann),typeof(α_ann),T}(
             β_ann,
@@ -155,14 +155,14 @@ struct SEIRDFbMobility1{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
         movement_range_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(5, 8, mish, initW = Flux.glorot_normal),
-            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
-            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
-            StaticDense(8, 1, x -> boxconst(x, β_bounds), initW = Flux.glorot_normal),
+            StaticDense(5, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(8, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(8, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(8, 1, x -> boxconst(x, β_bounds); initW=Flux.glorot_normal),
         )
         α_ann = FastChain(
-            StaticDense(3, 8, mish, initW = Flux.glorot_normal),
-            StaticDense(8, 1, x -> boxconst(x, α_bounds), initW = Flux.glorot_normal),
+            StaticDense(3, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(8, 1, x -> boxconst(x, α_bounds); initW=Flux.glorot_normal),
         )
         return new{typeof(β_ann),typeof(α_ann),T,DS}(
             β_ann,
@@ -250,14 +250,14 @@ struct SEIRDFbMobility2{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(6, 8, mish, initW = Flux.glorot_normal),
-            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
-            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
-            StaticDense(8, 1, x -> boxconst(x, β_bounds), initW = Flux.glorot_normal),
+            StaticDense(6, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(8, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(8, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(8, 1, x -> boxconst(x, β_bounds); initW=Flux.glorot_normal),
         )
         α_ann = FastChain(
-            StaticDense(3, 8, mish, initW = Flux.glorot_normal),
-            StaticDense(8, 1, x -> boxconst(x, α_bounds), initW = Flux.glorot_normal),
+            StaticDense(3, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(8, 1, x -> boxconst(x, α_bounds); initW=Flux.glorot_normal),
         )
         return new{typeof(β_ann),typeof(α_ann),T,DS}(
             β_ann,
@@ -288,12 +288,14 @@ Get the initial values for the trainable parameters
 * `λ0`: initial mean infectious period
 * `α0`: initial mean fatality rate
 """
-initparams(model::AbstractCovidModel, γ0::R, λ0::R) where {R<:Real} = [
-    model.γ_bounds[1] == model.γ_bounds[2] ? γ0 : boxconst_inv(γ0, model.γ_bounds)
-    model.λ_bounds[1] == model.λ_bounds[2] ? λ0 : boxconst_inv(λ0, model.λ_bounds)
-    DiffEqFlux.initial_params(model.β_ann)
-    DiffEqFlux.initial_params(model.α_ann)
-]
+function initparams(model::AbstractCovidModel, γ0::R, λ0::R) where {R<:Real}
+    return [
+        model.γ_bounds[1] == model.γ_bounds[2] ? γ0 : boxconst_inv(γ0, model.γ_bounds)
+        model.λ_bounds[1] == model.λ_bounds[2] ? λ0 : boxconst_inv(λ0, model.λ_bounds)
+        DiffEqFlux.initial_params(model.β_ann)
+        DiffEqFlux.initial_params(model.α_ann)
+    ]
+end
 
 """
     namedparams(model::SEIRDFbMobility2, params::AbstractVector{<:Real})
@@ -305,12 +307,14 @@ Get a named tuple of the parameters that are used by the augmented SEIRD model
 * `model`: the object of type the object representing the augmented model
 * `params`: a vector of all the parameters used by the model
 """
-namedparams(model::AbstractCovidModel, params::AbstractVector{<:Real}) = @inbounds (
-    γ = boxconst(params[1], model.γ_bounds),
-    λ = boxconst(params[2], model.λ_bounds),
-    θ1 = @view(params[3:3+model.β_ann_paramlength-1]),
-    θ2 = @view(params[end-model.α_ann_paramlength+1:end]),
-)
+function namedparams(model::AbstractCovidModel, params::AbstractVector{<:Real})
+    @inbounds (
+        γ=boxconst(params[1], model.γ_bounds),
+        λ=boxconst(params[2], model.λ_bounds),
+        θ1=@view(params[3:(3 + model.β_ann_paramlength - 1)]),
+        θ2=@view(params[(end - model.α_ann_paramlength + 1):end]),
+    )
+end
 
 function fatality_rate(
     model::SEIRDBaseline,
@@ -453,7 +457,7 @@ function Re(
     I = @view states[3, :]
 
     pnamed = namedparams(model, params)
-    mobility = @view model.movement_range_data[:, Int.(saveat).+1]
+    mobility = @view model.movement_range_data[:, Int.(saveat) .+ 1]
     β_ann_input = [
         (collect(saveat) ./ model.time_scale)'
         (S ./ model.population)'
@@ -498,8 +502,8 @@ function Re(
     I = @view states[3, :]
 
     pnamed = namedparams(model, params)
-    mobility = @view model.movement_range_data[:, Int.(saveat).+1]
-    proximity = @view model.social_proximity_data[:, Int.(saveat).+1]
+    mobility = @view model.movement_range_data[:, Int.(saveat) .+ 1]
+    proximity = @view model.social_proximity_data[:, Int.(saveat) .+ 1]
     β_ann_input = [
         (collect(saveat) ./ model.time_scale)'
         (S ./ model.population)'
@@ -576,15 +580,16 @@ Solve the augmented SEIRD model with sensible settings
 * `tspan`: the integration time span
 * `tsteps`: the timesteps to be saved
 """
-default_solve(model, u0, params, tspan, saveat) = solve(
-    ODEProblem(model, u0, tspan, params),
-    Tsit5(),
-    saveat = saveat,
-    solver = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)),
-    abstol = 1e-6,
-    reltol = 1e-6,
-)
-
+function default_solve(model, u0, params, tspan, saveat)
+    return solve(
+        ODEProblem(model, u0, tspan, params),
+        Tsit5();
+        saveat=saveat,
+        solver=InterpolatingAdjoint(; autojacvec=ReverseDiffVJP(true)),
+        abstol=1e-6,
+        reltol=1e-6,
+    )
+end
 
 """
     (model::SEIRDBaseline)(du, u, p, t)
@@ -608,9 +613,7 @@ function (model::SEIRDBaseline)(du, u, p, t)
         β = first(
             model.β_ann(
                 SVector{3}(
-                    t / model.time_scale,
-                    S / model.population,
-                    I / model.population,
+                    t / model.time_scale, S / model.population, I / model.population
                 ),
                 pnamed.θ1,
             ),
@@ -618,9 +621,7 @@ function (model::SEIRDBaseline)(du, u, p, t)
         α = first(
             model.α_ann(
                 SVector{3}(
-                    t / model.time_scale,
-                    I / model.population,
-                    D / model.population,
+                    t / model.time_scale, I / model.population, D / model.population
                 ),
                 pnamed.θ2,
             ),
@@ -629,7 +630,6 @@ function (model::SEIRDBaseline)(du, u, p, t)
     end
     return nothing
 end
-
 
 """
     (model::SEIRDFbMobility1)(du, u, p, t)
@@ -667,9 +667,7 @@ function (model::SEIRDFbMobility1)(du, u, p, t)
         α = first(
             model.α_ann(
                 SVector{3}(
-                    t / model.time_scale,
-                    I / model.population,
-                    D / model.population,
+                    t / model.time_scale, I / model.population, D / model.population
                 ),
                 pnamed.θ2,
             ),
@@ -718,9 +716,7 @@ function (model::SEIRDFbMobility2)(du, u, p, t)
         α = first(
             model.α_ann(
                 SVector{3}(
-                    t / model.time_scale,
-                    I / model.population,
-                    D / model.population,
+                    t / model.time_scale, I / model.population, D / model.population
                 ),
                 pnamed.θ2,
             ),

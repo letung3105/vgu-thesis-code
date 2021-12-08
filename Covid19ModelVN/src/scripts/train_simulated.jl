@@ -20,31 +20,25 @@ let
     observables = [1, 2, 3, 4, 5, 6, 7]
 
     prob = ODEProblem(Covid19ModelVN.SEIRD!, u0, tspan)
-    sol = solve(prob, Tsit5(), p = p0, saveat = tsteps)
+    sol = solve(prob, Tsit5(); p=p0, saveat=tsteps)
 
     data = @view sol[observables, :]
     dataset = TimeseriesDataset(data, tspan, tsteps)
 
     model = SEIRDBaseline(
-        (1.0 / 5.0, 1.0 / 2.0),
-        (1.0 / 21.0, 1.0 / 7.0),
-        (0.005, 0.05),
-        pop,
-        tspan[2],
+        (1.0 / 5.0, 1.0 / 2.0), (1.0 / 21.0, 1.0 / 7.0), (0.005, 0.05), pop, tspan[2]
     )
     params = initparams(model, 1.0 / 3.0, 1.0 / 20.0, 0.04)
     prob = ODEProblem(model, u0, tspan)
 
     predictor = Predictor(prob, observables)
     lossfn = experiment_loss_sse(
-        vec(minimum(data, dims = 2)),
-        vec(maximum(data, dims = 2)),
-        -0.05,
+        vec(minimum(data; dims=2)), vec(maximum(data; dims=2)), -0.05
     )
     loss_batch = Loss{false}(lossfn, predictor, dataset, 10)
     loss_whole = Loss{false}(lossfn, predictor, dataset)
 
-    progress = ProgressUnknown(showspeed = true)
+    progress = ProgressUnknown(; showspeed=true)
     minimizer = copy(params)
     loss_min = Inf
     cb = function (params, train_loss)
@@ -53,17 +47,13 @@ let
             loss_min = l
             minimizer .= params
         end
-        next!(progress, showvalues = [:train_loss => train_loss, :eval_loss => l])
+        next!(progress; showvalues=[:train_loss => train_loss, :eval_loss => l])
         return false
     end
 
-    DiffEqFlux.sciml_train(loss_batch, params, ADAM(5e-3), maxiters = 5000, cb = cb)
+    DiffEqFlux.sciml_train(loss_batch, params, ADAM(5e-3); maxiters=5000, cb=cb)
     DiffEqFlux.sciml_train(
-        loss_whole,
-        minimizer,
-        BFGS(initial_stepnorm = 1e-2),
-        maxiters = 10000,
-        cb = cb,
+        loss_whole, minimizer, BFGS(; initial_stepnorm=1e-2); maxiters=10000, cb=cb
     )
 
     pnamed = namedparams(model, minimizer)
@@ -72,7 +62,7 @@ let
     @show pnamed.α
 
     pred = predictor(minimizer, tspan, tsteps)
-    fig = Figure(resolution = (600, 300 * length(observables)))
+    fig = Figure(; resolution=(600, 300 * length(observables)))
     for (i, obs) in enumerate(observables)
         ax = Axis(fig[i, 1])
         lines!(ax, data[obs, :])

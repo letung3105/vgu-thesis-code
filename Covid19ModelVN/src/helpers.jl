@@ -30,7 +30,7 @@ data whose timestamps lie between `first_date` and `last_date`
 * `last_date`: latest date allowed in the timeseries
 """
 function load_timeseries(config::TimeseriesConfig, first_date::Date, last_date::Date)
-    df = bound(config.df, config.date_col, first_date, last_date, view = true)
+    df = bound(config.df, config.date_col, first_date, last_date; view=true)
     data = Array(df[!, Cols(config.data_cols)])
     return data'
 end
@@ -57,8 +57,9 @@ struct TimeseriesDataLoader{DS<:TimeseriesDataset}
     batchsize::Int
     indices::Vector{Int}
 
-    TimeseriesDataLoader(dataset::DS, batchsize::Int) where {DS<:TimeseriesDataset} =
-        new{DS}(dataset, batchsize, Vector(1:batchsize:size(dataset.data, 2)))
+    function TimeseriesDataLoader(dataset::DS, batchsize::Int) where {DS<:TimeseriesDataset}
+        return new{DS}(dataset, batchsize, Vector(1:batchsize:size(dataset.data, 2)))
+    end
 end
 
 Base.iterate(loader::TimeseriesDataLoader) = iterate(loader, 0)
@@ -98,10 +99,7 @@ lie between `(split_date, last_date]`
 * `last_date`: latest date allowed in the second returned timeseries
 """
 function train_test_split(
-    config::TimeseriesConfig,
-    first_date::Date,
-    split_date::Date,
-    last_date::Date,
+    config::TimeseriesConfig, first_date::Date, split_date::Date, last_date::Date
 )
     train_data = load_timeseries(config, first_date, split_date)
     train_tspan = Float64.((0, Dates.value(split_date - first_date)))
@@ -110,7 +108,7 @@ function train_test_split(
 
     test_data = load_timeseries(config, split_date + Day(1), last_date)
     test_tspan = Float64.((0, Dates.value(last_date - first_date)))
-    test_tsteps = (train_tspan[2]+1):1:test_tspan[2]
+    test_tsteps = (train_tspan[2] + 1):1:test_tspan[2]
     test_dataset = TimeseriesDataset(test_data, test_tspan, test_tsteps)
 
     return train_dataset, test_dataset
@@ -160,8 +158,9 @@ Get default losses figure file path
 * `fdir`: the root directory of the file
 * `uuid`: the file unique identifier
 """
-get_losses_save_fpath(fdir::AbstractString, uuid::AbstractString) =
-    joinpath(fdir, "$uuid.losses.jls")
+function get_losses_save_fpath(fdir::AbstractString, uuid::AbstractString)
+    return joinpath(fdir, "$uuid.losses.jls")
+end
 
 """
     get_params_save_fpath(fdir::AbstractString, uuid::AbstractString)
@@ -173,8 +172,9 @@ Get default file path for saved parameters
 * `fdir`: the root directory of the file
 * `uuid`: the file unique identifier
 """
-get_params_save_fpath(fdir::AbstractString, uuid::AbstractString) =
-    joinpath(fdir, "$uuid.params.jls")
+function get_params_save_fpath(fdir::AbstractString, uuid::AbstractString)
+    return joinpath(fdir, "$uuid.params.jls")
+end
 
 """
     get_forecasts_save_fpath(fdir::AbstractString, uuid::AbstractString)
@@ -186,8 +186,9 @@ Get default file path for forecasts made during training
 * `fdir`: the root directory of the file
 * `uuid`: the file unique identifier
 """
-get_forecasts_save_fpath(fdir::AbstractString, uuid::AbstractString) =
-    joinpath(fdir, "$uuid.forecasts.jls")
+function get_forecasts_save_fpath(fdir::AbstractString, uuid::AbstractString)
+    return joinpath(fdir, "$uuid.forecasts.jls")
+end
 
 """
     bound(
@@ -207,13 +208,15 @@ Select a subset of the dataframe `df` such that values in `col` remain between `
 + `first`: The starting (smallest) value allowed
 + `last`: The ending (largest) value allowed
 """
-bound(
+function bound(
     df::AbstractDataFrame,
     col::Union{Symbol,AbstractString},
     first::Any,
     last::Any;
     kwargs...,
-) = subset(df, col => x -> (x .>= first) .& (x .<= last); kwargs...)
+)
+    return subset(df, col => x -> (x .>= first) .& (x .<= last); kwargs...)
+end
 
 """
     bound!(
@@ -233,13 +236,15 @@ Filter the dataframe `df` such that values in `col` remain between `start_date` 
 + `first`: The starting (smallest) value allowed
 + `last`: The ending (largest) value allowed
 """
-bound!(
+function bound!(
     df::AbstractDataFrame,
     col::Union{Symbol,AbstractString},
     first::Any,
     last::Any;
     kwargs...,
-) = subset!(df, col => x -> (x .>= first) .& (x .<= last); kwargs...)
+)
+    return subset!(df, col => x -> (x .>= first) .& (x .<= last); kwargs...)
+end
 
 """
     moving_average(xs::AbstractVector{<:Real}, n::Integer)
@@ -251,8 +256,9 @@ Calculate the moving average of the given list of numbers
 + `xs`: The list of number
 + `n`: Subset size to average over
 """
-moving_average(xs::AbstractVector{<:Real}, n::Integer) =
-    [mean(@view xs[(i >= n ? i - n + 1 : 1):i]) for i ∈ 1:length(xs)]
+function moving_average(xs::AbstractVector{<:Real}, n::Integer)
+    return [mean(@view xs[(i >= n ? i - n + 1 : 1):i]) for i in 1:length(xs)]
+end
 
 """
     moving_average!(
@@ -274,13 +280,14 @@ Calculate the moving average of all the `cols` in `df`
 + `cols`: Column names for calculating the moving average
 + `n`: Subset size to average over
 """
-moving_average!(
+function moving_average!(
     df::AbstractDataFrame,
     cols::Union{
-        Symbol,
-        AbstractString,
-        AbstractVector{Symbol},
-        AbstractVector{<:AbstractString},
+        Symbol,AbstractString,AbstractVector{Symbol},AbstractVector{<:AbstractString}
     },
     n::Integer,
-) = transform!(df, names(df, Cols(cols)) .=> x -> moving_average(x, n), renamecols = false)
+)
+    return transform!(
+        df, names(df, Cols(cols)) .=> x -> moving_average(x, n); renamecols=false
+    )
+end

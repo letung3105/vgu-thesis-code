@@ -5,44 +5,41 @@ using OrdinaryDiffEq.EnsembleAnalysis
 include("include/cmd.jl")
 
 function plot_movement_range!(
-    pos::GridPosition,
-    loc::AbstractString,
-    data::AbstractMatrix{<:Real},
+    pos::GridPosition, loc::AbstractString, data::AbstractMatrix{<:Real}
 )
-    ax = Axis(pos, title = "Movement Range Data for '$loc'")
-    @views lines!(ax, data[1, :], label = "rel. change")
-    @views lines!(ax, data[2, :], label = "stay put")
-    axislegend(ax, position = :lt)
+    ax = Axis(pos; title="Movement Range Data for '$loc'")
+    @views lines!(ax, data[1, :]; label="rel. change")
+    @views lines!(ax, data[2, :]; label="stay put")
+    axislegend(ax; position=:lt)
     return ax
 end
 
 function plot_social_proximity!(
-    pos::GridPosition,
-    loc::AbstractString,
-    data::AbstractMatrix{<:Real},
+    pos::GridPosition, loc::AbstractString, data::AbstractMatrix{<:Real}
 )
-    ax = Axis(pos, title = "Social Proximity to Cases for '$loc'")
-    @views lines!(ax, data[1, :], label = "social proximity to cases")
-    axislegend(ax, position = :lt)
+    ax = Axis(pos; title="Social Proximity to Cases for '$loc'")
+    @views lines!(ax, data[1, :]; label="social proximity to cases")
+    axislegend(ax; position=:lt)
     return ax
 end
 
 function visualize_data(
     loc;
-    train_range = Day(32),
-    forecast_range = Day(28),
-    lag_movement_range = Day(0),
-    lag_social_proximity = Day(0),
+    train_range=Day(32),
+    forecast_range=Day(28),
+    lag_movement_range=Day(0),
+    lag_social_proximity=Day(0),
 )
-    conf, first_date, split_date, last_date =
-        experiment_covid19_data(loc, train_range, forecast_range)
+    conf, first_date, split_date, last_date = experiment_covid19_data(
+        loc, train_range, forecast_range
+    )
     train_dataset, test_dataset = train_test_split(conf, first_date, split_date, last_date)
 
     fig = Figure()
     current_row = 1
 
     ncompartments = size(train_dataset.data, 1)
-    for i ∈ 1:ncompartments
+    for i in 1:ncompartments
         ax = Axis(fig[i, 1])
         @views data = [train_dataset.data[i, :]; test_dataset.data[i, :]]
         lines!(ax, data)
@@ -70,7 +67,7 @@ function visualize_data(
 end
 
 function visualize_data_all_locations()
-    for loc ∈ [
+    for loc in [
         Covid19ModelVN.LOC_CODE_VIETNAM
         Covid19ModelVN.LOC_CODE_UNITED_STATES
         collect(keys(Covid19ModelVN.LOC_NAMES_VN))
@@ -85,15 +82,17 @@ function check_model_methods(loc, model)
     @info("Testing model", loc, model)
 
     # setup model at for a location with the default settings
-    parsed_args =
-        parse_commandline(["--locations=$loc", "--", model, "train_growing_trajectory"])
+    parsed_args = parse_commandline([
+        "--locations=$loc", "--", model, "train_growing_trajectory"
+    ])
     loc = parsed_args[:locations][1]
     _, get_hyperparams, setup = setupcmd(parsed_args)
 
     # create the model
     hyperparams = get_hyperparams(parsed_args)
-    model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels =
-        setup(loc; hyperparams...)
+    model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels = setup(
+        loc; hyperparams...
+    )
 
     # test if namedparams is implemented correctly
     pnamed = namedparams(model, p0)
@@ -136,12 +135,13 @@ function check_model_methods(loc, model)
     pred = predictor(p0, test_dataset.tspan, test_dataset.tsteps)
     eval_conf = EvalConfig([mae, map, rmse], [7, 14, 21, 28], labels)
     fig = plot_forecasts(eval_conf, fit, pred, train_dataset, test_dataset)
-    display(fig)
+    return display(fig)
 end
 
 function check_model_performance(loc, model)
-    parsed_args =
-        parse_commandline(["--locations=$loc", "--", model, "train_growing_trajectory"])
+    parsed_args = parse_commandline([
+        "--locations=$loc", "--", model, "train_growing_trajectory"
+    ])
     _, gethyper, setup = setupcmd(parsed_args)
     hyperparams = gethyper(parsed_args)
 
@@ -159,26 +159,26 @@ function check_model_performance(loc, model)
     display(@benchmark $predictor($p0, $train_dataset.tspan, $train_dataset.tsteps))
     display(@benchmark $lossfn($pred, $train_dataset.data))
     display(@benchmark $loss($p0))
-    display(@benchmark Zygote.gradient($loss, $p0))
+    return display(@benchmark Zygote.gradient($loss, $p0))
 end
 
-function check_models(; benchmark = false)
-    for loc ∈ [
+function check_models(; benchmark=false)
+    for loc in [
             Covid19ModelVN.LOC_CODE_VIETNAM
             Covid19ModelVN.LOC_CODE_UNITED_STATES
             collect(keys(Covid19ModelVN.LOC_NAMES_VN))
             collect(keys(Covid19ModelVN.LOC_NAMES_US))
         ],
-        model ∈ ["baseline", "fbmobility1"]
+        model in ["baseline", "fbmobility1"]
 
         check_model_methods(loc, model)
         benchmark && check_model_performance(loc, model)
     end
-    for loc ∈ [
+    for loc in [
             collect(keys(Covid19ModelVN.LOC_NAMES_VN))
             collect(keys(Covid19ModelVN.LOC_NAMES_US))
         ],
-        model ∈ ["fbmobility2"]
+        model in ["fbmobility2"]
 
         check_model_methods(loc, model)
         benchmark && check_model_performance(loc, model)

@@ -5,18 +5,18 @@ include("experiments.jl")
 function runcmd(args)
     parsed_args = parse_commandline(args)
     model_name, get_hyperparams, model_setup = setupcmd(parsed_args)
-    experiment_run(
+    return experiment_run(
         model_name,
         model_setup,
         parsed_args[:locations],
         get_hyperparams(parsed_args),
         parsed_args[:_COMMAND_],
-        parsed_args[parsed_args[:_COMMAND_]],
-        forecast_horizons = parsed_args[:forecast_horizons],
-        savedir = parsed_args[:savedir],
-        show_progress = parsed_args[:show_progress],
-        make_animation = parsed_args[:make_animation],
-        multithreading = parsed_args[:multithreading],
+        parsed_args[parsed_args[:_COMMAND_]];
+        forecast_horizons=parsed_args[:forecast_horizons],
+        savedir=parsed_args[:savedir],
+        show_progress=parsed_args[:show_progress],
+        make_animation=parsed_args[:make_animation],
+        multithreading=parsed_args[:multithreading],
     )
 end
 
@@ -29,50 +29,56 @@ function setupcmd(parsed_args)
     return cmdmappings[parsed_args[:model_name]]
 end
 
-get_baseline_hyperparams(parsed_args) = (
-    γ0 = parsed_args[:gamma0],
-    λ0 = parsed_args[:lambda0],
-    β_bounds = (parsed_args[:beta_bounds][1], parsed_args[:beta_bounds][2]),
-    γ_bounds = (parsed_args[:gamma_bounds][1], parsed_args[:gamma_bounds][2]),
-    λ_bounds = (parsed_args[:lambda_bounds][1], parsed_args[:lambda_bounds][2]),
-    α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
-    train_range = Day(parsed_args[:train_days]),
-    forecast_range = Day(parsed_args[:test_days]),
-    loss_type = parsed_args[:loss_type],
-    loss_regularization = parsed_args[:loss_regularization],
-    loss_time_weighting = parsed_args[:loss_time_weighting],
-)
+function get_baseline_hyperparams(parsed_args)
+    return (
+        γ0=parsed_args[:gamma0],
+        λ0=parsed_args[:lambda0],
+        β_bounds=(parsed_args[:beta_bounds][1], parsed_args[:beta_bounds][2]),
+        γ_bounds=(parsed_args[:gamma_bounds][1], parsed_args[:gamma_bounds][2]),
+        λ_bounds=(parsed_args[:lambda_bounds][1], parsed_args[:lambda_bounds][2]),
+        α_bounds=(parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
+        train_range=Day(parsed_args[:train_days]),
+        forecast_range=Day(parsed_args[:test_days]),
+        loss_type=parsed_args[:loss_type],
+        loss_regularization=parsed_args[:loss_regularization],
+        loss_time_weighting=parsed_args[:loss_time_weighting],
+    )
+end
 
-get_fbmobility1_hyperparams(parsed_args) = (
-    γ0 = parsed_args[:gamma0],
-    λ0 = parsed_args[:lambda0],
-    β_bounds = (parsed_args[:beta_bounds][1], parsed_args[:beta_bounds][2]),
-    γ_bounds = (parsed_args[:gamma_bounds][1], parsed_args[:gamma_bounds][2]),
-    λ_bounds = (parsed_args[:lambda_bounds][1], parsed_args[:lambda_bounds][2]),
-    α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
-    train_range = Day(parsed_args[:train_days]),
-    forecast_range = Day(parsed_args[:test_days]),
-    movement_range_lag = Day(parsed_args[:movement_range_lag_days]),
-    loss_type = parsed_args[:loss_type],
-    loss_regularization = parsed_args[:loss_regularization],
-    loss_time_weighting = parsed_args[:loss_time_weighting],
-)
+function get_fbmobility1_hyperparams(parsed_args)
+    return (
+        γ0=parsed_args[:gamma0],
+        λ0=parsed_args[:lambda0],
+        β_bounds=(parsed_args[:beta_bounds][1], parsed_args[:beta_bounds][2]),
+        γ_bounds=(parsed_args[:gamma_bounds][1], parsed_args[:gamma_bounds][2]),
+        λ_bounds=(parsed_args[:lambda_bounds][1], parsed_args[:lambda_bounds][2]),
+        α_bounds=(parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
+        train_range=Day(parsed_args[:train_days]),
+        forecast_range=Day(parsed_args[:test_days]),
+        movement_range_lag=Day(parsed_args[:movement_range_lag_days]),
+        loss_type=parsed_args[:loss_type],
+        loss_regularization=parsed_args[:loss_regularization],
+        loss_time_weighting=parsed_args[:loss_time_weighting],
+    )
+end
 
-get_fbmobility2_hyperparams(parsed_args) = (
-    γ0 = parsed_args[:gamma0],
-    λ0 = parsed_args[:lambda0],
-    β_bounds = (parsed_args[:beta_bounds][1], parsed_args[:beta_bounds][2]),
-    γ_bounds = (parsed_args[:gamma_bounds][1], parsed_args[:gamma_bounds][2]),
-    λ_bounds = (parsed_args[:lambda_bounds][1], parsed_args[:lambda_bounds][2]),
-    α_bounds = (parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
-    train_range = Day(parsed_args[:train_days]),
-    forecast_range = Day(parsed_args[:test_days]),
-    movement_range_lag = Day(parsed_args[:movement_range_lag_days]),
-    social_proximity_lag = Day(parsed_args[:social_proximity_lag_days]),
-    loss_type = parsed_args[:loss_type],
-    loss_regularization = parsed_args[:loss_regularization],
-    loss_time_weighting = parsed_args[:loss_time_weighting],
-)
+function get_fbmobility2_hyperparams(parsed_args)
+    return (
+        γ0=parsed_args[:gamma0],
+        λ0=parsed_args[:lambda0],
+        β_bounds=(parsed_args[:beta_bounds][1], parsed_args[:beta_bounds][2]),
+        γ_bounds=(parsed_args[:gamma_bounds][1], parsed_args[:gamma_bounds][2]),
+        λ_bounds=(parsed_args[:lambda_bounds][1], parsed_args[:lambda_bounds][2]),
+        α_bounds=(parsed_args[:alpha_bounds][1], parsed_args[:alpha_bounds][2]),
+        train_range=Day(parsed_args[:train_days]),
+        forecast_range=Day(parsed_args[:test_days]),
+        movement_range_lag=Day(parsed_args[:movement_range_lag_days]),
+        social_proximity_lag=Day(parsed_args[:social_proximity_lag_days]),
+        loss_type=parsed_args[:loss_type],
+        loss_regularization=parsed_args[:loss_regularization],
+        loss_time_weighting=parsed_args[:loss_time_weighting],
+    )
+end
 
 function parse_commandline(args)
     s = ArgParseSettings()
@@ -374,5 +380,5 @@ function parse_commandline(args)
         default = 0
     end
 
-    return parse_args(args, s, as_symbols = true)
+    return parse_args(args, s; as_symbols=true)
 end

@@ -26,7 +26,7 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
         # we considered 27th April 2021 to be the start of the outbreak in Vietnam
         bound!(df, :date, Date(2021, 4, 27), typemax(Date))
     elseif loc == Covid19ModelVN.LOC_CODE_UNITED_STATES ||
-           loc ∈ keys(Covid19ModelVN.LOC_NAMES_US)
+        loc ∈ keys(Covid19ModelVN.LOC_NAMES_US)
         # we considered 1st July 2021 to be the start of the outbreak in the US
         bound!(df, :date, Date(2021, 7, 1), typemax(Date))
     end
@@ -34,10 +34,7 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
     # select data starting from when total deaths >= 1 and confirmed >= 500
     dates =
         subset(
-            df,
-            :deaths_total => x -> x .>= 1,
-            :confirmed_total => x -> x .>= 500,
-            view = true,
+            df, :deaths_total => x -> x .>= 1, :confirmed_total => x -> x .>= 500; view=true
         ).date
     first_date = first(dates)
     split_date = first_date + train_range - Day(1)
@@ -53,10 +50,7 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
 end
 
 function experiment_movement_range(
-    loc::AbstractString,
-    first_date::Date,
-    last_date::Date,
-    lag::Day,
+    loc::AbstractString, first_date::Date, last_date::Date, lag::Day
 )
     df = get_prebuilt_movement_range(loc)
     cols = ["all_day_bing_tiles_visited_relative_change", "all_day_ratio_single_tile_users"]
@@ -64,32 +58,24 @@ function experiment_movement_range(
     # smooth out weekly seasonality
     moving_average!(df, cols, 7)
     return load_timeseries(
-        TimeseriesConfig(df, "ds", cols),
-        first_date - lag,
-        last_date - lag,
+        TimeseriesConfig(df, "ds", cols), first_date - lag, last_date - lag
     )
 end
 
 function experiment_social_proximity(
-    loc::AbstractString,
-    first_date::Date,
-    last_date::Date,
-    lag::Day,
+    loc::AbstractString, first_date::Date, last_date::Date, lag::Day
 )
     df, col = get_prebuilt_social_proximity(loc)
     df[!, col] .= Float64.(df[!, col])
     # smooth out weekly seasonality
     moving_average!(df, col, 7)
     return load_timeseries(
-        TimeseriesConfig(df, "date", [col]),
-        first_date - lag,
-        last_date - lag,
+        TimeseriesConfig(df, "date", [col]), first_date - lag, last_date - lag
     )
 end
 
 function experiment_SEIRD_initial_states(
-    loc::AbstractString,
-    df_first_date::AbstractDataFrame,
+    loc::AbstractString, df_first_date::AbstractDataFrame
 )
     population = get_prebuilt_population(loc)
     I0 = df_first_date.confirmed[1] # infective individuals
@@ -115,7 +101,7 @@ function experiment_loss_polar(w::Tuple{R,R}, ζ::R) where {R<:Real}
     lossfn = function (ŷ::AbstractArray{R}, y, tsteps) where {R<:Real}
         s = zero(R)
         sz = size(y)
-        @inbounds for j ∈ 1:sz[2]
+        @inbounds for j in 1:sz[2]
             @views s += w[1] * normed_ld(y[:, j], ŷ[:, j])
             @views s += w[2] * cosine_distance(y[:, j], ŷ[:, j])
             s *= exp(ζ * tsteps[j])
@@ -126,15 +112,13 @@ function experiment_loss_polar(w::Tuple{R,R}, ζ::R) where {R<:Real}
 end
 
 function experiment_loss_sse(
-    min::AbstractVector{R},
-    max::AbstractVector{R},
-    ζ::R,
+    min::AbstractVector{R}, max::AbstractVector{R}, ζ::R
 ) where {R<:Real}
     scale = max .- min
     lossfn = function (ŷ::AbstractArray{R}, y, tsteps) where {R<:Real}
         s = zero(R)
         sz = size(y)
-        @inbounds for j ∈ 1:sz[2], i ∈ 1:sz[1]
+        @inbounds for j in 1:sz[2], i in 1:sz[1]
             s += ((ŷ[i, j] - y[i, j]) / scale[i])^2 / sz[2] * exp(ζ * tsteps[j])
         end
         return s
@@ -157,10 +141,12 @@ function setup_baseline(
     loss_time_weighting::Float64,
 )
     # get data for model
-    dataconf, first_date, split_date, last_date =
-        experiment_covid19_data(loc, train_range, forecast_range)
-    train_dataset, test_dataset =
-        train_test_split(dataconf, first_date, split_date, last_date)
+    dataconf, first_date, split_date, last_date = experiment_covid19_data(
+        loc, train_range, forecast_range
+    )
+    train_dataset, test_dataset = train_test_split(
+        dataconf, first_date, split_date, last_date
+    )
     @assert size(train_dataset.data, 2) == Dates.value(train_range)
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
@@ -176,16 +162,15 @@ function setup_baseline(
     # get the initial states and available observations depending on the model type
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(
-        loc,
-        subset(dataconf.df, :date => x -> x .== first_date, view = true),
+        loc, subset(dataconf.df, :date => x -> x .== first_date; view=true)
     )
     p0 = initparams(model, γ0, λ0)
 
     lossfn_inner = if loss_type == :polar
         experiment_loss_polar((0.5, 0.5), loss_time_weighting)
     elseif loss_type == :sse
-        min = vec(minimum(train_dataset.data, dims = 2))
-        max = vec(maximum(train_dataset.data, dims = 2))
+        min = vec(minimum(train_dataset.data; dims=2))
+        max = vec(maximum(train_dataset.data; dims=2))
         experiment_loss_sse(min, max, loss_time_weighting)
     else
         error("Invalid loss function type")
@@ -216,17 +201,20 @@ function setup_fbmobility1(
     loss_time_weighting::Float64,
 )
     # get data for model
-    dataconf, first_date, split_date, last_date =
-        experiment_covid19_data(loc, train_range, forecast_range)
-    train_dataset, test_dataset =
-        train_test_split(dataconf, first_date, split_date, last_date)
+    dataconf, first_date, split_date, last_date = experiment_covid19_data(
+        loc, train_range, forecast_range
+    )
+    train_dataset, test_dataset = train_test_split(
+        dataconf, first_date, split_date, last_date
+    )
     @assert size(train_dataset.data, 2) == Dates.value(train_range)
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
-    movement_range_data =
-        experiment_movement_range(loc, first_date, last_date, movement_range_lag)
+    movement_range_data = experiment_movement_range(
+        loc, first_date, last_date, movement_range_lag
+    )
     @assert size(movement_range_data, 2) ==
-            Dates.value(train_range) + Dates.value(forecast_range)
+        Dates.value(train_range) + Dates.value(forecast_range)
 
     # initialize the model
     model = SEIRDFbMobility1(
@@ -241,16 +229,15 @@ function setup_fbmobility1(
     # get the initial states and available observations depending on the model type
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(
-        loc,
-        subset(dataconf.df, :date => x -> x .== first_date, view = true),
+        loc, subset(dataconf.df, :date => x -> x .== first_date; view=true)
     )
     p0 = initparams(model, γ0, λ0)
 
     lossfn_inner = if loss_type == :polar
         experiment_loss_polar((0.5, 0.5), loss_time_weighting)
     elseif loss_type == :sse
-        min = vec(minimum(train_dataset.data, dims = 2))
-        max = vec(maximum(train_dataset.data, dims = 2))
+        min = vec(minimum(train_dataset.data; dims=2))
+        max = vec(maximum(train_dataset.data; dims=2))
         experiment_loss_sse(min, max, loss_time_weighting)
     else
         error("Invalid loss function type")
@@ -282,22 +269,26 @@ function setup_fbmobility2(
     loss_time_weighting::Float64,
 )
     # get data for model
-    dataconf, first_date, split_date, last_date =
-        experiment_covid19_data(loc, train_range, forecast_range)
-    train_dataset, test_dataset =
-        train_test_split(dataconf, first_date, split_date, last_date)
+    dataconf, first_date, split_date, last_date = experiment_covid19_data(
+        loc, train_range, forecast_range
+    )
+    train_dataset, test_dataset = train_test_split(
+        dataconf, first_date, split_date, last_date
+    )
     @assert size(train_dataset.data, 2) == Dates.value(train_range)
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
-    movement_range_data =
-        experiment_movement_range(loc, first_date, last_date, movement_range_lag)
+    movement_range_data = experiment_movement_range(
+        loc, first_date, last_date, movement_range_lag
+    )
     @assert size(movement_range_data, 2) ==
-            Dates.value(train_range) + Dates.value(forecast_range)
+        Dates.value(train_range) + Dates.value(forecast_range)
 
-    social_proximity_data =
-        experiment_social_proximity(loc, first_date, last_date, social_proximity_lag)
+    social_proximity_data = experiment_social_proximity(
+        loc, first_date, last_date, social_proximity_lag
+    )
     @assert size(social_proximity_data, 2) ==
-            Dates.value(train_range) + Dates.value(forecast_range)
+        Dates.value(train_range) + Dates.value(forecast_range)
 
     # build the model
     model = SEIRDFbMobility2(
@@ -313,16 +304,15 @@ function setup_fbmobility2(
     # get the initial states and available observations depending on the model type
     # and the considered location
     u0, vars, labels = experiment_SEIRD_initial_states(
-        loc,
-        subset(dataconf.df, :date => x -> x .== first_date, view = true),
+        loc, subset(dataconf.df, :date => x -> x .== first_date; view=true)
     )
     p0 = initparams(model, γ0, λ0)
 
     lossfn_inner = if loss_type == :polar
         experiment_loss_polar((0.5, 0.5), loss_time_weighting)
     elseif loss_type == :sse
-        min = vec(minimum(train_dataset.data, dims = 2))
-        max = vec(maximum(train_dataset.data, dims = 2))
+        min = vec(minimum(train_dataset.data; dims=2))
+        max = vec(maximum(train_dataset.data; dims=2))
         experiment_loss_sse(min, max, loss_time_weighting)
     else
         error("Invalid loss function type")
@@ -350,8 +340,8 @@ function experiment_eval(
     predictor = Predictor(prob, vars)
 
     eval_config = EvalConfig([mae, mape, rmse], forecast_horizons, labels)
-    for fpath ∈ lookup_saved_params(snapshots_dir)
-        dataname, datatype, _ = rsplit(basename(fpath), ".", limit = 3)
+    for fpath in lookup_saved_params(snapshots_dir)
+        dataname, datatype, _ = rsplit(basename(fpath), "."; limit=3)
         if !startswith(dataname, uuid)
             continue
         end
@@ -366,19 +356,12 @@ function experiment_eval(
         elseif datatype == "params"
             minimizer = Serialization.deserialize(fpath)
             fig_forecasts, df_errors = evaluate_model(
-                eval_config,
-                predictor,
-                minimizer,
-                train_dataset,
-                test_dataset,
+                eval_config, predictor, minimizer, train_dataset, test_dataset
             )
             fpath_forecasts = joinpath(snapshots_dir, "$dataname.forecasts.png")
             fpath_errors = joinpath(snapshots_dir, "$dataname.errors.csv")
             @info(
-                "Generating forecasts plot and errors",
-                uuid,
-                fpath_forecasts,
-                fpath_errors
+                "Generating forecasts plot and errors", uuid, fpath_forecasts, fpath_errors
             )
             save(fpath_forecasts, fig_forecasts)
             save_dataframe(df_errors, fpath_errors)
@@ -392,14 +375,11 @@ function experiment_eval(
 
             # the fatality rate in this model changes over time
             αt1 = fatality_rate(
-                model,
-                u0,
-                minimizer,
-                train_dataset.tspan,
-                train_dataset.tsteps,
+                model, u0, minimizer, train_dataset.tspan, train_dataset.tsteps
             )
-            αt2 =
-                fatality_rate(model, u0, minimizer, test_dataset.tspan, test_dataset.tsteps)
+            αt2 = fatality_rate(
+                model, u0, minimizer, test_dataset.tspan, test_dataset.tsteps
+            )
             fig_αt = plot_fatality_rate([αt1; αt2], train_dataset.tspan[2])
             fpath_αt = joinpath(snapshots_dir, "$dataname.fatality_rate.png")
             @info("Generating effective fatality rate plot", uuid, fpath_αt)
@@ -409,19 +389,17 @@ function experiment_eval(
             fit, pred = Serialization.deserialize(fpath)
             obs_fit = Observable(fit[1])
             obs_pred = Observable(pred[1])
-            fig_animation =
-                plot_forecasts(eval_config, obs_fit, obs_pred, train_dataset, test_dataset)
+            fig_animation = plot_forecasts(
+                eval_config, obs_fit, obs_pred, train_dataset, test_dataset
+            )
             fpath_animation = joinpath(snapshots_dir, "$dataname.forecasts.mkv")
             @info("Generating fit animation", uuid, fpath_animation)
             record(
-                fig_animation,
-                fpath_animation,
-                zip(fit, pred),
-                framerate = 60,
+                fig_animation, fpath_animation, zip(fit, pred); framerate=60
             ) do (fit, pred)
                 obs_fit[] = fit
                 obs_pred[] = pred
-                autolimits!.(contents(fig_animation[:, :]))
+                return autolimits!.(contents(fig_animation[:, :]))
             end
         end
     end
@@ -472,8 +450,11 @@ function experiment_run(
             train_whole_trajectory_two_stages
         end
 
-        shared_progress =
-            multithreading && show_progress ? ProgressUnknown(showspeed = true) : nothing
+        shared_progress = if multithreading && show_progress
+            ProgressUnknown(; showspeed=true)
+        else
+            nothing
+        end
 
         minimizer, eval_losses, _ = trainfn(
             uuid,
@@ -488,13 +469,13 @@ function experiment_run(
         lock(lk_eval) do
             push!(minimizers, minimizer)
             push!(final_losses, last(eval_losses))
-            push!(queue_eval, (uuid, setup, forecast_horizons, snapshots_dir))
+            return push!(queue_eval, (uuid, setup, forecast_horizons, snapshots_dir))
         end
         @info("Finish training session", uuid)
     end
 
     if multithreading
-        Threads.@threads for loc ∈ locations
+        Threads.@threads for loc in locations
             try
                 runexp(loc)
             catch e
@@ -503,7 +484,7 @@ function experiment_run(
             end
         end
     else
-        for loc ∈ locations
+        for loc in locations
             try
                 runexp(loc)
             catch e
