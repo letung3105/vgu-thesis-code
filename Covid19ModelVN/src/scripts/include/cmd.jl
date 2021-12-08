@@ -154,22 +154,22 @@ function parse_commandline(args)
         "--movement_range_lag_days"
         help = "number of lag days that is used when reading the Movement Range Maps dataset"
         arg_type = Int
-        default = 14
+        default = 0 # no lags
 
         "--social_proximity_lag_days"
         help = "number of lag days that is used when reading the Social Proximity to Cases index"
         arg_type = Int
-        default = 14
+        default = 0 # no lags
 
         "--gamma0"
         help = "inverse of the mean incubation period"
         arg_type = Float64
-        default = 1.0 / 3.0
+        default = 1.0 / 4.0 # 4 days incubation period
 
         "--lambda0"
         help = "inverse of the mean infectious period"
         arg_type = Float64
-        default = 1.0 / 14.0
+        default = 1.0 / 14.0 # 14 days infectious period
 
         "--beta_bounds"
         help = "lower and upper bounds contraints for the average contact rate"
@@ -181,19 +181,19 @@ function parse_commandline(args)
         help = "lower and upper bounds contraints for the inverse of the mean incubation period"
         nargs = 2
         arg_type = Float64
-        default = [1.0 / 5.0, 1.0 / 2.0]
+        default = [1.0 / 4.0, 1.0 / 4.0] # keep this constant
 
         "--lambda_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean infectious period"
         nargs = 2
         arg_type = Float64
-        default = [1.0 / 21.0, 1.0 / 7.0]
+        default = [1.0 / 14.0, 1.0 / 14.0] # keep this constant
 
         "--alpha_bounds"
         help = "lower and upper bounds contraints for the inverse of the mean infectious period"
         nargs = 2
         arg_type = Float64
-        default = [5e-3, 5e-2]
+        default = [5e-3, 5e-2] # fatality 0.5% - 5%
 
         "--loss_type"
         help = "choose the loss function that is used for training"
@@ -204,170 +204,140 @@ function parse_commandline(args)
         "--loss_regularization"
         help = "scaling factor for the weight decay term"
         arg_type = Float64
-        default = 0.0
+        default = 0.0 # no regularization
 
         "--loss_time_weighting"
         help = "scaling factor for the time scaling"
         arg_type = Float64
-        default = 0.0
+        default = 0.0 # time time weights
     end
 
     @add_arg_table s["train_growing_trajectory"] begin
         "--lr"
         help = "learning rate to be given to ADAM"
         arg_type = Float64
-        default = 1e-1
 
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
         arg_type = Float64
-        default = 1.0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
         arg_type = Int
-        default = 1000
 
         "--lr_limit"
         help = "the minimum value at which learning rate decay is stopped"
         arg_type = Float64
-        default = 1e-4
 
         "--maxiters_initial"
         help = "the max number of iterations used for fiting the first time span"
         arg_type = Int
-        default = 200
 
         "--maxiters_growth"
         help = "increase the max number of iterations by a fixed amount when growing the time span"
         arg_type = Int
-        default = 200
 
         "--tspan_size_initial"
         help = "number of data points in the initial time span"
         arg_type = Int
-        default = 8
 
         "--tspan_size_growth"
         help = "number of new data points taken when growing the time span"
         arg_type = Int
-        default = 8
     end
 
     @add_arg_table s["train_growing_trajectory_two_stages"] begin
         "--lr"
         help = "learning rate to be given to ADAM"
         arg_type = Float64
-        default = 1e-1
 
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
         arg_type = Float64
-        default = 1.0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
         arg_type = Int
-        default = 1000
 
         "--lr_limit"
         help = "the minimum value at which learning rate decay is stopped"
         arg_type = Float64
-        default = 1e-4
 
         "--maxiters_initial"
         help = "the max number of iterations used for fiting the first time span"
         arg_type = Int
-        default = 200
 
         "--maxiters_growth"
         help = "increase the max number of iterations by a fixed amount when growing the time span"
         arg_type = Int
-        default = 200
 
         "--maxiters_second"
         help = "max number of interations used for the second stage"
         arg_type = Int
-        default = 1000
 
         "--tspan_size_initial"
         help = "number of data points in the initial time span"
         arg_type = Int
-        default = 8
 
         "--tspan_size_growth"
         help = "number of new data points taken when growing the time span"
         arg_type = Int
-        default = 8
     end
 
     @add_arg_table s["train_whole_trajectory"] begin
         "--lr"
         help = "learning rate to be given to ADAM"
         arg_type = Float64
-        default = 1e-1
 
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
         arg_type = Float64
-        default = 1.0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
         arg_type = Int
-        default = 1000
 
         "--lr_limit"
         help = "the minimum value at which learning rate decay is stopped"
         arg_type = Float64
-        default = 1e-4
 
         "--maxiters"
         help = "the max number of iterations used"
         arg_type = Int
-        default = 200
 
         "--minibatching"
         help = "size of the minibatch used when training, 0 means no minibatching"
         arg_type = Int
-        default = 0
     end
 
     @add_arg_table s["train_whole_trajectory_two_stages"] begin
         "--lr"
         help = "learning rate to be given to ADAM"
         arg_type = Float64
-        default = 1e-1
 
         "--lr_decay_rate"
         help = "learning rate exponential decay rate"
         arg_type = Float64
-        default = 1.0
 
         "--lr_decay_step"
         help = "number of iterations taken before decaying the learning rate"
         arg_type = Int
-        default = 1000
 
         "--lr_limit"
         help = "the minimum value at which learning rate decay is stopped"
         arg_type = Float64
-        default = 1e-4
 
         "--maxiters_first"
         help = "the max number of iterations used in the first stage"
         arg_type = Int
-        default = 200
 
         "--maxiters_second"
         help = "the max number of iterations used in the second stage"
         arg_type = Int
-        default = 1000
 
         "--minibatching"
         help = "size of the minibatch used when training in the first stage, 0 means no minibatching"
         arg_type = Int
-        default = 0
     end
 
     return parse_args(args, s; as_symbols=true)
