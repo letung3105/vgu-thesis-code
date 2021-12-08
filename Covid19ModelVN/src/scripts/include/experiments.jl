@@ -47,28 +47,44 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
 end
 
 function experiment_movement_range(
-    loc::AbstractString, first_date::Date, last_date::Date, lag::Day
+    loc::AbstractString, first_date::Date, split_date::Date, last_date::Date, lag::Day
 )
+    first_date -= lag
+    split_date -= lag
+    last_date -= lag
+
     df = get_prebuilt_movement_range(loc)
     cols = ["all_day_bing_tiles_visited_relative_change", "all_day_ratio_single_tile_users"]
     df[!, cols] .= Float64.(df[!, cols])
     # smooth out weekly seasonality
     moving_average!(df, cols, 7)
-    return load_timeseries(
-        TimeseriesConfig(df, "ds", cols), first_date - lag, last_date - lag
-    )
+    data = load_timeseries(TimeseriesConfig(df, "ds", cols), first_date, last_date)
+    # min-max scaling
+    data_train = @view data[:, 1:Dates.value(split_date - first_date)]
+    data_train_min = minimum(data_train; dims=2)
+    data_train_max = maximum(data_train; dims=2)
+    data .= (data .- data_train_min) ./ (data_train_max .- data_train_min)
+    return data
 end
 
 function experiment_social_proximity(
-    loc::AbstractString, first_date::Date, last_date::Date, lag::Day
+    loc::AbstractString, first_date::Date, split_date::Date, last_date::Date, lag::Day
 )
+    first_date -= lag
+    split_date -= lag
+    last_date -= lag
+
     df, col = get_prebuilt_social_proximity(loc)
     df[!, col] .= Float64.(df[!, col])
     # smooth out weekly seasonality
     moving_average!(df, col, 7)
-    return load_timeseries(
-        TimeseriesConfig(df, "date", [col]), first_date - lag, last_date - lag
-    )
+    data = load_timeseries(TimeseriesConfig(df, "date", [col]), first_date, last_date)
+    # min-max scaling
+    data_train = @view data[:, 1:Dates.value(split_date - first_date)]
+    data_train_min = minimum(data_train; dims=2)
+    data_train_max = maximum(data_train; dims=2)
+    data .= (data .- data_train_min) ./ (data_train_max .- data_train_min)
+    return data
 end
 
 function experiment_SEIRD_initial_states(
@@ -208,7 +224,7 @@ function setup_fbmobility1(
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
     movement_range_data = experiment_movement_range(
-        loc, first_date, last_date, movement_range_lag
+        loc, first_date, split_date, last_date, movement_range_lag
     )
     @assert size(movement_range_data, 2) ==
         Dates.value(train_range) + Dates.value(forecast_range)
@@ -276,13 +292,13 @@ function setup_fbmobility2(
     @assert size(test_dataset.data, 2) == Dates.value(forecast_range)
 
     movement_range_data = experiment_movement_range(
-        loc, first_date, last_date, movement_range_lag
+        loc, first_date, split_date, last_date, movement_range_lag
     )
     @assert size(movement_range_data, 2) ==
         Dates.value(train_range) + Dates.value(forecast_range)
 
     social_proximity_data = experiment_social_proximity(
-        loc, first_date, last_date, social_proximity_lag
+        loc, first_date, split_date, last_date, social_proximity_lag
     )
     @assert size(social_proximity_data, 2) ==
         Dates.value(train_range) + Dates.value(forecast_range)
