@@ -327,12 +327,13 @@ function fatality_rate(
     states = Array(sol)
     I = @view states[3, :]
     D = @view states[5, :]
+    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
     α_ann_input = [
         (collect(saveat) ./ model.time_scale)'
-        (I ./ model.population)'
-        (D ./ model.population)'
+        (I ./ N)'
+        (D ./ N)'
     ]
     αt = vec(model.α_ann(α_ann_input, pnamed.θ2))
     return αt
@@ -349,12 +350,13 @@ function fatality_rate(
     states = Array(sol)
     I = @view states[3, :]
     D = @view states[5, :]
+    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
     α_ann_input = [
         (collect(saveat) ./ model.time_scale)'
-        (I ./ model.population)'
-        (D ./ model.population)'
+        (I ./ N)'
+        (D ./ N)'
     ]
     αt = vec(model.α_ann(α_ann_input, pnamed.θ2))
     return αt
@@ -371,12 +373,13 @@ function fatality_rate(
     states = Array(sol)
     I = @view states[3, :]
     D = @view states[5, :]
+    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
     α_ann_input = [
         (collect(saveat) ./ model.time_scale)'
-        (I ./ model.population)'
-        (D ./ model.population)'
+        (I ./ N)'
+        (D ./ N)'
     ]
     αt = vec(model.α_ann(α_ann_input, pnamed.θ2))
     return αt
@@ -412,12 +415,13 @@ function Re(
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
+    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
     β_ann_input = [
         (collect(saveat) ./ model.time_scale)'
-        (S ./ model.population)'
-        (I ./ model.population)'
+        (S ./ N)'
+        (I ./ N)'
     ]
 
     βt = vec(model.β_ann(β_ann_input, pnamed.θ1))
@@ -455,13 +459,14 @@ function Re(
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
+    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
     mobility = @view model.movement_range_data[:, Int.(saveat) .+ 1]
     β_ann_input = [
         (collect(saveat) ./ model.time_scale)'
-        (S ./ model.population)'
-        (I ./ model.population)'
+        (S ./ N)'
+        (I ./ N)'
         mobility
     ]
 
@@ -500,14 +505,15 @@ function Re(
     states = Array(sol)
     S = @view states[1, :]
     I = @view states[3, :]
+    N = @view states[6, :]
 
     pnamed = namedparams(model, params)
     mobility = @view model.movement_range_data[:, Int.(saveat) .+ 1]
     proximity = @view model.social_proximity_data[:, Int.(saveat) .+ 1]
     β_ann_input = [
         (collect(saveat) ./ model.time_scale)'
-        (S ./ model.population)'
-        (I ./ model.population)'
+        (S ./ N)'
+        (I ./ N)'
         mobility
         proximity
     ]
@@ -607,13 +613,13 @@ the contact rate
 function (model::SEIRDBaseline)(du, u, p, t)
     @inbounds begin
         # states and params
-        S, _, I, _, D, _, _, _ = u
+        S, _, I, _, D, N, _, _ = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         β = first(
             model.β_ann(
                 SVector{3}(
-                    t / model.time_scale, S / model.population, I / model.population
+                    t / model.time_scale, S / N, I / N
                 ),
                 pnamed.θ1,
             ),
@@ -621,7 +627,7 @@ function (model::SEIRDBaseline)(du, u, p, t)
         α = first(
             model.α_ann(
                 SVector{3}(
-                    t / model.time_scale, I / model.population, D / model.population
+                    t / model.time_scale, I / N, D / N
                 ),
                 pnamed.θ2,
             ),
@@ -649,15 +655,15 @@ function (model::SEIRDFbMobility1)(du, u, p, t)
     @inbounds begin
         time_idx = Int(floor(t + 1))
         # states and params
-        S, _, I, _, D, _, _, _ = u
+        S, _, I, _, D, N, _, _ = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         β = first(
             model.β_ann(
                 SVector{5}(
                     t / model.time_scale,
-                    S / model.population,
-                    I / model.population,
+                    S / N,
+                    I / N,
                     model.movement_range_data[1, time_idx],
                     model.movement_range_data[2, time_idx],
                 ),
@@ -667,7 +673,7 @@ function (model::SEIRDFbMobility1)(du, u, p, t)
         α = first(
             model.α_ann(
                 SVector{3}(
-                    t / model.time_scale, I / model.population, D / model.population
+                    t / model.time_scale, I / N, D / N
                 ),
                 pnamed.θ2,
             ),
@@ -697,15 +703,15 @@ function (model::SEIRDFbMobility2)(du, u, p, t)
     @inbounds begin
         time_idx = Int(floor(t + 1))
         # states and params
-        S, _, I, _, D, _, _, _ = u
+        S, _, I, _, D, N, _, _ = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         β = first(
             model.β_ann(
                 SVector{6}(
                     t / model.time_scale,
-                    S / model.population,
-                    I / model.population,
+                    S / N,
+                    I / N,
                     model.movement_range_data[1, time_idx],
                     model.movement_range_data[2, time_idx],
                     model.social_proximity_data[1, time_idx],
@@ -716,7 +722,7 @@ function (model::SEIRDFbMobility2)(du, u, p, t)
         α = first(
             model.α_ann(
                 SVector{3}(
-                    t / model.time_scale, I / model.population, D / model.population
+                    t / model.time_scale, I / N, D / N
                 ),
                 pnamed.θ2,
             ),
