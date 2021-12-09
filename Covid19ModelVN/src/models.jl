@@ -65,13 +65,13 @@ struct SEIRDBaseline{ANN1<:FastChain,ANN2<:FastChain,T<:Real} <: AbstractCovidMo
         time_scale::T,
     ) where {T<:Real}
         β_ann = FastChain(
-            StaticDense(3, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(4, 8, mish; initW=Flux.glorot_normal),
             StaticDense(8, 8, mish; initW=Flux.glorot_normal),
             StaticDense(8, 8, mish; initW=Flux.glorot_normal),
             StaticDense(8, 1, x -> boxconst(x, β_bounds); initW=Flux.glorot_normal),
         )
         α_ann = FastChain(
-            StaticDense(3, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(4, 8, mish; initW=Flux.glorot_normal),
             StaticDense(8, 1, x -> boxconst(x, α_bounds); initW=Flux.glorot_normal),
         )
         return new{typeof(β_ann),typeof(α_ann),T}(
@@ -155,13 +155,13 @@ struct SEIRDFbMobility1{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
         movement_range_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(5, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(6, 8, mish; initW=Flux.glorot_normal),
             StaticDense(8, 8, mish; initW=Flux.glorot_normal),
             StaticDense(8, 8, mish; initW=Flux.glorot_normal),
             StaticDense(8, 1, x -> boxconst(x, β_bounds); initW=Flux.glorot_normal),
         )
         α_ann = FastChain(
-            StaticDense(3, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(4, 8, mish; initW=Flux.glorot_normal),
             StaticDense(8, 1, x -> boxconst(x, α_bounds); initW=Flux.glorot_normal),
         )
         return new{typeof(β_ann),typeof(α_ann),T,DS}(
@@ -250,13 +250,13 @@ struct SEIRDFbMobility2{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(6, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(7, 8, mish; initW=Flux.glorot_normal),
             StaticDense(8, 8, mish; initW=Flux.glorot_normal),
             StaticDense(8, 8, mish; initW=Flux.glorot_normal),
             StaticDense(8, 1, x -> boxconst(x, β_bounds); initW=Flux.glorot_normal),
         )
         α_ann = FastChain(
-            StaticDense(3, 8, mish; initW=Flux.glorot_normal),
+            StaticDense(4, 8, mish; initW=Flux.glorot_normal),
             StaticDense(8, 1, x -> boxconst(x, α_bounds); initW=Flux.glorot_normal),
         )
         return new{typeof(β_ann),typeof(α_ann),T,DS}(
@@ -326,6 +326,7 @@ function fatality_rate(
     sol = default_solve(model, u0, params, tspan, saveat)
     states = Array(sol)
     I = @view states[3, :]
+    R = @view states[4, :]
     D = @view states[5, :]
     N = @view states[6, :]
 
@@ -333,6 +334,7 @@ function fatality_rate(
     α_ann_input = [
         (collect(saveat) ./ model.time_scale)'
         (I ./ N)'
+        (R ./ N)'
         (D ./ N)'
     ]
     αt = vec(model.α_ann(α_ann_input, pnamed.θ2))
@@ -349,6 +351,7 @@ function fatality_rate(
     sol = default_solve(model, u0, params, tspan, saveat)
     states = Array(sol)
     I = @view states[3, :]
+    R = @view states[4, :]
     D = @view states[5, :]
     N = @view states[6, :]
 
@@ -356,6 +359,7 @@ function fatality_rate(
     α_ann_input = [
         (collect(saveat) ./ model.time_scale)'
         (I ./ N)'
+        (R ./ N)'
         (D ./ N)'
     ]
     αt = vec(model.α_ann(α_ann_input, pnamed.θ2))
@@ -372,6 +376,7 @@ function fatality_rate(
     sol = default_solve(model, u0, params, tspan, saveat)
     states = Array(sol)
     I = @view states[3, :]
+    R = @view states[4, :]
     D = @view states[5, :]
     N = @view states[6, :]
 
@@ -379,6 +384,7 @@ function fatality_rate(
     α_ann_input = [
         (collect(saveat) ./ model.time_scale)'
         (I ./ N)'
+        (R ./ N)'
         (D ./ N)'
     ]
     αt = vec(model.α_ann(α_ann_input, pnamed.θ2))
@@ -414,6 +420,7 @@ function Re(
     sol = default_solve(model, u0, params, tspan, saveat)
     states = Array(sol)
     S = @view states[1, :]
+    E = @view states[2, :]
     I = @view states[3, :]
     N = @view states[6, :]
 
@@ -421,6 +428,7 @@ function Re(
     β_ann_input = [
         (collect(saveat) ./ model.time_scale)'
         (S ./ N)'
+        (E ./ N)'
         (I ./ N)'
     ]
 
@@ -458,6 +466,7 @@ function Re(
     sol = default_solve(model, u0, params, tspan, saveat)
     states = Array(sol)
     S = @view states[1, :]
+    E = @view states[2, :]
     I = @view states[3, :]
     N = @view states[6, :]
 
@@ -466,6 +475,7 @@ function Re(
     β_ann_input = [
         (collect(saveat) ./ model.time_scale)'
         (S ./ N)'
+        (E ./ N)'
         (I ./ N)'
         mobility
     ]
@@ -504,6 +514,7 @@ function Re(
     sol = default_solve(model, u0, params, tspan, saveat)
     states = Array(sol)
     S = @view states[1, :]
+    E = @view states[2, :]
     I = @view states[3, :]
     N = @view states[6, :]
 
@@ -513,6 +524,7 @@ function Re(
     β_ann_input = [
         (collect(saveat) ./ model.time_scale)'
         (S ./ N)'
+        (E ./ N)'
         (I ./ N)'
         mobility
         proximity
@@ -613,24 +625,14 @@ the contact rate
 function (model::SEIRDBaseline)(du, u, p, t)
     @inbounds begin
         # states and params
-        S, _, I, _, D, N, _, _ = u
+        S, E, I, R, D, N, _, _ = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         β = first(
-            model.β_ann(
-                SVector{3}(
-                    t / model.time_scale, S / N, I / N
-                ),
-                pnamed.θ1,
-            ),
+            model.β_ann(SVector{4}(t / model.time_scale, S / N, E / N, I / N), pnamed.θ1)
         )
         α = first(
-            model.α_ann(
-                SVector{3}(
-                    t / model.time_scale, I / N, D / N
-                ),
-                pnamed.θ2,
-            ),
+            model.α_ann(SVector{4}(t / model.time_scale, I / N, R / N, D / N), pnamed.θ2)
         )
         SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, α), t)
     end
@@ -655,14 +657,15 @@ function (model::SEIRDFbMobility1)(du, u, p, t)
     @inbounds begin
         time_idx = Int(floor(t + 1))
         # states and params
-        S, _, I, _, D, N, _, _ = u
+        S, E, I, R, D, N, _, _ = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         β = first(
             model.β_ann(
-                SVector{5}(
+                SVector{6}(
                     t / model.time_scale,
                     S / N,
+                    E / N,
                     I / N,
                     model.movement_range_data[1, time_idx],
                     model.movement_range_data[2, time_idx],
@@ -671,12 +674,7 @@ function (model::SEIRDFbMobility1)(du, u, p, t)
             ),
         )
         α = first(
-            model.α_ann(
-                SVector{3}(
-                    t / model.time_scale, I / N, D / N
-                ),
-                pnamed.θ2,
-            ),
+            model.α_ann(SVector{4}(t / model.time_scale, I / N, R / N, D / N), pnamed.θ2)
         )
         SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, α), t)
     end
@@ -703,14 +701,15 @@ function (model::SEIRDFbMobility2)(du, u, p, t)
     @inbounds begin
         time_idx = Int(floor(t + 1))
         # states and params
-        S, _, I, _, D, N, _, _ = u
+        S, E, I, R, D, N, _, _ = u
         pnamed = namedparams(model, p)
         # infection rate depends on time, susceptible, and infected
         β = first(
             model.β_ann(
-                SVector{6}(
+                SVector{7}(
                     t / model.time_scale,
                     S / N,
+                    E / N,
                     I / N,
                     model.movement_range_data[1, time_idx],
                     model.movement_range_data[2, time_idx],
@@ -720,12 +719,7 @@ function (model::SEIRDFbMobility2)(du, u, p, t)
             ),
         )
         α = first(
-            model.α_ann(
-                SVector{3}(
-                    t / model.time_scale, I / N, D / N
-                ),
-                pnamed.θ2,
-            ),
+            model.α_ann(SVector{4}(t / model.time_scale, I / N, R / N, D / N), pnamed.θ2)
         )
         SEIRD!(du, u, SVector{4}(β, pnamed.γ, pnamed.λ, α), t)
     end
