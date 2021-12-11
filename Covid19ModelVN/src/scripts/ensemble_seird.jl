@@ -7,7 +7,7 @@ include("include/experiments.jl")
 let
     loc = "cook_il"
     train_dataset, test_dataset, first_date, last_date = experiment_covid19_data(
-        loc, Day(32), Day(28), true
+        loc, Day(32), Day(28)
     )
     u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
 

@@ -47,7 +47,9 @@ function visualize_data(
     end
 
     try
-        data = experiment_movement_range(loc, first_date, last_date, lag_movement_range)
+        data = experiment_movement_range(
+            loc, first_date, split_date, last_date, lag_movement_range
+        )
         plot_movement_range!(fig[current_row, 1], loc, data)
         current_row += 1
     catch e
@@ -55,7 +57,9 @@ function visualize_data(
     end
 
     try
-        data = experiment_social_proximity(loc, first_date, last_date, lag_social_proximity)
+        data = experiment_social_proximity(
+            loc, first_date, split_date, last_date, lag_social_proximity
+        )
         plot_social_proximity!(fig[current_row, 1], loc, data)
         current_row += 1
     catch e
