@@ -192,7 +192,8 @@ function setup_baseline(
     lossfn = function (ŷ, y, params, tsteps)
         pnamed = namedparams(model, params)
         return lossfn_inner(ŷ, y, tsteps) +
-               loss_regularization * (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
+               loss_regularization / (2 * size(y, 2)) *
+               (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
     end
 
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
@@ -259,7 +260,8 @@ function setup_fbmobility1(
     lossfn = function (ŷ, y, params, tsteps)
         pnamed = namedparams(model, params)
         return lossfn_inner(ŷ, y, tsteps) +
-               loss_regularization * (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
+               loss_regularization / (2 * size(y, 2)) *
+               (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
     end
 
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
@@ -334,7 +336,8 @@ function setup_fbmobility2(
     lossfn = function (ŷ, y, params, tsteps)
         pnamed = namedparams(model, params)
         return lossfn_inner(ŷ, y, tsteps) +
-               loss_regularization * (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
+               loss_regularization / (2 * size(y, 2)) *
+               (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
     end
 
     return model, u0, p0, lossfn, train_dataset, test_dataset, vars, labels
