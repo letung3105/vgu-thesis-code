@@ -421,7 +421,7 @@ function experiment_eval(
             ) do (fit, pred)
                 obs_fit[] = fit
                 obs_pred[] = pred
-                return autolimits!.(contents(fig_animation[:, :]))
+                return contents(fig_animation[:, :])
             end
         end
     end
