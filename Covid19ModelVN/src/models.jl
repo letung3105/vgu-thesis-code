@@ -65,14 +65,14 @@ struct SEIRDBaseline{ANN1<:FastChain,ANN2<:FastChain,T<:Real} <: AbstractCovidMo
         time_scale::T,
     ) where {T<:Real}
         β_ann = FastChain(
-            StaticDense(4, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(4, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 1, x -> boxconst(x, β_bounds), initW = Flux.glorot_normal),
         )
         α_ann = FastChain(
-            StaticDense(4, 8, mish),
-            StaticDense(8, 1, x -> boxconst(x, α_bounds)),
+            StaticDense(4, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 1, x -> boxconst(x, α_bounds), initW = Flux.glorot_normal),
         )
         return new{typeof(β_ann),typeof(α_ann),T}(
             β_ann,
@@ -155,14 +155,14 @@ struct SEIRDFbMobility1{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
         movement_range_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(6, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(6, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 1, x -> boxconst(x, β_bounds), initW = Flux.glorot_normal),
         )
         α_ann = FastChain(
-            StaticDense(4, 8, mish),
-            StaticDense(8, 1, x -> boxconst(x, α_bounds)),
+            StaticDense(4, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 1, x -> boxconst(x, α_bounds), initW = Flux.glorot_normal),
         )
         return new{typeof(β_ann),typeof(α_ann),T,DS}(
             β_ann,
@@ -250,14 +250,14 @@ struct SEIRDFbMobility2{ANN1<:FastChain,ANN2<:FastChain,T<:Real,DS<:AbstractMatr
         social_proximity_data::DS,
     ) where {T<:Real,DS<:AbstractMatrix{T}}
         β_ann = FastChain(
-            StaticDense(7, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 8, mish),
-            StaticDense(8, 1, x -> boxconst(x, β_bounds)),
+            StaticDense(7, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 1, x -> boxconst(x, β_bounds), initW = Flux.glorot_normal),
         )
         α_ann = FastChain(
-            StaticDense(4, 8, mish),
-            StaticDense(8, 1, x -> boxconst(x, α_bounds)),
+            StaticDense(4, 8, mish, initW = Flux.glorot_normal),
+            StaticDense(8, 1, x -> boxconst(x, α_bounds), initW = Flux.glorot_normal),
         )
         return new{typeof(β_ann),typeof(α_ann),T,DS}(
             β_ann,
