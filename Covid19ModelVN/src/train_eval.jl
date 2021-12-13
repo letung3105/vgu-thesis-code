@@ -699,11 +699,12 @@ function plot_forecast!(
         xlabel="Days since the 500th confirmed cases",
         ylabel="Cases",
     )
-    ylims!(ax, minimum(truth) * 0.9, maximum(truth) * 1.1)
+    ylims_offset = (maximum(truth) - minimum(truth)) * 0.05
+    ylims!(ax, minimum(truth) - ylims_offset, maximum(truth) + ylims_offset)
     vlines!(ax, [sep]; color=:black, linestyle=:dash)
     lines!(ax, truth; label=label, linewidth=4, color=Makie.ColorSchemes.tab10[1])
     lines!(ax, output; label="prediction", linewidth=4, color=Makie.ColorSchemes.tab10[2])
-    axislegend(ax; position=:lt)
+    axislegend(ax; position=:lt, framevisible=false)
     return ax
 end
 
