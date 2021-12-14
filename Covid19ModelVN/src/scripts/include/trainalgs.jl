@@ -106,9 +106,6 @@ function train_growing_trajectory(
     )
 
     @info("Training with ADAM optimizer", uuid)
-    # NOTE: order must be ADAM --> ExpDecay
-    opt = Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit))
-
     maxiters = maxiters_initial
     tspan_size_max = length(train_dataset.tsteps)
     for k in tspan_size_initial:tspan_size_growth:tspan_size_max
@@ -124,6 +121,8 @@ function train_growing_trajectory(
             tsteps = repr(train_dataset_batch.tsteps),
         )
 
+        # NOTE: order must be ADAM --> ExpDecay
+        opt = Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit))
         loss = Loss{true}(lossfn, predictor, train_dataset_batch)
         res = DiffEqFlux.sciml_train(loss, params, opt; maxiters, cb)
 
@@ -171,9 +170,6 @@ function train_growing_trajectory_two_stages(
     )
 
     @info("Training with ADAM optimizer", uuid)
-    # NOTE: order must be ADAM --> ExpDecay
-    opt = Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit))
-
     maxiters = maxiters_initial
     tspan_size_max = length(train_dataset.tsteps)
     for k in tspan_size_initial:tspan_size_growth:tspan_size_max
@@ -189,6 +185,8 @@ function train_growing_trajectory_two_stages(
             tsteps = repr(train_dataset_batch.tsteps),
         )
 
+        # NOTE: order must be ADAM --> ExpDecay
+        opt = Flux.Optimiser(ADAM(lr), ExpDecay(lr, lr_decay_rate, lr_decay_step, lr_limit))
         loss = Loss{true}(lossfn, predictor, train_dataset_batch)
         res = DiffEqFlux.sciml_train(loss, params, opt; maxiters, cb)
 
