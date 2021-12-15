@@ -129,6 +129,7 @@ function train_growing_trajectory(
 
         params .= res.minimizer
         maxiters += maxiters_growth
+        Serialization.serialize(cb_log.config.params_save_fpath, params)
     end
 
     return params, cb_log.state.eval_losses, cb_log.state.test_losses
@@ -194,12 +195,14 @@ function train_growing_trajectory_two_stages(
 
         params .= res.minimizer
         maxiters += maxiters_growth
+        Serialization.serialize(cb_log.config.params_save_fpath, params)
     end
 
     @info("Training with BFGS optimizer", uuid)
     opt = BFGS(; initial_stepnorm=1e-2)
     loss = Loss{true}(lossfn, predictor, train_dataset)
     res = DiffEqFlux.sciml_train(loss, params, opt; maxiters=maxiters_second, cb)
+    Serialization.serialize(cb_log.config.params_save_fpath, res.minimizer)
 
     return res.minimizer, cb_log.state.eval_losses, cb_log.state.test_losses
 end
