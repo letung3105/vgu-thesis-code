@@ -48,7 +48,7 @@ function experiment_covid19_data(loc::AbstractString, train_range::Day, forecast
     # smooth out weekly seasonality
     moving_average!(df, datacols, 7)
     # observable compartments
-    conf = TimeseriesConfig(df, "date", ["deaths_total", "confirmed"])
+    conf = TimeseriesConfig(df, "date", ["deaths_total", "confirmed", "confirmed_total"])
     return conf, first_date, split_date, last_date
 end
 
@@ -107,8 +107,8 @@ function experiment_SEIRD_initial_states(
     S0 = population - E0 - df_first_date.confirmed_total[1] # susceptible individuals
     # initial state
     u0 = Float64[S0, E0, I0, R0, D0, N0, C0, T0]
-    vars = [5, 7]
-    labels = ["deaths", "new cases"]
+    vars = [5, 7, 8]
+    labels = ["deaths", "new cases", "total cases"]
     return u0, vars, labels
 end
 
