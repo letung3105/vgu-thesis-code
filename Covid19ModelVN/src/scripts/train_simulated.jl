@@ -26,17 +26,29 @@ let
     dataset = TimeseriesDataset(data, tspan, tsteps)
 
     model = SEIRDBaseline(
-        (1.0 / 5.0, 1.0 / 2.0), (1.0 / 21.0, 1.0 / 7.0), (0.005, 0.05), pop, tspan[2]
+        (0.2 / 4, 6.68 / 4),
+        (1.0 / 5.0, 1.0 / 2.0),
+        (1.0 / 21.0, 1.0 / 7.0),
+        (0.005, 0.05),
+        pop,
+        tspan[2]
     )
-    params = initparams(model, 1.0 / 3.0, 1.0 / 20.0, 0.04)
+    params = initparams(model, 1.0 / 3.0, 1.0 / 20.0)
     prob = ODEProblem(model, u0, tspan)
 
     predictor = Predictor(prob, observables)
-    lossfn = experiment_loss_sse(
+    loss_regularization  = 0.00001;
+    lossfn_inner = experiment_loss_sse(
         vec(minimum(data; dims=2)), vec(maximum(data; dims=2)), -0.05
     )
-    loss_batch = Loss{false}(lossfn, predictor, dataset, 10)
-    loss_whole = Loss{false}(lossfn, predictor, dataset)
+    lossfn = function (ŷ, y, params, tsteps)
+        pnamed = namedparams(model, params)
+        return lossfn_inner(ŷ, y, tsteps) +
+               loss_regularization / (2 * size(y, 2)) *
+               (sum(abs2, pnamed.θ1) + sum(abs2, pnamed.θ2))
+    end
+    loss_batch = Loss{true}(lossfn, predictor, dataset, 10)
+    loss_whole = Loss{true}(lossfn, predictor, dataset)
 
     progress = ProgressUnknown(; showspeed=true)
     minimizer = copy(params)
@@ -59,7 +71,6 @@ let
     pnamed = namedparams(model, minimizer)
     @show pnamed.γ
     @show pnamed.λ
-    @show pnamed.α
 
     pred = predictor(minimizer, tspan, tsteps)
     fig = Figure(; resolution=(600, 300 * length(observables)))
