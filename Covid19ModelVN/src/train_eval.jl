@@ -516,7 +516,7 @@ function calculate_forecasts_errors(
 end
 
 function calculate_time_steps_mae(labels, pred, test_dataset::TimeseriesDataset)
-    errors = (pred .- test_dataset.data) ./ (size(pred, 2))
+    errors = abs.(pred .- test_dataset.data)
     return DataFrame(errors', labels)
 end
 
