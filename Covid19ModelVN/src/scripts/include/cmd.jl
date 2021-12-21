@@ -5,19 +5,29 @@ include("experiments.jl")
 function runcmd(args)
     parsed_args = parse_commandline(args)
     model_name, get_hyperparams, model_setup = setupcmd(parsed_args)
-    return experiment_run(
-        model_name,
-        model_setup,
-        parsed_args[:locations],
-        get_hyperparams(parsed_args),
-        parsed_args[:_COMMAND_],
-        parsed_args[parsed_args[:_COMMAND_]];
-        forecast_horizons=parsed_args[:forecast_horizons],
-        savedir=parsed_args[:savedir],
-        show_progress=parsed_args[:show_progress],
-        make_animation=parsed_args[:make_animation],
-        multithreading=parsed_args[:multithreading],
-    )
+    if (parsed_args[:_COMMAND_] == :eval)
+        uuid = parsed_args[:eval][:uuid]
+        hyperparams = get_hyperparams(parsed_args)
+        for loc in parsed_args[:locations]
+            snapshots_dir = joinpath(parsed_args[:savedir], uuid, loc)
+            setup = () -> model_setup(loc; hyperparams...)
+            experiment_eval(setup, parsed_args[:forecast_horizons], snapshots_dir)
+        end
+    else
+        experiment_run(
+            model_name,
+            model_setup,
+            parsed_args[:locations],
+            get_hyperparams(parsed_args),
+            parsed_args[:_COMMAND_],
+            parsed_args[parsed_args[:_COMMAND_]];
+            forecast_horizons=parsed_args[:forecast_horizons],
+            savedir=parsed_args[:savedir],
+            show_progress=parsed_args[:show_progress],
+            make_animation=parsed_args[:make_animation],
+            multithreading=parsed_args[:multithreading],
+        )
+    end
 end
 
 function setupcmd(parsed_args)
@@ -93,6 +103,10 @@ function parse_commandline(args)
         arg_type = Symbol
         range_tester = isvalidmodel
         required = true
+
+        "eval"
+        help = "draw plot and make tables for evaluating the model"
+        action = :command
 
         "train_growing_trajectory"
         help = "train the model by iteratively growing time span"
@@ -210,6 +224,12 @@ function parse_commandline(args)
         help = "scaling factor for the time scaling"
         arg_type = Float64
         default = 0.0 # time time weights
+    end
+
+    @add_arg_table s["eval"] begin
+        "--uuid"
+        help = "the unique identifer to the model training session"
+        arg_type = String
     end
 
     @add_arg_table s["train_growing_trajectory"] begin

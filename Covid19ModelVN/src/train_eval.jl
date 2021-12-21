@@ -471,7 +471,8 @@ function evaluate_model(
     pred = predictor(params, test_dataset.tspan, test_dataset.tsteps)
     forecasts_plot = plot_forecasts(config, fit, pred, train_dataset, test_dataset)
     df_forecasts_errors = calculate_forecasts_errors(config, pred, test_dataset)
-    return forecasts_plot, df_forecasts_errors
+    df_time_steps_errors = calculate_time_steps_mae(config.labels, pred, test_dataset)
+    return forecasts_plot, df_forecasts_errors, df_time_steps_errors
 end
 
 """
@@ -512,6 +513,11 @@ function calculate_forecasts_errors(
     df1 = DataFrame([horizons metrics], [:horizon, :metric])
     df2 = DataFrame(errors, config.labels)
     return [df1 df2]
+end
+
+function calculate_time_steps_mae(labels, pred, test_dataset::TimeseriesDataset)
+    errors = (pred .- test_dataset.data) ./ (size(pred, 2))
+    return DataFrame(errors', labels)
 end
 
 """

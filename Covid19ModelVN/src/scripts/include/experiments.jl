@@ -350,7 +350,6 @@ function setup_fbmobility2(
 end
 
 function experiment_eval(
-    uuid::AbstractString,
     setup::Function,
     forecast_horizons::AbstractVector{<:Integer},
     snapshots_dir::AbstractString,
@@ -364,35 +363,52 @@ function experiment_eval(
     eval_config = EvalConfig([mae, mape, rmse], forecast_horizons, labels)
     for fpath in lookup_saved_params(snapshots_dir)
         dataname, datatype, _ = rsplit(basename(fpath), "."; limit=3)
-        if !startswith(dataname, uuid)
-            continue
-        end
-
         if datatype == "losses"
             train_losses, test_losses = Serialization.deserialize(fpath)
             fig_losses = plot_losses(train_losses, test_losses)
             fpath_losses = joinpath(snapshots_dir, "$dataname.losses.png")
-            @info("Generating losses plot", uuid, fpath_losses)
+            @info("Generating losses plot", fpath_losses)
             save(fpath_losses, fig_losses)
 
         elseif datatype == "params"
             minimizer = Serialization.deserialize(fpath)
-            fig_forecasts, df_errors = evaluate_model(
+            fit = Array(predictor(minimizer, train_dataset.tspan, train_dataset.tsteps))
+            df_fit = DataFrame(fit',  eval_config.labels)
+            pred = Array(predictor(minimizer, test_dataset.tspan, test_dataset.tsteps))
+            df_pred = DataFrame(pred',  eval_config.labels)
+            fpath_fit = joinpath(snapshots_dir, "$dataname.fit.csv")
+            fpath_pred = joinpath(snapshots_dir, "$dataname.predictions.csv")
+            @info(
+                "Generating final fit and predictions",
+                fpath_fit,
+                fpath_pred,
+            )
+            save_dataframe(df_fit, fpath_fit)
+            save_dataframe(df_pred, fpath_pred)
+
+            fig_forecasts, df_errors, df_time_steps_errors = evaluate_model(
                 eval_config, predictor, minimizer, train_dataset, test_dataset
             )
             fpath_forecasts = joinpath(snapshots_dir, "$dataname.forecasts.png")
             fpath_errors = joinpath(snapshots_dir, "$dataname.errors.csv")
+            fpath_time_steps_errors = joinpath(
+                snapshots_dir, "$dataname.time_steps_errors.csv"
+            )
             @info(
-                "Generating forecasts plot and errors", uuid, fpath_forecasts, fpath_errors
+                "Generating forecasts plot and errors",
+                fpath_forecasts,
+                fpath_errors,
+                fpath_time_steps_errors,
             )
             save(fpath_forecasts, fig_forecasts)
             save_dataframe(df_errors, fpath_errors)
+            save_dataframe(df_time_steps_errors, fpath_time_steps_errors)
 
             Re1 = Re(model, u0, minimizer, train_dataset.tspan, train_dataset.tsteps)
             Re2 = Re(model, u0, minimizer, test_dataset.tspan, test_dataset.tsteps)
             fig_Re = plot_Re([Re1; Re2], train_dataset.tspan[2])
             fpath_Re = joinpath(snapshots_dir, "$dataname.R_effective.png")
-            @info("Generating effective reproduction number plot", uuid, fpath_Re)
+            @info("Generating effective reproduction number plot", fpath_Re)
             save(fpath_Re, fig_Re)
 
             # the fatality rate in this model changes over time
@@ -404,7 +420,7 @@ function experiment_eval(
             )
             fig_αt = plot_fatality_rate([αt1; αt2], train_dataset.tspan[2])
             fpath_αt = joinpath(snapshots_dir, "$dataname.fatality_rate.png")
-            @info("Generating effective fatality rate plot", uuid, fpath_αt)
+            @info("Generating effective fatality rate plot", fpath_αt)
             save(fpath_αt, fig_αt)
 
         elseif datatype == "forecasts"
@@ -415,7 +431,7 @@ function experiment_eval(
                 eval_config, obs_fit, obs_pred, train_dataset, test_dataset
             )
             fpath_animation = joinpath(snapshots_dir, "$dataname.forecasts.mkv")
-            @info("Generating fit animation", uuid, fpath_animation)
+            @info("Generating fit animation", fpath_animation)
             record(
                 fig_animation, fpath_animation, zip(fit, pred); framerate=60
             ) do (fit, pred)
