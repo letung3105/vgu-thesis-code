@@ -710,7 +710,7 @@ function plot_forecast!(
     vlines!(ax, [sep]; color=:black, linestyle=:dash)
     lines!(ax, truth; label=label, linewidth=4, color=Makie.ColorSchemes.tab10[1])
     lines!(ax, output; label="prediction", linewidth=4, color=Makie.ColorSchemes.tab10[2])
-    axislegend(ax; position=:lt, framevisible=false)
+    axislegend(ax; position=:lt, bgcolor=(:white, 0.7))
     return ax
 end
 
