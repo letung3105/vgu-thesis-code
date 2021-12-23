@@ -52,7 +52,7 @@ $ julia --project src/scripts/app.jl -- --help
 
 which will printed
 
-```bash
+```plaintext
 usage: app.jl [--locations [LOCATIONS...]]
               [--forecast_horizons [FORECAST_HORIZONS...]]
               [--savedir SAVEDIR] [--multithreading] [--show_progress]
@@ -79,12 +79,12 @@ commands:
                         span
   train_growing_trajectory_two_stages
                         train the model by iteratively growing time
-                        span, then use LBFGS
+                        span, then use BFGS
   train_whole_trajectory
                         train the model on the whole time span
   train_whole_trajectory_two_stages
                         train the model on the whole time span, then
-                        use LBFGS
+                        use BFGS
 
 positional arguments:
   model_name            name of the model that will be used (type:

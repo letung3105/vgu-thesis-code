@@ -113,7 +113,7 @@ function parse_commandline(args)
         action = :command
 
         "train_growing_trajectory_two_stages"
-        help = "train the model by iteratively growing time span, then use LBFGS"
+        help = "train the model by iteratively growing time span, then use BFGS"
         action = :command
 
         "train_whole_trajectory"
@@ -121,7 +121,7 @@ function parse_commandline(args)
         action = :command
 
         "train_whole_trajectory_two_stages"
-        help = "train the model on the whole time span, then use LBFGS"
+        help = "train the model on the whole time span, then use BFGS"
         action = :command
 
         "--locations"
