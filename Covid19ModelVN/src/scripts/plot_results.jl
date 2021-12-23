@@ -208,47 +208,83 @@ let
 end
 
 let
+    locations = collect(keys(Covid19ModelVN.LOC_NAMES_VN))
     fig = plot_outputs_combined(
         "testsnapshots/thesis-results/tobeincluded",
         ["baseline", "fb1", "fb2"],
-        keys(Covid19ModelVN.LOC_NAMES_VN),
+        locations[1:2],
         ["deaths", "new cases", "total cases"],
         :fit,
     )
-    save("testsnapshots/thesis-results/tobeincluded/fit_vn_provinces.pdf", fig)
-end
-
-let
+    save("testsnapshots/thesis-results/tobeincluded/fit_vn_provinces1.pdf", fig)
     fig = plot_outputs_combined(
         "testsnapshots/thesis-results/tobeincluded",
         ["baseline", "fb1", "fb2"],
-        keys(Covid19ModelVN.LOC_NAMES_VN),
-        ["deaths", "new cases", "total cases"],
-        :pred,
-    )
-    save("testsnapshots/thesis-results/tobeincluded/pred_vn_provinces.pdf", fig)
-end
-
-let
-    fig = plot_outputs_combined(
-        "testsnapshots/thesis-results/tobeincluded",
-        ["baseline", "fb1", "fb2"],
-        keys(Covid19ModelVN.LOC_NAMES_US),
+        locations[3:4],
         ["deaths", "new cases", "total cases"],
         :fit,
     )
-    save("testsnapshots/thesis-results/tobeincluded/fit_us_counties.pdf", fig)
+    save("testsnapshots/thesis-results/tobeincluded/fit_vn_provinces2.pdf", fig)
 end
 
 let
+    locations = collect(keys(Covid19ModelVN.LOC_NAMES_VN))
     fig = plot_outputs_combined(
         "testsnapshots/thesis-results/tobeincluded",
         ["baseline", "fb1", "fb2"],
-        keys(Covid19ModelVN.LOC_NAMES_US),
+        locations[1:2],
         ["deaths", "new cases", "total cases"],
         :pred,
     )
-    save("testsnapshots/thesis-results/tobeincluded/pred_us_counties.pdf", fig)
+    save("testsnapshots/thesis-results/tobeincluded/pred_vn_provinces1.pdf", fig)
+    fig = plot_outputs_combined(
+        "testsnapshots/thesis-results/tobeincluded",
+        ["baseline", "fb1", "fb2"],
+        locations[3:4],
+        ["deaths", "new cases", "total cases"],
+        :pred,
+    )
+    save("testsnapshots/thesis-results/tobeincluded/pred_vn_provinces2.pdf", fig)
+end
+
+let
+    locations = collect(keys(Covid19ModelVN.LOC_NAMES_US))
+    fig = plot_outputs_combined(
+        "testsnapshots/thesis-results/tobeincluded",
+        ["baseline", "fb1", "fb2"],
+        locations[1:2],
+        ["deaths", "new cases", "total cases"],
+        :fit,
+    )
+    save("testsnapshots/thesis-results/tobeincluded/fit_us_counties1.pdf", fig)
+    fig = plot_outputs_combined(
+        "testsnapshots/thesis-results/tobeincluded",
+        ["baseline", "fb1", "fb2"],
+        locations[3:4],
+        ["deaths", "new cases", "total cases"],
+        :fit,
+    )
+    save("testsnapshots/thesis-results/tobeincluded/fit_us_counties2.pdf", fig)
+end
+
+let
+    locations = collect(keys(Covid19ModelVN.LOC_NAMES_US))
+    fig = plot_outputs_combined(
+        "testsnapshots/thesis-results/tobeincluded",
+        ["baseline", "fb1", "fb2"],
+        locations[1:2],
+        ["deaths", "new cases", "total cases"],
+        :pred,
+    )
+    save("testsnapshots/thesis-results/tobeincluded/pred_us_counties1.pdf", fig)
+    fig = plot_outputs_combined(
+        "testsnapshots/thesis-results/tobeincluded",
+        ["baseline", "fb1", "fb2"],
+        locations[3:4],
+        ["deaths", "new cases", "total cases"],
+        :pred,
+    )
+    save("testsnapshots/thesis-results/tobeincluded/pred_us_counties2.pdf", fig)
 end
 
 let
@@ -261,12 +297,7 @@ let
 end
 
 let
-    for loc in [
-        Covid19ModelVN.LOC_CODE_VIETNAM,
-        keys(Covid19ModelVN.LOC_NAMES_VN)...,
-        Covid19ModelVN.LOC_CODE_UNITED_STATES,
-        keys(Covid19ModelVN.LOC_NAMES_US)...,
-    ]
+    for loc in [Covid19ModelVN.LOC_CODE_VIETNAM, Covid19ModelVN.LOC_CODE_UNITED_STATES]
         fig = plot_Re_and_fatality_combined(
             "testsnapshots/thesis-results/tobeincluded", ["baseline", "fb1"], loc
         )
