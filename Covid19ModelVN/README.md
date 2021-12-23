@@ -7,7 +7,7 @@ This repository is a supplementary material for my thesis at the university.
 The interpreter for the Julia language is required for running the provided scripts.
 To install the Julia interpreter, visit the [download page](https://julialang.org/downloads/) and follow the provided instructions.
 
-Once the installer has been installed, change directory to the `Covid19ModelVN` folder and run the following script in a terminal to install the required third-party dependencies.
+Once the interpreter has been installed, change directory to the `Covid19ModelVN` folder and run the following script in a terminal to install the required third-party dependencies.
 
 ```bash
 $ julia --project --eval "import Pkg; Pkg.instantiate()"
@@ -151,11 +151,39 @@ optional arguments:
   -h, --help            show this help message and exit
 ```
 
-To see the same helper message without having to run the script, visit `src/scripts/include/cmd.jl`.
+Command-line arguments given to the script can be specified after the double dashes `--`, for example, this command runs an experiment with the settings that we presented in the thesis:
+
+```bash
+$ julia --project src/scripts/app.jl --
+  --beta_bounds 0.05 1.67
+  --train_days 48
+  --loss_regularization 0.00001
+  --loss_time_weighting -0.001
+  --locations dongnai
+  --savedir testsnapshots/batch48days
+  --multithreading fbmobility2
+  train_growing_trajectory_two_stages
+  --lr 0.05
+  --lr_limit 0.00001
+  --lr_decay_rate 0.5
+  --lr_decay_step 1000
+  --maxiters_initial 1000
+  --maxiters_growth 0
+  --maxiters_second 1000
+  --tspan_size_initial 4
+  --tspan_size_growth 4
+```
+
+To see the helper message without having to run the script, visit `src/scripts/include/cmd.jl`.
 Because Julia is JIT-compiled, running the script from a terminal may take a lot of time for the initial boot up.
 Thus we recommended running the package in Julia interactive mode when experimenting with the provided models.
 The command-line arguments can be given programmatically in similar formats as shown in the helper message.
 For more example of how to use the options programmatically, see `src/scripts/48days.jl`.
+
+You will be asked to download several datasets hosted at [https://github.com/letung3105/coviddata](https://github.com/letung3105/coviddata) on the first time that you run the model training.
+These are the datasets that had been constructed specifically for the experiments.
+When you accept the download prompt, these datasets will be downloaded to your local machine and will be typically stored at `$HOME/.julia/datadeps`.
+See [https://oxinabox.github.io/DataDeps.jl/stable](https://oxinabox.github.io/DataDeps.jl/stable) if you want to have more control over where these datasets will be stored.
 
 ## Compatibility
 
