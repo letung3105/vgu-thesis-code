@@ -4,14 +4,17 @@ authors = ["Vo Le Tung <15053897+letung3105@users.noreply.github.com>"]
 version = "0.1.0"
 
 [deps]
+ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DataDeps = "124859b0-ceae-595e-8997-d05f6a7a8dfe"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DiffEqFlux = "aae7a2af-3d4f-5e19-a356-7da93b79d9d0"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 GeoDataFrames = "62cb38b5-d8d2-4862-a48e-6a340996859f"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"

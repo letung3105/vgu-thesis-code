@@ -1,4 +1,6 @@
-using CSV, Dates, DataDeps, DataFrames, Covid19ModelVN
+module JHUCSSEData
+
+using CSV, Dates, DataDeps, DataFrames
 
 function __init__()
     register(
@@ -28,6 +30,8 @@ function __init__()
 end
 
 """
+    stack_timeseries(df::AbstractDataFrame, value_name::Union{<:AbstractString,Symbol})
+
 Turn the cases dataframe in wide-format to long-format
 
 # Arguments
@@ -35,10 +39,18 @@ Turn the cases dataframe in wide-format to long-format
 + `df`: the dataframe
 + `value_name`: name of the value column of the stacked dataframe
 """
-stack_timeseries(df::AbstractDataFrame, value_name::Union{<:AbstractString,Symbol}) =
-    stack(df, All(), variable_name = :date, value_name = value_name, view = true)
+function stack_timeseries(df::AbstractDataFrame, value_name::Union{<:AbstractString,Symbol})
+    return stack(df, All(); variable_name=:date, value_name=value_name, view=true)
+end
 
 """
+    function combine_country_level_timeseries(
+        df_confirmed::AbstractDataFrame,
+        df_recovered::AbstractDataFrame,
+        df_deaths::AbstractDataFrame,
+        country_name::AbstractString,
+    )
+
 Combine 3 separated timeseries from JHU-CSSE into 1 single dataframe for a specific country
 
 # Arguments
@@ -55,17 +67,19 @@ function combine_country_level_timeseries(
     country_name::AbstractString,
 )
     # select rows associated with the country
-    filter_country(df::AbstractDataFrame) =
-        subset(df, "Country/Region" => x -> x .== country_name, view = true)
+    function filter_country(df::AbstractDataFrame)
+        return subset(df, "Country/Region" => x -> x .== country_name; view=true)
+    end
     # drop unused columns
-    drop_cols(df::AbstractDataFrame) = select(
-        df,
-        Not(["Province/State", "Country/Region", "Lat", "Long"]),
-        copycols = false,
-    )
+    function drop_cols(df::AbstractDataFrame)
+        return select(
+            df, Not(["Province/State", "Country/Region", "Lat", "Long"]); copycols=false
+        )
+    end
     # sum the values of all the regions within a country
-    sum_reduce_cols(df::AbstractDataFrame) =
-        combine(df, names(df, All()) .=> sum, renamecols = false)
+    function sum_reduce_cols(df::AbstractDataFrame)
+        return combine(df, names(df, All()) .=> sum; renamecols=false)
+    end
 
     df_confirmed = sum_reduce_cols(drop_cols(filter_country(df_confirmed)))
     df_recovered = sum_reduce_cols(drop_cols(filter_country(df_recovered)))
@@ -75,8 +89,8 @@ function combine_country_level_timeseries(
     df_combined = innerjoin(
         stack_timeseries(df_confirmed, :confirmed_total),
         stack_timeseries(df_recovered, :recovered_total),
-        stack_timeseries(df_deaths, :deaths_total),
-        on = :date,
+        stack_timeseries(df_deaths, :deaths_total);
+        on=:date,
     )
     df_combined[!, :date] .=
         Date.(df_combined[!, :date], dateformat"mm/dd/yyyy") .+ Year(2000)
@@ -88,6 +102,8 @@ function combine_country_level_timeseries(
 end
 
 """
+    CountryCovidTimeseriesFile
+
 + `path`: Path to the file
 + `country`: Name of the country whose Covid-19 timeseries data is contained in `path`
 """
@@ -97,6 +113,14 @@ struct CountryCovidTimeseriesFile
 end
 
 """
+    save_country_level_timeseries(
+        files::AbstractVector{CountryCovidTimeseriesFile};
+        fpath_confirmed::AbstractString = datadep"jhu-csse/time_series_covid19_confirmed_global.csv",
+        fpath_recovered::AbstractString = datadep"jhu-csse/time_series_covid19_recovered_global.csv",
+        fpath_deaths::AbstractString = datadep"jhu-csse/time_series_covid19_deaths_global.csv",
+        recreate::Bool = false,
+    )
+
 Read and combine 3 separated timeseries from JHU-CSSE into 1 single dataframe for a specific country,
 then save the resulting dataframe into a CSV file.
 
@@ -112,39 +136,45 @@ to the corresponding path at the same index.
 """
 function save_country_level_timeseries(
     files::AbstractVector{CountryCovidTimeseriesFile};
-    fpath_confirmed::AbstractString = datadep"jhu-csse/time_series_covid19_confirmed_global.csv",
-    fpath_recovered::AbstractString = datadep"jhu-csse/time_series_covid19_recovered_global.csv",
-    fpath_deaths::AbstractString = datadep"jhu-csse/time_series_covid19_deaths_global.csv",
-    recreate::Bool = false,
+    fpath_confirmed::AbstractString=datadep"jhu-csse/time_series_covid19_confirmed_global.csv",
+    fpath_recovered::AbstractString=datadep"jhu-csse/time_series_covid19_recovered_global.csv",
+    fpath_deaths::AbstractString=datadep"jhu-csse/time_series_covid19_deaths_global.csv",
+    recreate::Bool=false,
 )
     if all(f -> isfile(f.path), files) && !recreate
         return nothing
     end
 
-    @info "Reading '$fpath_confirmed', '$fpath_recovered', and '$fpath_deaths'"
+    @info("Reading Covid-19 confirmed time series", fpath_confirmed)
     df_confirmed = CSV.read(fpath_confirmed, DataFrame)
+
+    @info("Reading Covid-19 recovered time series", fpath_recovered)
     df_recovered = CSV.read(fpath_recovered, DataFrame)
+
+    @info("Reading Covid-19 deaths time series", fpath_deaths)
     df_deaths = CSV.read(fpath_deaths, DataFrame)
 
-    for f ∈ files
+    Threads.@threads for f in files
         if isfile(f.path) && !recreate
             continue
         end
+        if !isdir(dirname(f.path))
+            mkpath(dirname(f.path))
+        end
 
-        @info "Generating '$(f.path)'"
+        @info("Generating country's combined Covid-19 time series", f.path, f.country)
         df_combined = combine_country_level_timeseries(
-            df_confirmed,
-            df_recovered,
-            df_deaths,
-            f.country,
+            df_confirmed, df_recovered, df_deaths, f.country
         )
-        save_dataframe(df_combined, f.path)
+        CSV.write(f.path, df_combined)
     end
 
     return nothing
 end
 
 """
+    CountyCovidTimeseriesFile
+
 + `path`: Path to the file
 + `state`: Name of state where `county` is located
 + `county`: The county whose Covid-19 timeseries data is contained in `path`
@@ -156,6 +186,13 @@ struct CountyCovidTimeseriesFile
 end
 
 """
+    save_us_county_level_timeseries(
+        files::AbstractVector{CountyCovidTimeseriesFile};
+        fpath_confirmed::AbstractString = datadep"jhu-csse/time_series_covid19_confirmed_US.csv",
+        fpath_deaths::AbstractString = datadep"jhu-csse/time_series_covid19_deaths_US.csv",
+        recreate::Bool = false,
+    )
+
 Read and combine 2 separated timeseries from JHU-CSSE into 1 single dataframe for a specific county,
 then save the resulting dataframe into a CSV file.
 
@@ -172,33 +209,49 @@ to the corresponding path at the same index.
 """
 function save_us_county_level_timeseries(
     files::AbstractVector{CountyCovidTimeseriesFile};
-    fpath_confirmed::AbstractString = datadep"jhu-csse/time_series_covid19_confirmed_US.csv",
-    fpath_deaths::AbstractString = datadep"jhu-csse/time_series_covid19_deaths_US.csv",
-    recreate::Bool = false,
+    fpath_confirmed::AbstractString=datadep"jhu-csse/time_series_covid19_confirmed_US.csv",
+    fpath_deaths::AbstractString=datadep"jhu-csse/time_series_covid19_deaths_US.csv",
+    recreate::Bool=false,
 )
     if all(f -> isfile(f.path), files) && !recreate
         return nothing
     end
 
-    @info "Reading '$fpath_confirmed' and '$fpath_deaths'"
+    @info("Reading Covid-19 confirmed time series", fpath_confirmed)
     df_confirmed = CSV.read(fpath_confirmed, DataFrame)
+
+    @info("Reading Covid-19 deaths time series", fpath_deaths)
     df_deaths = CSV.read(fpath_deaths, DataFrame)
 
-    for f ∈ files
+    Threads.@threads for f in files
         if isfile(f.path) && !recreate
             continue
         end
+        # create containing folder if not exists
+        if !isdir(dirname(f.path))
+            mkpath(dirname(f.path))
+        end
 
-        @info "Generating '$(f.path)'"
-        df_combined =
-            combine_us_county_level_timeseries(df_confirmed, df_deaths, f.state, f.county)
-        save_dataframe(df_combined, f.path)
+        @info(
+            "Generating county's combined Covid-19 time series", f.path, f.state, f.county,
+        )
+        df_combined = combine_us_county_level_timeseries(
+            df_confirmed, df_deaths, f.state, f.county
+        )
+        CSV.write(f.path, df_combined)
     end
 
     return nothing
 end
 
 """
+    combine_us_county_level_timeseries(
+        df_confirmed::AbstractDataFrame,
+        df_deaths::AbstractDataFrame,
+        state_name::AbstractString,
+        county_name::AbstractString,
+    )
+
 Combine 2 separated timeseries from JHU-CSSE into 1 single dataframe for a specific US county
 
 # Arguments
@@ -215,36 +268,40 @@ function combine_us_county_level_timeseries(
     county_name::AbstractString,
 )
     # select rows associated with the country
-    filter_county(df::AbstractDataFrame) = subset(
-        df,
-        "Province_State" => x -> x .== state_name,
-        "Admin2" => x -> x .== county_name,
-        view = true,
-    )
+    function filter_county(df::AbstractDataFrame)
+        return subset(
+            df,
+            "Province_State" => x -> x .== state_name,
+            "Admin2" => x -> x .== county_name;
+            view=true,
+        )
+    end
     # drop unused columns
-    drop_cols(df::AbstractDataFrame) = select(
-        df,
-        Not([
-            "UID",
-            "iso2",
-            "iso3",
-            "code3",
-            "FIPS",
-            "Admin2",
-            "Country_Region",
-            "Province_State",
-            "Lat",
-            "Long_",
-            "Combined_Key",
-        ]),
-        copycols = false,
-    )
+    function drop_cols(df::AbstractDataFrame)
+        return select(
+            df,
+            Not([
+                "UID",
+                "iso2",
+                "iso3",
+                "code3",
+                "FIPS",
+                "Admin2",
+                "Country_Region",
+                "Province_State",
+                "Lat",
+                "Long_",
+                "Combined_Key",
+            ]);
+            copycols=false,
+        )
+    end
 
     # ignore counties with missing names
-    df_confirmed = dropmissing(df_confirmed, "Admin2", view = true)
-    df_deaths = dropmissing(df_deaths, "Admin2", view = true)
+    df_confirmed = dropmissing(df_confirmed, "Admin2"; view=true)
+    df_deaths = dropmissing(df_deaths, "Admin2"; view=true)
     # deaths dataframe has an extra population column
-    df_deaths = select(df_deaths, Not("Population"), copycols = false)
+    df_deaths = select(df_deaths, Not("Population"); copycols=false)
 
     df_confirmed = drop_cols(filter_county(df_confirmed))
     df_deaths = drop_cols(filter_county(df_deaths))
@@ -252,8 +309,8 @@ function combine_us_county_level_timeseries(
     # combine 2 separated dataframes into 1
     df_combined = innerjoin(
         stack_timeseries(df_confirmed, :confirmed_total),
-        stack_timeseries(df_deaths, :deaths_total),
-        on = :date,
+        stack_timeseries(df_deaths, :deaths_total);
+        on=:date,
     )
     df_combined[!, :date] .=
         Date.(df_combined[!, :date], dateformat"mm/dd/yyyy") .+ Year(2000)
@@ -262,6 +319,12 @@ function combine_us_county_level_timeseries(
 end
 
 """
+    get_us_county_population(
+        df_deaths::AbstractDataFrame,
+        state_name::AbstractString,
+        county_name::AbstractString,
+    )
+
 Read the county's population from JHU-CSSE deaths timeseries
 
 # Arguments
@@ -271,25 +334,26 @@ Read the county's population from JHU-CSSE deaths timeseries
 + `county_name`: the name of the county whose data is extracted
 """
 function get_us_county_population(
-    df_deaths::AbstractDataFrame,
-    state_name::AbstractString,
-    county_name::AbstractString,
+    df_deaths::AbstractDataFrame, state_name::AbstractString, county_name::AbstractString
 )
     # select rows associated with the country
-    filter_county(df::AbstractDataFrame) = subset(
-        df,
-        "Province_State" => x -> x .== state_name,
-        "Admin2" => x -> x .== county_name,
-        view = true,
-    )
-    df_deaths = dropmissing(df_deaths, "Admin2", view = true)
+    function filter_county(df::AbstractDataFrame)
+        return subset(
+            df,
+            "Province_State" => x -> x .== state_name,
+            "Admin2" => x -> x .== county_name;
+            view=true,
+        )
+    end
+    df_deaths = dropmissing(df_deaths, "Admin2"; view=true)
     return first(filter_county(df_deaths).Population)
 end
 
 function get_us_counties_timeseries_confirmed(df_confirmed_total::AbstractDataFrame)
-    get_new_count(xs::AbstractVector{<:Real}) =
-        [i == 1 ? xs[i] : xs[i] - xs[i-1] for i ∈ 1:length(xs)]
-    df = dropmissing(df_confirmed_total, :FIPS, view = true)
+    function get_new_count(xs::AbstractVector{<:Real})
+        return [i == 1 ? xs[i] : xs[i] - xs[i - 1] for i in 1:length(xs)]
+    end
+    df = dropmissing(df_confirmed_total, :FIPS; view=true)
     df = select(
         df,
         Not([
@@ -303,21 +367,23 @@ function get_us_counties_timeseries_confirmed(df_confirmed_total::AbstractDataFr
             "Lat",
             "Long_",
             "FIPS",
-        ]),
-        copycols = false,
+        ]);
+        copycols=false,
     )
-    df = stack(df, Not(:Combined_Key), variable_name = :date, view = true)
+    df = stack(df, Not(:Combined_Key); variable_name=:date, view=true)
     df = identity.(unstack(df, :date, :Combined_Key, :value))
     transform!(
         df,
         :date => x -> Date.(x, dateformat"mm/dd/yy") .+ Year(2000),
-        names(df, Not(:date)) .=> get_new_count,
-        renamecols = false,
+        names(df, Not(:date)) .=> get_new_count;
+        renamecols=false,
     )
     return df
 end
 
 """
+    get_us_counties_population(df_deaths::AbstractDataFrame)
+
 Read the county's population from JHU-CSSE deaths timeseries
 
 # Arguments
@@ -327,12 +393,18 @@ Read the county's population from JHU-CSSE deaths timeseries
 + `county_name`: the name of the county whose data is extracted
 """
 function get_us_counties_population(df_deaths::AbstractDataFrame)
-    df = dropmissing(df_deaths, :FIPS, view = true)
+    df = dropmissing(df_deaths, :FIPS; view=true)
     df = select(df, :FIPS => :ID_1, :Combined_Key => :NAME_1, :Population => :AVGPOPULATION)
     return df
 end
 
 """
+    save_us_counties_population(
+        fpath_output::AbstractString;
+        fpath_deaths::AbstractString = datadep"jhu-csse/time_series_covid19_deaths_US.csv",
+        recreate::Bool = false,
+    )
+
 Extract counties population data from JHU deaths time series
 
 # Arguments
@@ -341,20 +413,25 @@ Extract counties population data from JHU deaths time series
 + `recreate`: the existing file will be ovewritten if this is true
 """
 function save_us_counties_population(
-    fpath_output::AbstractString,
-    fpath_deaths::AbstractString = datadep"jhu-csse/time_series_covid19_deaths_US.csv",
-    recreate::Bool = false,
+    fpath_output::AbstractString;
+    fpath_deaths::AbstractString=datadep"jhu-csse/time_series_covid19_deaths_US.csv",
+    recreate::Bool=false,
 )
     if isfile(fpath_output) && !recreate
         return nothing
     end
+    if !isdir(dirname(fpath_output))
+        mkpath(dirname(fpath_output))
+    end
 
-    @info "Reading '$fpath_deaths'"
+    @info("Reading Covid-19 deaths time series", fpath_deaths)
     df_deaths = CSV.read(fpath_deaths, DataFrame)
 
-    @info "Generating '$fpath_output'"
+    @info("Generating counties average population dataset", fpath_output)
     df_population = get_us_counties_population(df_deaths)
-    save_dataframe(df_population, fpath_output)
+    CSV.write(fpath_output, df_population)
 
     return nothing
+end
+
 end

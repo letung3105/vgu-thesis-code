@@ -1,66 +1,44 @@
-# Activate the environment for running the script
-if isfile("Project.toml") && isfile("Manifest.toml")
-    import Pkg
-    Pkg.activate(".")
-end
+include("include/cmd.jl")
 
-include("experiments.jl")
-
-using OrdinaryDiffEq, DiffEqFlux
-using Covid19ModelVN
 using BenchmarkTools
 
-import DiffEqFlux.ForwardDiff
+let
+    models = [
+        ("baseline", get_baseline_hyperparams, setup_baseline),
+        ("fbmobility1", get_fbmobility1_hyperparams, setup_fbmobility1),
+        ("fbmobility2", get_fbmobility2_hyperparams, setup_fbmobility2),
+    ]
 
+    for (name, gethyperparams, setup) in models
+        @info("Benchmarking model", name)
 
-function benchmarks_compute_loss_gradient_with_different_sensealg_zygote(
-    experiment_name,
-    solver;
-    abstol = 1e-6,
-    reltol = 1e-6,
-)
-    @info "Solver = $solver | abstol = $abstol | reltol = $reltol"
+        parsed_args = parse_commandline([
+            name, "--locations=hcm", "--", "train_whole_trajectory"
+        ])
+        hyperparams = gethyperparams(parsed_args)
 
-    model, train_dataset, _, vars, _ = experiment_setup(experiment_name)
-    params = Covid19ModelVN.initial_params(model)
+        model, u0, p0, lossfn, train_dataset, _, vars, _ = setup(
+            parsed_args[:locations][1]; hyperparams...
+        )
+        prob = ODEProblem(model, u0, train_dataset.tspan)
+        predictor = Predictor(prob, vars)
 
-    benchmark_zygote_gradient = function (sensealg)
-        predictor = Predictor(model.problem, solver, sensealg, abstol, reltol, vars)
-        loss = Loss(rmse, predictor, train_dataset)
-        @info "Compute gradient with sensealg = ForwardDiffSensitivity()"
-        display(@benchmark Zygote.gradient($loss, $params))
+        loss1 = let
+            l = experiment_loss_sse(
+                vec(minimum(train_dataset.data; dims=2)),
+                vec(maximum(train_dataset.data; dims=2)),
+                hyperparams.loss_time_weighting,
+            )
+            Loss(l, predictor, train_dataset)
+        end
+        loss2 = let
+            l = experiment_loss_polar((0.5, 0.5), hyperparams.loss_time_weighting)
+            Loss(l, predictor, train_dataset)
+        end
+
+        display(@benchmark Zygote.gradient($loss1, $p0))
+        println()
+        display(@benchmark Zygote.gradient($loss2, $p0))
+        println()
     end
-
-    @info "Compute gradient with sensealg = ForwardDiffSensitivity()"
-    benchmark_zygote_gradient(ForwardDiffSensitivity())
-
-    @info "Compute gradient with sensealg = ForwardSensitivity()"
-    benchmark_zygote_gradient(ForwardSensitivity())
-
-    @info "Compute gradient with sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(false))"
-    benchmark_zygote_gradient(BacksolveAdjoint(autojacvec = ReverseDiffVJP(false)))
-
-    @info "Compute gradient with sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(false))"
-    benchmark_zygote_gradient(InterpolatingAdjoint(autojacvec = ReverseDiffVJP(false)))
-
-    @info "Compute gradient with sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true))"
-    benchmark_zygote_gradient(BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)))
-
-    @info "Compute gradient with sensealg = InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true))"
-    benchmark_zygote_gradient(InterpolatingAdjoint(autojacvec = ReverseDiffVJP(true)))
-
-    return nothing
 end
-
-benchmarks_compute_loss_gradient_with_different_sensealg_zygote(
-    "baseline.default.hcm",
-    Tsit5(),
-)
-benchmarks_compute_loss_gradient_with_different_sensealg_zygote(
-    "fbmobility1.default.hcm",
-    Tsit5(),
-)
-benchmarks_compute_loss_gradient_with_different_sensealg_zygote(
-    "fbmobility2.default.hcm",
-    Tsit5(),
-)

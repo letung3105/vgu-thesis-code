@@ -1,5 +1,7 @@
-using CSV, DataDeps, DataFrames, Covid19ModelVN
-import GeoDataFrames
+module PopulationData
+
+using CSV, DataDeps, DataFrames
+using GeoDataFrames: GeoDataFrames
 
 function __init__()
     register(
@@ -9,8 +11,8 @@ function __init__()
             Dataset: General Administrative Division Map
             Website: https://gadm.org
             """,
-            ["https://biogeo.ucdavis.edu/data/gadm2.8/gpkg/VNM_adm_gpkg.zip"],
-            post_fetch_method = unpack,
+            ["https://biogeo.ucdavis.edu/data/gadm2.8/gpkg/VNM_adm_gpkg.zip"];
+            post_fetch_method=unpack,
         ),
     )
     register(
@@ -39,8 +41,7 @@ that province.
 + `df_population`: the dataframe of the population data
 """
 function combine_vietnam_province_level_gadm_and_gso_population(
-    df_gadm::AbstractDataFrame,
-    df_population::AbstractDataFrame,
+    df_gadm::AbstractDataFrame, df_population::AbstractDataFrame
 )
     # remove rows of repeated provinces
     df_gadm = unique(df_gadm, :ID_1)
@@ -50,9 +51,8 @@ function combine_vietnam_province_level_gadm_and_gso_population(
         # remove double spaces in names
         "Cities, provincies" => (x -> join.(split.(x), " ")) => :VARNAME_1,
         # times 1000 because the original dataset unit is in "thousands people"
-        "2020 (*) Average population (Thous. pers.)" =>
-            (x -> 1000 .* x) => :AVGPOPULATION,
-        copycols = false,
+        "2020 (*) Average population (Thous. pers.)" => (x -> 1000 .* x) => :AVGPOPULATION;
+        copycols=false,
     )
 
     # remove all spaces in names and make them lowercase
@@ -73,7 +73,7 @@ function combine_vietnam_province_level_gadm_and_gso_population(
     )
 
     # get final table
-    df = innerjoin(df_gadm, df_population, on = :VARNAME_1)
+    df = innerjoin(df_gadm, df_population; on=:VARNAME_1)
     select!(df, [:ID_1, :NAME_1, :VARNAME_1, :AVGPOPULATION])
     return df
 end
@@ -89,22 +89,30 @@ Read and combine the data for Vietnam GADM level 1 and the population data for V
 """
 function save_vietnam_province_level_gadm_and_gso_population(
     fpath_output::AbstractString;
-    fpath_gadm::AbstractString = datadep"gadm2.8/VNM_adm.gpkg",
-    fpath_population::AbstractString = datadep"gso/vietnam-2020-average-population-by-province.csv",
-    recreate::Bool = false,
+    fpath_gadm::AbstractString=datadep"gadm2.8/VNM_adm.gpkg",
+    fpath_population::AbstractString=datadep"gso/vietnam-2020-average-population-by-province.csv",
+    recreate::Bool=false,
 )
     if isfile(fpath_output) && !recreate
         return nothing
     end
+    if !isdir(dirname(fpath_output))
+        mkpath(dirname(fpath_output))
+    end
 
-    @info "Reading '$fpath_gadm' and '$fpath_population'"
+    @info("Reading GADM dataset", fpath_gadm)
     df_gadm = GeoDataFrames.read(fpath_gadm, 1)
+
+    @info("Reading GSO population dataset", fpath_population)
     df_population = CSV.read(fpath_population, DataFrame)
 
-    @info "Generating '$fpath_output'"
-    df_combined =
-        combine_vietnam_province_level_gadm_and_gso_population(df_gadm, df_population)
-    save_dataframe(df_combined, fpath_output)
+    @info("Generating Vietnam population dataset with GADM identifiers", fpath_output)
+    df_combined = combine_vietnam_province_level_gadm_and_gso_population(
+        df_gadm, df_population
+    )
+    CSV.write(fpath_output, df_combined)
 
     return nothing
+end
+
 end
