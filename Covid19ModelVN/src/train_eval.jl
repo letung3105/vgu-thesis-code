@@ -730,34 +730,33 @@ effecitve reproduction number
 * `sep`: value at which the data is splitted for training and testing
 """
 function plot_Re(Re::AbstractVector{R}, sep::R) where {R<:Real}
-    fig = Figure()
-    ax = Axis(fig[2, 1]; xlabel="Days since the 500th confirmed case")
-    vln = vlines!(ax, [sep]; color=:black, linestyle=:dash)
-    ln = lines!(ax, Re; color=:red, linewidth=3)
-    Legend(
-        fig[1, 1],
-        [vln, ln],
-        ["last training day", "effective reproduction number"];
-        orientation=:horizontal,
-        tellwidth=false,
-        tellheight=true,
+    fig = Figure(; resolution=(400, 400))
+    ax = Axis(
+        fig[1, 1];
+        xlabel="Days since the 500th confirmed case",
+        ylabel="Effective reproduction number",
     )
+    vlines!(ax, [sep]; color=:black, linestyle=:dash)
+    hlines!(
+        ax,
+        [1];
+        color=:green,
+        linestyle=:dash,
+        linewidth=3,
+        label="threshold",
+    )
+    lines!(ax, Re; color=:black, linewidth=3)
+    axislegend(ax; position=:rt, bgcolor=(:white, 0.7))
     return fig
 end
 
 function plot_fatality_rate(αt::AbstractVector{R}, sep::R) where {R<:Real}
-    fig = Figure()
-    ax = Axis(fig[2, 1]; xlabel="Days since the 500th confirmed case")
-    vln = vlines!(ax, [sep]; color=:black, linestyle=:dash)
-    ln = lines!(ax, αt; color=:red, linewidth=3)
-    Legend(
-        fig[1, 1],
-        [vln, ln],
-        ["last training day", "fatality rate"];
-        orientation=:horizontal,
-        tellwidth=false,
-        tellheight=true,
+    fig = Figure(; resolution=(400, 400))
+    ax = Axis(
+        fig[1, 1]; xlabel="Days since the 500th confirmed case", ylabel="Fatality rate (%)"
     )
+    vlines!(ax, [sep]; color=:black, linestyle=:dash)
+    lines!(ax, αt; color=:red, linewidth=3)
     return fig
 end
 

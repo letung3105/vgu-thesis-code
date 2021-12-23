@@ -366,30 +366,26 @@ function experiment_eval(
         if datatype == "losses"
             train_losses, test_losses = Serialization.deserialize(fpath)
             fig_losses = plot_losses(train_losses, test_losses)
-            fpath_losses = joinpath(snapshots_dir, "$dataname.losses.png")
+            fpath_losses = joinpath(snapshots_dir, "$dataname.losses.pdf")
             @info("Generating losses plot", fpath_losses)
             save(fpath_losses, fig_losses)
 
         elseif datatype == "params"
             minimizer = Serialization.deserialize(fpath)
             fit = Array(predictor(minimizer, train_dataset.tspan, train_dataset.tsteps))
-            df_fit = DataFrame(fit',  eval_config.labels)
             pred = Array(predictor(minimizer, test_dataset.tspan, test_dataset.tsteps))
-            df_pred = DataFrame(pred',  eval_config.labels)
+            df_fit = DataFrame(fit', eval_config.labels)
+            df_pred = DataFrame(pred', eval_config.labels)
             fpath_fit = joinpath(snapshots_dir, "$dataname.fit.csv")
             fpath_pred = joinpath(snapshots_dir, "$dataname.predictions.csv")
-            @info(
-                "Generating final fit and predictions",
-                fpath_fit,
-                fpath_pred,
-            )
+            @info("Generating final fit and predictions", fpath_fit, fpath_pred,)
             save_dataframe(df_fit, fpath_fit)
             save_dataframe(df_pred, fpath_pred)
 
             fig_forecasts, df_errors, df_time_steps_errors = evaluate_model(
                 eval_config, predictor, minimizer, train_dataset, test_dataset
             )
-            fpath_forecasts = joinpath(snapshots_dir, "$dataname.forecasts.png")
+            fpath_forecasts = joinpath(snapshots_dir, "$dataname.forecasts.pdf")
             fpath_errors = joinpath(snapshots_dir, "$dataname.errors.csv")
             fpath_time_steps_errors = joinpath(
                 snapshots_dir, "$dataname.time_steps_errors.csv"
@@ -406,10 +402,14 @@ function experiment_eval(
 
             Re1 = Re(model, u0, minimizer, train_dataset.tspan, train_dataset.tsteps)
             Re2 = Re(model, u0, minimizer, test_dataset.tspan, test_dataset.tsteps)
-            fig_Re = plot_Re([Re1; Re2], train_dataset.tspan[2])
-            fpath_Re = joinpath(snapshots_dir, "$dataname.R_effective.png")
-            @info("Generating effective reproduction number plot", fpath_Re)
-            save(fpath_Re, fig_Re)
+            Re_ = [Re1; Re2]
+            df_Re = DataFrame([Re_], ["Re"])
+            fig_Re = plot_Re(Re_, train_dataset.tspan[2])
+            fpath_Re = joinpath(snapshots_dir, "$dataname.R_effective.csv")
+            fpath_Re_fig = joinpath(snapshots_dir, "$dataname.R_effective.pdf")
+            @info("Generating effective reproduction number plot", fpath_Re, fpath_Re_fig)
+            save_dataframe(df_Re, fpath_Re)
+            save(fpath_Re_fig, fig_Re)
 
             # the fatality rate in this model changes over time
             αt1 = fatality_rate(
@@ -418,10 +418,14 @@ function experiment_eval(
             αt2 = fatality_rate(
                 model, u0, minimizer, test_dataset.tspan, test_dataset.tsteps
             )
-            fig_αt = plot_fatality_rate([αt1; αt2], train_dataset.tspan[2])
-            fpath_αt = joinpath(snapshots_dir, "$dataname.fatality_rate.png")
-            @info("Generating effective fatality rate plot", fpath_αt)
-            save(fpath_αt, fig_αt)
+            αt = [αt1; αt2]
+            df_αt = DataFrame([αt], ["αt"])
+            fig_αt = plot_fatality_rate(αt, train_dataset.tspan[2])
+            fpath_αt = joinpath(snapshots_dir, "$dataname.fatality_rate.csv")
+            fpath_αt_fig = joinpath(snapshots_dir, "$dataname.fatality_rate.pdf")
+            @info("Generating effective fatality rate plot", fpath_αt, fpath_αt_fig)
+            save_dataframe(df_αt, fpath_αt)
+            save(fpath_αt_fig, fig_αt)
 
         elseif datatype == "forecasts"
             fit, pred = Serialization.deserialize(fpath)
