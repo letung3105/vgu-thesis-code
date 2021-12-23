@@ -5,11 +5,12 @@ using OrdinaryDiffEq.EnsembleAnalysis
 include("include/experiments.jl")
 
 let
-    loc = "cook_il"
-    train_dataset, test_dataset, first_date, last_date = experiment_covid19_data(
+    loc = "dongnai"
+    conf, first_date, split_date, last_date = experiment_covid19_data(
         loc, Day(32), Day(28)
     )
-    u0, vars, labels = experiment_SEIRD_initial_states(loc, train_dataset.data[:, 1])
+    train_dataset, test_dataset = train_test_split(conf, first_date, split_date, last_date);
+    u0, vars, labels = experiment_SEIRD_initial_states(loc, conf.df)
 
     βdist = Uniform(0.0, 0.37)
     γdist = truncated(Normal(1 / 3), 1 / 5, 1 / 2)
