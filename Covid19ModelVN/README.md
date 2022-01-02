@@ -10,7 +10,7 @@ To install the Julia interpreter, visit the [download page](https://julialang.or
 Once the interpreter has been installed, change directory to the `Covid19ModelVN` folder and run the following script in a terminal to install the required third-party dependencies.
 
 ```bash
-$ julia --project --eval "import Pkg; Pkg.instantiate()"
+julia --project --eval "import Pkg; Pkg.instantiate()"
 ```
 
 ## Project structure
@@ -44,13 +44,13 @@ $ julia --project --eval "import Pkg; Pkg.instantiate()"
 As an end user, you will be running the script located at `src/scripts/app.jl` to train and evaluate the model with data for different locations.
 Currently, the model can only be trained with data for predefined locations that were considered in the thesis.
 Running the script required the settings of various parameters for the model and for the training procedure.
-To get a list of available options, run the following script in a terminal:
+To get a list of available options, run the following in a terminal:
 
 ```bash
-$ julia --project src/scripts/app.jl -- --help
+julia --project src/scripts/app.jl --help
 ```
 
-which will printed
+which will print a list of possible commands and arguments
 
 ```plaintext
 usage: app.jl [--locations [LOCATIONS...]]
@@ -154,24 +154,25 @@ optional arguments:
 Command-line arguments given to the script can be specified after the double dashes `--`, for example, this command runs an experiment with the settings that we presented in the thesis:
 
 ```bash
-$ julia --project src/scripts/app.jl --
-  --beta_bounds 0.05 1.67
-  --train_days 48
-  --loss_regularization 0.00001
-  --loss_time_weighting -0.001
-  --locations dongnai
-  --savedir testsnapshots/batch48days
-  --multithreading fbmobility2
-  train_growing_trajectory_two_stages
-  --lr 0.05
-  --lr_limit 0.00001
-  --lr_decay_rate 0.5
-  --lr_decay_step 1000
-  --maxiters_initial 1000
-  --maxiters_growth 0
-  --maxiters_second 1000
-  --tspan_size_initial 4
-  --tspan_size_growth 4
+julia --project src/scripts/app.jl \
+    --beta_bounds 0.05 1.67 \
+    --train_days 48 \
+    --loss_regularization 0.00001 \
+    --loss_time_weighting -0.001 \
+    --locations dongnai \
+    --savedir testsnapshots/batch48days \
+    --show_progress \
+    fbmobility2 \
+    train_growing_trajectory_two_stages \
+    --lr 0.05 \
+    --lr_limit 0.00001 \
+    --lr_decay_rate 0.5 \
+    --lr_decay_step 1000 \
+    --maxiters_initial 1000 \
+    --maxiters_growth 0 \
+    --maxiters_second 1000 \
+    --tspan_size_initial 4 \
+    --tspan_size_growth 4
 ```
 
 To see the helper message without having to run the script, visit `src/scripts/include/cmd.jl`.
