@@ -537,7 +537,7 @@ function experiment_run(
     end
 
     for (uuid, setup, forecast_horizons, snapshots_dir) in queue_eval
-        experiment_eval(uuid, setup, forecast_horizons, snapshots_dir)
+        experiment_eval(setup, forecast_horizons, snapshots_dir)
         @info("Finish evaluation", uuid)
     end
 
