@@ -151,7 +151,7 @@ optional arguments:
   -h, --help            show this help message and exit
 ```
 
-Command-line arguments given to the script can be specified after the double dashes `--`, for example, this command runs an experiment with the settings that we presented in the thesis:
+For example, this command runs an experiment with the settings that we presented in the thesis:
 
 ```bash
 julia --project src/scripts/app.jl \
