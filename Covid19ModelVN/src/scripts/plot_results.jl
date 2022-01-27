@@ -1,5 +1,8 @@
+include("include/cmd.jl")
+
 using CSV: CSV
 using CairoMakie
+import Covid19ModelVN
 
 function plot_outputs_combined(
     dir, uuids, locs, labels, plot_type; train_range=Day(48), forecast_range=Day(28)
